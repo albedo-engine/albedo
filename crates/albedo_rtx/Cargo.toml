@@ -1,0 +1,12 @@
+[package]
+name = "albedo_rtx"
+version = "0.0.1"
+edition = "2018"
+authors = ["David Peicho <david.peicho@gmail.com>"]
+description = "Provides raytracing capabilities"
+repository = "https://github.com/albedo-engine/albedo"
+license = "MIT"
+keywords = ["raytracing", "graphics" ]
+
+[dependencies]
+wgpu = "0.6.2"
