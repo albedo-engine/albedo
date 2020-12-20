@@ -1,13 +1,20 @@
+mod sah_bvh_builder;
+
+use glam::Vec3;
 use albedo_math::AABB;
 use crate::Mesh;
 
+pub use sah_bvh_builder::SAHBuilder;
+
 // @todo: make generic
-enum BVHNode {
+pub enum BVHNode {
     Leaf {
+        aabb: AABB,
+        center: Vec3,
         primitive_index: u32,
     },
     Node {
-        bounds: AABB,
+        aabb: AABB,
         left_child: u32,
         right_child: u32,
         forest_size: u32,
@@ -16,21 +23,23 @@ enum BVHNode {
 
 impl BVHNode {
 
-    fn new() -> BVHNode {
-        BVHNode {
-            left_child: std::u32::MAX,
-            right_child: std::u32::MAX,
-            forest_size: std::u32::MAX,
+    pub fn make_leaf(aabb: AABB, primitive_index: u32) -> BVHNode {
+        BVHNode::Leaf {
+            aabb,
+            primitive_index,
+            center: aabb.center()
         }
     }
 
 }
+
 pub struct BVH {
     pub nodes: Vec<BVHNode>,
 }
 
-pub trait BVHBuilder {
+pub trait BVHBuilder<T: Mesh> {
 
-    fn build(&mesh: Mesh) -> BVH;
+    // @todo: create custom Error type.
+    fn build(mesh: &T) -> Result<BVH, &'static str>;
 
 }
