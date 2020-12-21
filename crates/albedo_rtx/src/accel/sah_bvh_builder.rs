@@ -1,9 +1,18 @@
 use glam::Vec3;
-use albedo_math::AABB;
+use albedo_math::{AABB, clamp};
 
 use crate::Mesh;
 use crate::accel::{BVH, BVHNode, BVHBuilder};
-pub struct SAHBuilder {}
+
+struct SAHBin {
+    aabb: AABB,
+    primitives_count: u32,
+    right_cost: f32,
+}
+// @todo: allow to change bin size with const generics?
+pub struct SAHBuilder {
+    _bins: [ SAHBin; 8 ]
+}
 
 impl<T: Mesh> BVHBuilder<T> for SAHBuilder {
 
@@ -39,4 +48,121 @@ impl<T: Mesh> BVHBuilder<T> for SAHBuilder {
 
 }
 
+fn rec_build(
+    nodes: &mut Vec<BVHNode>,
+    bins: &mut [ SAHBin ],
+    start: usize,
+    end: usize
+) -> usize {
+    if end - start <= 1 {
+        return start;
+    }
 
+    let aabb = AABB::make_empty();
+    let centroids = AABB::make_empty();
+    for i in start..end
+    {
+        let node = &nodes[i];
+        aabb.join_mut(node.aabb());
+        // @todo: cache center computation.
+        centroids.expand_mut(&node.aabb().center());
+    }
+
+    // The split is based on the largest dimension.
+    let split_axis = centroids.maximum_extent();
+    let split_axis_len = centroids.max[split_axis] - centroids.min[split_axis];
+
+    //
+    // Step 1: initializes every bin computing, for each triangle, its associated
+    // bin. Each bin bounding box and number of primitives is updated.
+    //
+
+    for bin in bins {
+        bin.primitives_count = 0;
+        bin.aabb = AABB::make_empty();
+    }
+
+    for i in start..end
+    {
+        let node = &nodes[i];
+        // @todo: cache center computation.
+        let center_on_axis = node.aabb().center()[split_axis];
+        let bin_index = get_bin_index(
+            center_on_axis,
+            centroids.min[split_axis],
+            split_axis_len
+        );
+        let bin = &mut bins[bin_index];
+        bin.primitives_count += 1;
+        bin.aabb.join_mut(node.aabb());
+    }
+
+    let split_index = find_best_split(bins);
+
+    0
+}
+
+fn find_best_split(bins: &mut [SAHBin]) -> usize {
+    // @todo: use const generics to take bin count into account.
+    const BIN_COUNT: usize = 8;
+
+    let aabb = AABB::make_empty();
+    let primitives_count = 0;
+
+    //
+    // Step 1: save the cost of splitting starting from the right side.
+    // the cost is directly stored into the bin. By doing so, we can save one
+    // stack allocation.
+    //
+
+    for i in (1..=(BIN_COUNT - 1)).rev() {
+        let bin = &bins[i];
+        aabb.join_mut(&bin.aabb);
+        primitives_count += bin.primitives_count;
+        bin.right_cost = (primitives_count as f32) * aabb.surface_area();
+    }
+
+    //
+    // Step 2: compute the cost of splitting from the left side.
+    //
+    // Compute the overall left + right side cost at each bin, and save the
+    // lowest overall cost.
+    //
+
+    primitives_count = 0;
+    aabb = AABB::make_empty();
+
+    let split_index = 0;
+    let mut min_cost = f32::INFINITY;
+
+    for i in 0..(BIN_COUNT - 1)
+    {
+        let bin = &bins[i];
+        aabb.join_mut(&bin.aabb);
+        primitives_count += bin.primitives_count;
+        // SAH theory states that the cost is relative to the probability of
+        // intersecting the sub area. However, we are simply comparing the cost,
+        // so the division can be skipped.
+        let cost =
+            ((primitives_count as f32) * aabb.surface_area())
+            + bins[i + 1].right_cost;
+        if cost < min_cost
+        {
+            min_cost = cost;
+            split_index = i + 1;
+        }
+    }
+    split_index
+}
+
+fn get_bin_index(
+    split_axis_aabb_center: f32,
+    split_axis_centroids_min: f32,
+    split_axis_len: f32
+) -> usize {
+    let normalized = (
+        split_axis_aabb_center - split_axis_centroids_min
+    ) / split_axis_len;
+    // @todo: use const generics to take bin count into account.
+    clamp((normalized * 7.0) as usize, 0, 7)
+}

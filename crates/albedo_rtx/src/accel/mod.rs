@@ -10,7 +10,6 @@ pub use sah_bvh_builder::SAHBuilder;
 pub enum BVHNode {
     Leaf {
         aabb: AABB,
-        center: Vec3,
         primitive_index: u32,
     },
     Node {
@@ -28,6 +27,13 @@ impl BVHNode {
             aabb,
             primitive_index,
             center: aabb.center()
+        }
+    }
+
+    pub fn aabb<'a>(&'a self) -> &'a AABB {
+        match *self {
+            BVHNode::Leaf{ ref aabb, .. } => &aabb,
+            BVHNode::Node{ ref aabb, .. } => &aabb,
         }
     }
 
