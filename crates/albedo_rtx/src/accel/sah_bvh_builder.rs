@@ -1,8 +1,8 @@
+use albedo_math::{clamp, AABB};
 use glam::Vec3;
-use albedo_math::{AABB, clamp};
 
+use crate::accel::{BVHBuilder, BVHNode, BVH};
 use crate::Mesh;
-use crate::accel::{BVH, BVHNode, BVHBuilder};
 #[derive(Default, Copy, Clone)]
 struct SAHBin {
     aabb: AABB,
@@ -11,25 +11,24 @@ struct SAHBin {
 }
 // @todo: allow to change bin size with const generics?
 pub struct SAHBuilder {
-    _bins: [ SAHBin; 8 ]
+    _bins: [SAHBin; 8],
 }
 
 impl SAHBuilder {
     pub fn new() -> SAHBuilder {
         SAHBuilder {
-            _bins: [ SAHBin::default(); 8 ],
+            _bins: [SAHBin::default(); 8],
         }
     }
 }
 
 impl<T: Mesh> BVHBuilder<T> for SAHBuilder {
-
     fn build(&mut self, mesh: &T) -> Result<BVH, &'static str> {
         let indices = mesh.get_indices();
         let nb_triangles = indices.len() / 3;
         if nb_triangles == 0 {
             return Ok(BVH {
-                nodes: Vec::with_capacity(0)
+                nodes: Vec::with_capacity(0),
             });
         }
 
@@ -52,27 +51,18 @@ impl<T: Mesh> BVHBuilder<T> for SAHBuilder {
 
         rec_build(&mut nodes, &mut self._bins, 0, nodes_count);
 
-        Ok(BVH {
-            nodes
-        })
+        Ok(BVH { nodes })
     }
-
 }
 
-fn rec_build(
-    nodes: &mut Vec<BVHNode>,
-    bins: &mut [ SAHBin ],
-    start: usize,
-    end: usize
-) -> usize {
+fn rec_build(nodes: &mut Vec<BVHNode>, bins: &mut [SAHBin], start: usize, end: usize) -> usize {
     if end - start <= 1 {
         return start;
     }
 
     let mut aabb = AABB::make_empty();
     let mut centroids = AABB::make_empty();
-    for i in start..end
-    {
+    for i in start..end {
         let node = &nodes[i];
         aabb.join_mut(node.aabb());
         // @todo: cache center computation.
@@ -97,16 +87,11 @@ fn rec_build(
         bin.aabb = AABB::make_empty();
     }
 
-    for i in start..end
-    {
+    for i in start..end {
         let node = &nodes[i];
         // @todo: cache center computation.
         let center_on_axis = node.aabb().center()[split_axis];
-        let bin_index = get_bin_index(
-            center_on_axis,
-            centroids.min[split_axis],
-            split_axis_len
-        );
+        let bin_index = get_bin_index(center_on_axis, centroids.min[split_axis], split_axis_len);
         let bin = &mut bins[bin_index];
         bin.primitives_count += 1;
         bin.aabb.join_mut(node.aabb());
@@ -130,19 +115,17 @@ fn rec_build(
     let right_surface_area = nodes[right_child_index].aabb().surface_area();
     let right_forest_size = nodes[right_child_index].forest_size();
 
-    if let BVHNode::Node{
+    if let BVHNode::Node {
         ref mut forest_size,
         ref mut left_child,
         ref mut right_child,
         ..
-    } = nodes[curr_node_index] {
-        *forest_size +=
-            1 + left_forest_size
-            + 1 + right_forest_size;
+    } = nodes[curr_node_index]
+    {
+        *forest_size += 1 + left_forest_size + 1 + right_forest_size;
         *left_child = left_child_index as u32;
         *right_child = right_child_index as u32;
-        if right_surface_area > left_surface_area
-        {
+        if right_surface_area > left_surface_area {
             *left_child = right_child_index as u32;
             *right_child = left_child_index as u32;
         }
@@ -184,19 +167,15 @@ fn find_best_split(bins: &mut [SAHBin]) -> usize {
     let mut split_index = 0;
     let mut min_cost = f32::INFINITY;
 
-    for i in 0..(BIN_COUNT - 1)
-    {
+    for i in 0..(BIN_COUNT - 1) {
         let bin = &bins[i];
         aabb.join_mut(&bin.aabb);
         primitives_count += bin.primitives_count;
         // SAH theory states that the cost is relative to the probability of
         // intersecting the sub area. However, we are simply comparing the cost,
         // so the division can be skipped.
-        let cost =
-            ((primitives_count as f32) * aabb.surface_area())
-            + bins[i + 1].right_cost;
-        if cost < min_cost
-        {
+        let cost = ((primitives_count as f32) * aabb.surface_area()) + bins[i + 1].right_cost;
+        if cost < min_cost {
             min_cost = cost;
             split_index = i + 1;
         }
@@ -208,17 +187,17 @@ fn find_best_split(bins: &mut [SAHBin]) -> usize {
 fn get_bin_index(
     split_axis_aabb_center: f32,
     split_axis_centroids_min: f32,
-    split_axis_len: f32
+    split_axis_len: f32,
 ) -> usize {
-    let normalized = (
-        split_axis_aabb_center - split_axis_centroids_min
-    ) / split_axis_len;
+    let normalized = (split_axis_aabb_center - split_axis_centroids_min) / split_axis_len;
     // @todo: use const generics to take bin count into account.
     clamp((normalized * 7.0) as usize, 0, 7)
 }
 
 fn partition<T, P>(arr: &mut [T], p: P) -> usize
-where P: Fn(&T) -> bool {
+where
+    P: Fn(&T) -> bool,
+{
     let mut last_index = 0;
     for i in 0..arr.len() {
         if p(&arr[i]) {

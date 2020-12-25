@@ -1,7 +1,7 @@
+use crate::{Axis3D, Size3D};
+use glam::Vec3;
 use std::f32;
 use std::fmt;
-use glam::Vec3;
-use crate::{Axis3D, Size3D};
 #[derive(Debug, Copy, Clone)]
 pub struct AABB {
     pub min: Vec3,
@@ -9,7 +9,6 @@ pub struct AABB {
 }
 
 impl AABB {
-
     pub fn from_points(min: Vec3, max: Vec3) -> AABB {
         AABB { min, max }
     }
@@ -36,7 +35,7 @@ impl AABB {
     pub fn expand(&self, point: &Vec3) -> AABB {
         AABB {
             min: self.min.min(*point),
-            max: self.max.max(*point)
+            max: self.max.max(*point),
         }
     }
 
@@ -63,7 +62,7 @@ impl AABB {
         Size3D {
             x: span.x,
             y: span.y,
-            z: span.z
+            z: span.z,
         }
     }
 
@@ -81,15 +80,12 @@ impl AABB {
     pub fn is_empty(&self) -> bool {
         self.max.x < self.min.x || self.max.y < self.min.y || self.max.z < self.min.z
     }
-
 }
 
 impl Default for AABB {
-
     fn default() -> Self {
         AABB::make_empty()
     }
-
 }
 
 impl fmt::Display for AABB {

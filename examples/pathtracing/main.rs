@@ -1,6 +1,4 @@
-use albedo_rtx::accel::{
-    SAHBuilder
-};
+use albedo_rtx::accel::SAHBuilder;
 
 fn main() {
     let mut builder = SAHBuilder::new();

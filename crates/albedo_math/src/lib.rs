@@ -1,9 +1,9 @@
 mod aabb;
 
-use std::ops::{Index, IndexMut};
 use glam::Vec3;
+use std::ops::{Index, IndexMut};
 
-pub use aabb::{AABB};
+pub use aabb::AABB;
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Size3D {
     pub x: f32,
@@ -14,7 +14,7 @@ pub struct Size3D {
 pub enum Axis3D {
     X = 0,
     Y = 1,
-    Z = 2
+    Z = 2,
 }
 
 impl Index<Axis3D> for Vec3 {
