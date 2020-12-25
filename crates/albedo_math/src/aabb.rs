@@ -84,6 +84,14 @@ impl AABB {
 
 }
 
+impl Default for AABB {
+
+    fn default() -> Self {
+        AABB::make_empty()
+    }
+
+}
+
 impl fmt::Display for AABB {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Minimun: {}; Maximum: {}", self.min, self.max)

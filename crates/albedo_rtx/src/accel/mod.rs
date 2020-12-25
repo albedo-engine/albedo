@@ -25,8 +25,16 @@ impl BVHNode {
     pub fn make_leaf(aabb: AABB, primitive_index: u32) -> BVHNode {
         BVHNode::Leaf {
             aabb,
-            primitive_index,
-            center: aabb.center()
+            primitive_index
+        }
+    }
+
+    pub fn make_node(aabb: AABB) -> BVHNode {
+        BVHNode::Node {
+            aabb,
+            left_child: u32::MAX,
+            right_child: u32::MAX,
+            forest_size: 0
         }
     }
 
@@ -34,6 +42,13 @@ impl BVHNode {
         match *self {
             BVHNode::Leaf{ ref aabb, .. } => &aabb,
             BVHNode::Node{ ref aabb, .. } => &aabb,
+        }
+    }
+
+    pub fn forest_size(&self) -> u32 {
+        match *self {
+            BVHNode::Leaf{..} => 0,
+            BVHNode::Node{ forest_size, .. } => forest_size,
         }
     }
 
@@ -46,6 +61,6 @@ pub struct BVH {
 pub trait BVHBuilder<T: Mesh> {
 
     // @todo: create custom Error type.
-    fn build(mesh: &T) -> Result<BVH, &'static str>;
+    fn build(&mut self, mesh: &T) -> Result<BVH, &'static str>;
 
 }
