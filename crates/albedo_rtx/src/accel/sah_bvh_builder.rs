@@ -2,7 +2,9 @@ use albedo_math::{clamp, AABB};
 use glam::Vec3;
 
 use crate::accel::{BVHBuilder, BVHNode, BVH};
-use crate::Mesh;
+use crate::mesh::Mesh;
+
+use super::bvh::FlatBVH;
 #[derive(Default, Copy, Clone)]
 struct SAHBin {
     aabb: AABB,
@@ -27,9 +29,7 @@ impl<T: Mesh> BVHBuilder<T> for SAHBuilder {
         let indices = mesh.get_indices();
         let nb_triangles = indices.len() / 3;
         if nb_triangles == 0 {
-            return Ok(BVH {
-                nodes: Vec::with_capacity(0),
-            });
+            return Err("todo");
         }
 
         let nodes_count = 2 * nb_triangles - 1;
@@ -49,9 +49,9 @@ impl<T: Mesh> BVHBuilder<T> for SAHBuilder {
             nodes.push(BVHNode::make_leaf(aabb, i as u32));
         }
 
-        rec_build(&mut nodes, &mut self._bins, 0, nodes_count);
+        let root = rec_build(&mut nodes, &mut self._bins, 0, nodes_count);
 
-        Ok(BVH { nodes })
+        Ok(BVH::new(nodes, nb_triangles, root))
     }
 }
 

@@ -16,6 +16,9 @@ members = ["crates/*"]
 [dependencies]
 albedo_rtx = { path = "crates/albedo_rtx", version = "0.0.1" }
 
+[dev-dependencies]
+gltf = "0.15.2"
+
 [[example]]
 name = "pathtracing"
 path = "examples/pathtracing/main.rs"

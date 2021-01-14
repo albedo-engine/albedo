@@ -1,7 +1,7 @@
 mod aabb;
 
 use glam::Vec3;
-use std::ops::{Index, IndexMut};
+use std::ops::Index;
 
 pub use aabb::AABB;
 #[derive(Debug, Copy, Clone, PartialEq)]
