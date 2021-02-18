@@ -1,3 +1,6 @@
+use albedo_math::AABB;
+use crate::mesh::Mesh;
+
 // @todo: alias std::u32::MAX with "InvalidValue" for semantic.
 // @todo: make generic
 pub enum BVHNode {
@@ -100,28 +103,29 @@ impl BVH {
     }
 
     pub(crate) fn new(nodes: Vec<BVHNode>, primitives_count: usize, root: usize) -> BVH {
+        let count = nodes.len();
         BVH {
             nodes,
             primitives_count,
             root,
             flat: FlatBVH {
-                nodes: Vec::with_capacity(nodes.len()),
+                nodes: Vec::with_capacity(count),
             },
         }
     }
 
     pub fn flatten(&mut self) {
-        self.flat._nodes.clear();
-        self.flat._nodes.reserve_exact(self.nodes.len());
-        flatten_bvh_rec(self.flat.nodes, self.nodes, self._root, std::u32::MAX);
+        self.flat.nodes.clear();
+        self.flat.nodes.reserve_exact(self.nodes.len());
+        flatten_bvh_rec(&mut self.flat.nodes, &self.nodes, self.root as u32, std::u32::MAX);
     }
 
     pub fn primitives_count(&self) -> usize {
-        self._primitives_count
+        self.primitives_count
     }
 
     pub fn root(&self) -> usize {
-        self._root
+        self.root
     }
 }
 
@@ -136,34 +140,35 @@ fn flatten_bvh_rec(
     inputIndex: u32,
     missIndex: u32,
 ) {
-    let node = &bvh.nodes[inputIndex];
+    let node = &nodes[inputIndex as usize];
     out.push(BVHNodeGPU {
-        min: node.aabb.min,
-        max: node.aabb.max,
+        min: node.aabb().min.into(),
+        max: node.aabb().max.into(),
         next_node_index: missIndex,
         primitive_index: node.primitive_index(),
     });
 
-    let curr_count = nodes.len();
+    // @todo: check that no overflow occurs
+    let curr_count = nodes.len() as u32;
 
     if let BVHNode::Node {
-        ref mut forest_size,
-        ref mut left_child,
-        ref mut right_child,
+        forest_size,
+        left_child,
+        right_child,
         ..
     } = node
     {
-        if left_child != std::u32::MAX {
-            let left_node = &nodes[left_child];
-            if right_child != std::u32::MAX {
+        if *left_child != std::u32::MAX {
+            let left_node = &nodes[*left_child as usize];
+            if *right_child != std::u32::MAX {
                 let miss_idx = left_node.forest_size() + curr_count + 1;
-                flatten_bvh_rec(out, nodes, left_child, miss_idx);
+                flatten_bvh_rec(out, nodes, *left_child, miss_idx);
             } else {
-                flatten_bvh_rec(out, nodes, left_child, missIndex);
+                flatten_bvh_rec(out, nodes, *left_child, missIndex);
             }
         }
-        if right_child != std::u32::MAX {
-            flatten_bvh_rec(out, nodes, right_child, missIndex);
+        if *right_child != std::u32::MAX {
+            flatten_bvh_rec(out, nodes, *right_child as u32, missIndex);
         }
     }
 }

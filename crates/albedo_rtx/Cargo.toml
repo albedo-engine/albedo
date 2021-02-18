@@ -10,5 +10,5 @@ keywords = ["raytracing", "graphics" ]
 
 [dependencies]
 glam = "0.11.2"
-wgpu = "0.6.2"
+wgpu = "0.7.0"
 albedo_math = { path = "../albedo_math", version = "0.0.1" }

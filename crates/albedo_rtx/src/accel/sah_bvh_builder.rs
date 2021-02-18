@@ -4,7 +4,6 @@ use glam::Vec3;
 use crate::accel::{BVHBuilder, BVHNode, BVH};
 use crate::mesh::Mesh;
 
-use super::bvh::FlatBVH;
 #[derive(Default, Copy, Clone)]
 struct SAHBin {
     aabb: AABB,
@@ -26,8 +25,9 @@ impl SAHBuilder {
 
 impl<T: Mesh> BVHBuilder<T> for SAHBuilder {
     fn build(&mut self, mesh: &T) -> Result<BVH, &'static str> {
-        let indices = mesh.get_indices();
-        let nb_triangles = indices.len() / 3;
+        // @todo: support for quads.
+        // @todo: support for u8 and u32.
+        let nb_triangles = mesh.iter_indices_u16().count() / 3;
         if nb_triangles == 0 {
             return Err("todo");
         }
@@ -37,15 +37,20 @@ impl<T: Mesh> BVHBuilder<T> for SAHBuilder {
 
         // @todo: this assumes model is triangulated. Fix that.
         // Creates all leaf nodes.
-        for i in (0..indices.len()).step_by(3) {
-            let v0_pos = mesh.get_position(indices[i]).unwrap();
-            let v1_pos = mesh.get_position(indices[i + 1]).unwrap();
-            let v2_pos = mesh.get_position(indices[i + 2]).unwrap();
+        let indices = mesh.iter_indices_u16();
+        let positions = mesh.iter_positions();
+        for i in indices.into_iter() {
+            let start = i * 3;
+            let i0 = 
+            positions.step_by()
+            let v0_pos = positions.nth(indices.nth(start).unwrap() as usize).unwrap();
+            let v1_pos = positions.nth(indices.nth(start + 1).unwrap() as usize).unwrap();
+            let v2_pos = positions.nth(indices.nth(start + 2).unwrap() as usize).unwrap();
 
             let mut aabb = AABB::make_empty();
-            aabb.expand_mut(&Vec3::from(*v0_pos));
-            aabb.expand_mut(&Vec3::from(*v1_pos));
-            aabb.expand_mut(&Vec3::from(*v2_pos));
+            aabb.expand_mut(&Vec3::from(v0_pos));
+            aabb.expand_mut(&Vec3::from(v1_pos));
+            aabb.expand_mut(&Vec3::from(v2_pos));
             nodes.push(BVHNode::make_leaf(aabb, i as u32));
         }
 
