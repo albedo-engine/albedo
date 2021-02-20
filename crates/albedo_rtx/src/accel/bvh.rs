@@ -129,9 +129,9 @@ impl BVH {
     }
 }
 
-pub trait BVHBuilder<T: Mesh> {
+pub trait BVHBuilder {
     // @todo: create custom Error type.
-    fn build(&mut self, mesh: &T) -> Result<BVH, &'static str>;
+    fn build<'a, T: Mesh<'a>>(&mut self, mesh: &'a T) -> Result<BVH, &'static str>;
 }
 
 fn flatten_bvh_rec(

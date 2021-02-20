@@ -23,11 +23,11 @@ impl SAHBuilder {
     }
 }
 
-impl<T: Mesh> BVHBuilder<T> for SAHBuilder {
-    fn build(&mut self, mesh: &T) -> Result<BVH, &'static str> {
+impl BVHBuilder for SAHBuilder {
+    fn build<'a, T: Mesh<'a>>(&mut self, mesh: &'a T) -> Result<BVH, &'static str> {
         // @todo: support for quads.
         // @todo: support for u8 and u32.
-        let nb_triangles = mesh.iter_indices_u16().count() / 3;
+        let nb_triangles = mesh.iter_indices_u32().count() / 3;
         if nb_triangles == 0 {
             return Err("todo");
         }
@@ -37,20 +37,19 @@ impl<T: Mesh> BVHBuilder<T> for SAHBuilder {
 
         // @todo: this assumes model is triangulated. Fix that.
         // Creates all leaf nodes.
-        let indices = mesh.iter_indices_u16();
-        let positions = mesh.iter_positions();
+        let mut indices = mesh.iter_indices_u32();
         for i in 0..nb_triangles {
-            let i0 = indices.next().unwrap() as usize;
-            let i1 = indices.next().unwrap() as usize;
-            let i2 = indices.next().unwrap() as usize;
-            let v0_pos = positions.cloned().nth(i0).unwrap();
-            let v1_pos = positions.nth(indices.nth(start + 1).unwrap() as usize).unwrap();
-            let v2_pos = positions.nth(indices.nth(start + 2).unwrap() as usize).unwrap();
+            let i0 = (*indices.next().unwrap()) as usize;
+            let i1 = (*indices.next().unwrap()) as usize;
+            let i2 = (*indices.next().unwrap()) as usize;
+            let v0_pos = mesh.position(i0).unwrap();
+            let v1_pos = mesh.position(i1).unwrap();
+            let v2_pos = mesh.position(i2).unwrap();
 
             let mut aabb = AABB::make_empty();
-            aabb.expand_mut(&Vec3::from(v0_pos));
-            aabb.expand_mut(&Vec3::from(v1_pos));
-            aabb.expand_mut(&Vec3::from(v2_pos));
+            aabb.expand_mut(&Vec3::from(*v0_pos));
+            aabb.expand_mut(&Vec3::from(*v1_pos));
+            aabb.expand_mut(&Vec3::from(*v2_pos));
             nodes.push(BVHNode::make_leaf(aabb, i as u32));
         }
 
