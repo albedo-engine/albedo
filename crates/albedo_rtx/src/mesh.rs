@@ -1,7 +1,6 @@
 // @todo: how to improve separation of mesh and primitives?
 // If BVH could handled sub-primitive that would be awesome.
 pub trait Mesh<'a>: Sized {
-
     type IndexIter: Iterator<Item = &'a u32>;
 
     // @todo: would it be possible to allow references here in every cases?

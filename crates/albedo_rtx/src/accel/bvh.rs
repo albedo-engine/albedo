@@ -1,5 +1,5 @@
-use albedo_math::AABB;
 use crate::mesh::Mesh;
+use albedo_math::AABB;
 
 // @todo: alias std::u32::MAX with "InvalidValue" for semantic.
 // @todo: make generic
@@ -117,7 +117,12 @@ impl BVH {
     pub fn flatten(&mut self) {
         self.flat.nodes.clear();
         self.flat.nodes.reserve_exact(self.nodes.len());
-        flatten_bvh_rec(&mut self.flat.nodes, &self.nodes, self.root as u32, std::u32::MAX);
+        flatten_bvh_rec(
+            &mut self.flat.nodes,
+            &self.nodes,
+            self.root as u32,
+            std::u32::MAX,
+        );
     }
 
     pub fn primitives_count(&self) -> usize {

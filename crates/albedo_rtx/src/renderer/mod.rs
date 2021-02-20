@@ -1,5 +1,3 @@
 pub struct Renderer {}
 
-impl Renderer {
-    
-}
+impl Renderer {}
