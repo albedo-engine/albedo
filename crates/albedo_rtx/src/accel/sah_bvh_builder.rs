@@ -39,11 +39,11 @@ impl<T: Mesh> BVHBuilder<T> for SAHBuilder {
         // Creates all leaf nodes.
         let indices = mesh.iter_indices_u16();
         let positions = mesh.iter_positions();
-        for i in indices.into_iter() {
-            let start = i * 3;
-            let i0 = 
-            positions.step_by()
-            let v0_pos = positions.nth(indices.nth(start).unwrap() as usize).unwrap();
+        for i in 0..nb_triangles {
+            let i0 = indices.next().unwrap() as usize;
+            let i1 = indices.next().unwrap() as usize;
+            let i2 = indices.next().unwrap() as usize;
+            let v0_pos = positions.cloned().nth(i0).unwrap();
             let v1_pos = positions.nth(indices.nth(start + 1).unwrap() as usize).unwrap();
             let v2_pos = positions.nth(indices.nth(start + 2).unwrap() as usize).unwrap();
 
