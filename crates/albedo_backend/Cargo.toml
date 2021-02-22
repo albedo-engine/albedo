@@ -1,0 +1,13 @@
+[package]
+name = "albedo_backend"
+version = "0.0.1"
+edition = "2018"
+authors = ["David Peicho <david.peicho@gmail.com>"]
+description = "Provides GPU backend utils for the albedo components"
+repository = "https://github.com/albedo-engine/albedo"
+license = "MIT"
+keywords = ["rendering", "graphics", "wgpu" ]
+
+[dependencies]
+bytemuck = "1.4.1"
+wgpu = "0.7.0"

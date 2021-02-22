@@ -53,7 +53,7 @@ impl BVHBuilder for SAHBuilder {
             nodes.push(BVHNode::make_leaf(aabb, i as u32));
         }
 
-        let root = rec_build(&mut nodes, &mut self._bins, 0, nodes_count);
+        let root = rec_build(&mut nodes, &mut self._bins, 0, nb_triangles);
 
         Ok(BVH::new(nodes, nb_triangles, root))
     }

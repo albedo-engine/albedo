@@ -58,7 +58,7 @@ impl BVHNode {
 }
 
 #[repr(C)]
-pub struct BVHNodeGPU {
+pub(crate) struct BVHNodeGPU {
     min: [f32; 3],
     next_node_index: u32,
     max: [f32; 3],

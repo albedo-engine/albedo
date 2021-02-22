@@ -5,7 +5,6 @@ use gltf_loader::load_gltf;
 
 fn main() {
     let scene = load_gltf(&"./examples/pathtracing/assets/box.glb");
-    println!("{}", scene.meshes.len());
 
     let bvhs: Vec<BVH> = scene
         .meshes
@@ -15,4 +14,8 @@ fn main() {
             builder.build(mesh).unwrap()
         })
         .collect();
+
+    for n in &bvhs[0].nodes {
+        println!("{}", n.aabb());
+    }
 }
