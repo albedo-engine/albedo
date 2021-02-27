@@ -7,7 +7,6 @@ pub struct GPUBuffer<T> {
 }
 
 impl<T: bytemuck::Pod> GPUBuffer<T> {
-
     pub fn new(device: &wgpu::Device) -> Self {
         let gpu_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
@@ -17,7 +16,7 @@ impl<T: bytemuck::Pod> GPUBuffer<T> {
         });
         GPUBuffer {
             gpu_buffer,
-            content_type: PhantomData
+            content_type: PhantomData,
         }
     }
 
@@ -30,7 +29,7 @@ impl<T: bytemuck::Pod> GPUBuffer<T> {
         });
         GPUBuffer {
             gpu_buffer,
-            content_type: PhantomData
+            content_type: PhantomData,
         }
     }
 
@@ -43,7 +42,7 @@ impl<T: bytemuck::Pod> GPUBuffer<T> {
         });
         GPUBuffer {
             gpu_buffer,
-            content_type: PhantomData
+            content_type: PhantomData,
         }
     }
 
@@ -54,7 +53,6 @@ impl<T: bytemuck::Pod> GPUBuffer<T> {
     pub fn as_entire_binding(&self) -> wgpu::BindingResource {
         self.gpu_buffer.as_entire_binding()
     }
-
 }
 
 // @todo: refactor code with GPUBuffer.
@@ -64,7 +62,6 @@ pub struct UniformBuffer<T> {
 }
 
 impl<T: bytemuck::Pod> UniformBuffer<T> {
-
     pub fn new(device: &wgpu::Device) -> Self {
         let gpu_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
@@ -74,7 +71,7 @@ impl<T: bytemuck::Pod> UniformBuffer<T> {
         });
         UniformBuffer {
             gpu_buffer,
-            content_type: PhantomData
+            content_type: PhantomData,
         }
     }
 
@@ -85,5 +82,4 @@ impl<T: bytemuck::Pod> UniformBuffer<T> {
     pub fn as_entire_binding(&self) -> wgpu::BindingResource {
         self.gpu_buffer.as_entire_binding()
     }
-
 }

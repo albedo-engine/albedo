@@ -1,10 +1,10 @@
+use albedo_rtx::accel::{BVHBuilder, SAHBuilder, BVH};
+use albedo_rtx::Renderer;
 use wgpu::{Device, PowerPreference};
 use winit::{
     event::{self, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
 };
-use albedo_rtx::accel::{BVHBuilder, SAHBuilder, BVH};
-use albedo_rtx::{Renderer};
 
 mod gltf_loader;
 use gltf_loader::load_gltf;
@@ -46,7 +46,7 @@ async fn setup() -> App {
     let needed_limits = wgpu::Limits {
         max_storage_buffers_per_shader_stage: 8,
         ..wgpu::Limits::default()
-    } ;
+    };
     let trace_dir = std::env::var("WGPU_TRACE");
 
     let (device, queue) = adapter
@@ -73,7 +73,6 @@ async fn setup() -> App {
 }
 
 fn main() {
-
     let width = 640;
     let height = 480;
 
@@ -86,7 +85,6 @@ fn main() {
         surface,
         queue,
     } = pollster::block_on(setup());
-    let mut renderer= Renderer::new(&device);
 
     let mut sc_desc = wgpu::SwapChainDescriptor {
         usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
@@ -97,6 +95,7 @@ fn main() {
     };
     let mut swap_chain = device.create_swap_chain(&surface, &sc_desc);
 
+    let mut renderer = Renderer::new(&device, sc_desc.format);
     let scene = load_gltf(&"./examples/pathtracing/assets/box.glb");
 
     let mut bvhs: Vec<BVH> = scene
@@ -107,10 +106,6 @@ fn main() {
             builder.build(mesh).unwrap()
         })
         .collect();
-
-    for n in &bvhs[0].nodes {
-        println!("{}", n.aabb());
-    }
 
     event_loop.run(move |event, _, control_flow| {
         // let _ = (&renderer, &app);
@@ -130,5 +125,4 @@ fn main() {
             _ => {}
         }
     });
-
 }

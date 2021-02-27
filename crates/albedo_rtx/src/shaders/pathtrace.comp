@@ -586,4 +586,5 @@ void main()
   // if (RenderSettings.frameCount == 1) { c = vec4(0.0); }
   // imageStore(uRenderTargetWrite, idx, c + radiance);
   imageStore(uRenderTargetWrite, idx, radiance);
+  // imageStore(uRenderTargetWrite, idx, vec4(0.2, 1.0, 0.0, 1.0));
 }

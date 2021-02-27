@@ -27,7 +27,13 @@ vec3 ACESFilmTonemapping(vec3 x)
 }
 
 void main() {
-  outColor = texture(sampler2D(uTexture, uTextureSampler), vUv).rgba
-    / float(RenderSettings.frameCount);
-  outColor.rgb = ACESFilmTonemapping(outColor.rgb);
+  // outColor = texture(sampler2D(uTexture, uTextureSampler), vUv).rgba
+  //   / float(RenderSettings.frameCount);
+  // outColor.rgb = ACESFilmTonemapping(outColor.rgb);
+
+  outColor.rgb = texture(sampler2D(uTexture, uTextureSampler), vUv).rgb;
+  outColor.a = 1.0;
+
+  // outColor.rgb = vec3(1.0, 0.0, 0.0);
+  // outColor.a = 1.0;
 }

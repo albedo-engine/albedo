@@ -12,10 +12,10 @@
 pub const fn buffer(readonly: bool) -> wgpu::BindingType {
     wgpu::BindingType::Buffer {
         ty: wgpu::BufferBindingType::Storage {
-            read_only: readonly
+            read_only: readonly,
         },
         has_dynamic_offset: false,
-        min_binding_size: None
+        min_binding_size: None,
     }
 }
 
@@ -23,32 +23,33 @@ pub const fn uniform() -> wgpu::BindingType {
     wgpu::BindingType::Buffer {
         ty: wgpu::BufferBindingType::Uniform,
         has_dynamic_offset: false,
-        min_binding_size: None
+        min_binding_size: None,
     }
 }
 
 pub const fn sampler(filtering: bool) -> wgpu::BindingType {
     wgpu::BindingType::Sampler {
         comparison: false,
-        filtering: filtering
+        filtering: filtering,
     }
 }
 
-pub const fn storage_texture2d(format: wgpu::TextureFormat, access: wgpu::StorageTextureAccess) -> wgpu::BindingType {
+pub const fn storage_texture2d(
+    format: wgpu::TextureFormat,
+    access: wgpu::StorageTextureAccess,
+) -> wgpu::BindingType {
     wgpu::BindingType::StorageTexture {
         format,
         access,
-        view_dimension: wgpu::TextureViewDimension::D2
+        view_dimension: wgpu::TextureViewDimension::D2,
     }
 }
 
 pub const fn texture2d() -> wgpu::BindingType {
     wgpu::BindingType::Texture {
         multisampled: false,
-        sample_type: wgpu::TextureSampleType::Float {
-            filterable: true
-        },
-        view_dimension: wgpu::TextureViewDimension::D2
+        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+        view_dimension: wgpu::TextureViewDimension::D2,
     }
 }
 
