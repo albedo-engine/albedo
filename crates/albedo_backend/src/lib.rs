@@ -1,3 +1,4 @@
 mod buffer;
 
-pub use buffer::{GPUBuffer};
+pub mod shader_bindings;
+pub use buffer::{GPUBuffer, UniformBuffer};

@@ -58,31 +58,15 @@ impl BVHNode {
 }
 
 #[repr(C)]
-pub(crate) struct BVHNodeGPU {
+#[derive(Clone, Copy)]
+pub struct BVHNodeGPU {
     min: [f32; 3],
     next_node_index: u32,
     max: [f32; 3],
     primitive_index: u32,
 }
-
-#[repr(C)]
-pub struct VertexGPU {
-    position: [f32; 3],
-    padding_0: u32,
-    normal: [f32; 3],
-    padding_1: u32,
-}
-
-impl VertexGPU {
-    fn new(position: [f32; 3], normal: [f32; 3]) -> VertexGPU {
-        VertexGPU {
-            position,
-            normal,
-            padding_0: 0,
-            padding_1: 0,
-        }
-    }
-}
+unsafe impl bytemuck::Pod for BVHNodeGPU {}
+unsafe impl bytemuck::Zeroable for BVHNodeGPU {}
 
 pub struct FlatBVH {
     nodes: Vec<BVHNodeGPU>,

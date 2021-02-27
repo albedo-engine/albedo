@@ -17,7 +17,10 @@ members = ["crates/*"]
 albedo_rtx = { path = "crates/albedo_rtx", version = "0.0.1" }
 
 [dev-dependencies]
+winit = { version = "0.24", features = ["web-sys"] }
+wgpu = "0.7.0"
 gltf = "0.15.2"
+pollster = "0.2"
 
 [[example]]
 name = "pathtracing"

@@ -90,7 +90,20 @@ struct Light
   float padding_2;
 };
 
-layout (binding = 0) uniform RenderSettingsBuffer {
+/**
+ * Layout 0.
+ * TODO: move to layout 2 or 3 for perf.
+ */
+
+// layout(set = 0, binding = 0, rgba32f) uniform readonly image2D uRenderTarget;
+// layout(set = 0, binding = 1, rgba32f) uniform writeonly image2D uRenderTargetWrite;
+layout(set = 0, binding = 0, rgba32f) uniform writeonly image2D uRenderTargetWrite;
+
+/**
+ * Layout 0
+ */
+
+layout (set = 1, binding = 0) uniform RenderSettingsBuffer {
   uint width;
   uint height;
   uint instanceCount; // TODO: move to a unique scene uniform
@@ -98,46 +111,46 @@ layout (binding = 0) uniform RenderSettingsBuffer {
   uint frameCount;
 } RenderSettings;
 
-layout (set = 0, binding = 1, std430) readonly buffer InstanceBuffer {
+layout (set = 1, binding = 1, std430) readonly buffer InstanceBuffer {
   Instance instances[];
 };
 
-layout (set = 0, binding = 2, std430) readonly buffer BVHNodeBuffer {
+layout (set = 1, binding = 2, std430) readonly buffer BVHNodeBuffer {
   BVHNode nodes[];
 };
 
-layout (set = 0, binding = 3, std430) readonly buffer IndexBuffer {
+layout (set = 1, binding = 3, std430) readonly buffer IndexBuffer {
   uint indices[];
 };
 
-layout (set = 0, binding = 4, std430) readonly buffer VertexBuffer {
+layout (set = 1, binding = 4, std430) readonly buffer VertexBuffer {
   Vertex vertices[];
 };
 
-layout (set = 0, binding = 5, std430) readonly buffer MaterialBuffer {
+layout (set = 1, binding = 5, std430) readonly buffer MaterialBuffer {
   Material materials[];
 };
 
 // @todo: move to uniform?
-layout (set = 0, binding = 6, std430) readonly buffer LightBuffer {
+layout (set = 1, binding = 6, std430) readonly buffer LightBuffer {
   Light lights[];
 };
 
 // @todo: move to uniform?
-layout (set = 0, binding = 7) uniform UniformsBuffer {
+layout (set = 1, binding = 7) uniform UniformsBuffer {
   float iFrame;
 } Uniforms;
 
-layout(set = 0, binding = 8, rgba32f) uniform readonly image2D uRenderTarget;
-layout(set = 0, binding = 9, rgba32f) uniform writeonly image2D uRenderTargetWrite;
+// layout(set = 1, binding = 8) uniform texture2D uProbe; // 10
+// layout(set = 1, binding = 9) uniform sampler uProbeSampler; // 11
 
-layout(set = 0, binding = 10) uniform texture2D uProbe;
-layout(set = 0, binding = 11 ) uniform sampler uProbeSampler;
+// layout(set = 1, binding = 10) uniform texture2DArray uTextures;
 
-layout(set = 0, binding = 12) uniform texture2DArray uTextures;
+/**
+ * Layout 2
+ */
 
-
-layout (set = 1, binding = 0) readonly uniform CameraUniformsBuffer {
+layout (set = 2, binding = 0) readonly uniform CameraUniformsBuffer {
   vec3 origin;
   float vFOV;
   vec3 up;
@@ -514,7 +527,8 @@ void main()
     if (t >= MAX_FLOAT)
     {
       vec2 uv = cartesianToEqui(ray.dir);
-      vec3 sky = texture(sampler2D(uProbe, uProbeSampler), uv).rgb;
+      // vec3 sky = texture(sampler2D(uProbe, uProbeSampler), uv).rgb;
+      vec3 sky = vec3(0.05, 0.05, 0.2);
       radiance.rgb += throughput * sky;
       break;
     }
@@ -549,7 +563,8 @@ void main()
     vec3 albedo = mat.color.rgb;
     if (mat.albedoIndex != INVALID_UINT)
     {
-      albedo *= texture(sampler2DArray(uTextures, uProbeSampler), vec3(uv, mat.albedoIndex)).rgb;
+      // albedo *= texture(sampler2DArray(uTextures, uProbeSampler), vec3(uv, mat.albedoIndex)).rgb;
+      // albedo *= ;
     }
 
     vec3 directRadiance = albedo * brdf.pdf;
@@ -567,8 +582,8 @@ void main()
     throughput /= probability;
   }
 
-  vec4 c = imageLoad(uRenderTarget, idx);
-  if (RenderSettings.frameCount == 1) { c = vec4(0.0); }
-
-  imageStore(uRenderTargetWrite, idx, c + radiance);
+  // vec4 c = imageLoad(uRenderTarget, idx);
+  // if (RenderSettings.frameCount == 1) { c = vec4(0.0); }
+  // imageStore(uRenderTargetWrite, idx, c + radiance);
+  imageStore(uRenderTargetWrite, idx, radiance);
 }
