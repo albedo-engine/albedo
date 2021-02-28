@@ -24,27 +24,26 @@ impl SAHBuilder {
 }
 
 impl BVHBuilder for SAHBuilder {
-    fn build<'a, T: Mesh<'a>>(&mut self, mesh: &'a T) -> Result<BVH, &'static str> {
+    fn build(&mut self, mesh: &impl Mesh) -> Result<BVH, &'static str> {
         // @todo: support for quads.
         // @todo: support for u8 and u32.
-        let nb_triangles = mesh.iter_indices_u32().count() / 3;
+        let nb_triangles = mesh.index_count() / 3;
         if nb_triangles == 0 {
             return Err("todo");
         }
 
         let nodes_count = 2 * nb_triangles - 1;
-        let mut nodes = Vec::with_capacity(nodes_count);
+        let mut nodes = Vec::with_capacity(nodes_count as usize);
 
         // @todo: this assumes model is triangulated. Fix that.
         // Creates all leaf nodes.
-        let mut indices = mesh.iter_indices_u32();
         for i in 0..nb_triangles {
-            let i0 = (*indices.next().unwrap()) as usize;
-            let i1 = (*indices.next().unwrap()) as usize;
-            let i2 = (*indices.next().unwrap()) as usize;
-            let v0_pos = mesh.position(i0).unwrap();
-            let v1_pos = mesh.position(i1).unwrap();
-            let v2_pos = mesh.position(i2).unwrap();
+            let i0 = mesh.index(i * 3).unwrap();
+            let i1 = mesh.index(i * 3 + 1).unwrap();
+            let i2 = mesh.index(i * 3 + 2).unwrap();
+            let v0_pos = mesh.position(*i0).unwrap();
+            let v1_pos = mesh.position(*i1).unwrap();
+            let v2_pos = mesh.position(*i2).unwrap();
 
             let mut aabb = AABB::make_empty();
             aabb.expand_mut(&Vec3::from(*v0_pos));
@@ -53,12 +52,13 @@ impl BVHBuilder for SAHBuilder {
             nodes.push(BVHNode::make_leaf(aabb, i as u32));
         }
 
-        let root = rec_build(&mut nodes, &mut self._bins, 0, nb_triangles);
+        let root = rec_build(&mut nodes, &mut self._bins, 0, nb_triangles as usize);
 
-        Ok(BVH::new(nodes, nb_triangles, root))
+        Ok(BVH::new(nodes, nb_triangles, root as u32))
     }
 }
 
+// @todo: replace usize by u32
 fn rec_build(nodes: &mut Vec<BVHNode>, bins: &mut [SAHBin], start: usize, end: usize) -> usize {
     if end - start <= 1 {
         return start;
@@ -67,7 +67,7 @@ fn rec_build(nodes: &mut Vec<BVHNode>, bins: &mut [SAHBin], start: usize, end: u
     let mut aabb = AABB::make_empty();
     let mut centroids = AABB::make_empty();
     for i in start..end {
-        let node = &nodes[i];
+        let node = &nodes[i as usize];
         aabb.join_mut(node.aabb());
         // @todo: cache center computation.
         centroids.expand_mut(&node.aabb().center());
@@ -112,8 +112,8 @@ fn rec_build(nodes: &mut Vec<BVHNode>, bins: &mut [SAHBin], start: usize, end: u
         middle = (start + end) / 2;
     }
 
-    let left_child_index = rec_build(nodes, bins, start, middle);
-    let right_child_index = rec_build(nodes, bins, middle, end);
+    let left_child_index = rec_build(nodes, bins, start, middle) as usize;
+    let right_child_index = rec_build(nodes, bins, middle, end) as usize;
     let left_surface_area = nodes[left_child_index].aabb().surface_area();
     let left_forest_size = nodes[left_child_index].forest_size();
     let right_surface_area = nodes[right_child_index].aabb().surface_area();

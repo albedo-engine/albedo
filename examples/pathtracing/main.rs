@@ -1,5 +1,5 @@
-use albedo_rtx::accel::{BVHBuilder, SAHBuilder, BVH};
-use albedo_rtx::Renderer;
+use albedo_rtx::renderer;
+
 use wgpu::{Device, PowerPreference};
 use winit::{
     event::{self, WindowEvent},
@@ -95,17 +95,15 @@ fn main() {
     };
     let mut swap_chain = device.create_swap_chain(&surface, &sc_desc);
 
-    let mut renderer = Renderer::new(&device, sc_desc.format);
+    let mut renderer = renderer::Renderer::new(&device, sc_desc.format);
     let scene = load_gltf(&"./examples/pathtracing/assets/box.glb");
 
-    let mut bvhs: Vec<BVH> = scene
-        .meshes
-        .iter()
-        .map(|mesh| {
-            let mut builder = SAHBuilder::new();
-            builder.build(mesh).unwrap()
-        })
-        .collect();
+    renderer.commit_bvh(&scene.node_buffer, &device, &queue);
+    renderer.commit_vertices(&scene.vertex_buffer , &device, &queue);
+    renderer.commit_indices(&scene.index_buffer , &device, &queue);
+    renderer.commit_instances(&scene.instances, &device, &queue);
+
+    println!("{}", scene.instances[0].world_to_model);
 
     event_loop.run(move |event, _, control_flow| {
         // let _ = (&renderer, &app);

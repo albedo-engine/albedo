@@ -72,11 +72,19 @@ pub struct FlatBVH {
     nodes: Vec<BVHNodeGPU>,
 }
 
+impl FlatBVH {
+
+    pub fn nodes(&self) -> &Vec<BVHNodeGPU> {
+        &self.nodes
+    }
+
+}
+
 pub struct BVH {
     // @todo: release from CPU if not needed after build.
     pub nodes: Vec<BVHNode>,
-    root: usize,
-    primitives_count: usize,
+    root: u32,
+    primitives_count: u32,
     pub(crate) flat: FlatBVH,
 }
 
@@ -86,7 +94,7 @@ impl BVH {
         nb_triangles * 2 - 1
     }
 
-    pub(crate) fn new(nodes: Vec<BVHNode>, primitives_count: usize, root: usize) -> BVH {
+    pub(crate) fn new(nodes: Vec<BVHNode>, primitives_count: u32, root: u32) -> BVH {
         let count = nodes.len();
         BVH {
             nodes,
@@ -109,18 +117,18 @@ impl BVH {
         );
     }
 
-    pub fn primitives_count(&self) -> usize {
+    pub fn primitives_count(&self) -> u32 {
         self.primitives_count
     }
 
-    pub fn root(&self) -> usize {
+    pub fn root(&self) -> u32 {
         self.root
     }
 }
 
 pub trait BVHBuilder {
     // @todo: create custom Error type.
-    fn build<'a, T: Mesh<'a>>(&mut self, mesh: &'a T) -> Result<BVH, &'static str>;
+    fn build(&mut self, mesh: &impl Mesh) -> Result<BVH, &'static str>;
 }
 
 fn flatten_bvh_rec(

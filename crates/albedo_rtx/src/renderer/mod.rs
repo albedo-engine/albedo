@@ -1,9 +1,8 @@
 mod blit_pass;
 use blit_pass::BlitPass;
 
+pub mod resources;
 pub mod utils;
-
-mod commands;
 
 use accel::BVHNodeGPU;
 use glam;
@@ -14,40 +13,6 @@ use wgpu::{
 
 use crate::accel;
 use albedo_backend::{shader_bindings, GPUBuffer, UniformBuffer};
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct MaterialGPU {
-    color: glam::Vec4,
-}
-unsafe impl bytemuck::Pod for MaterialGPU {}
-unsafe impl bytemuck::Zeroable for MaterialGPU {}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct VertexGPU {
-    position: glam::Vec3,
-    padding_0: u32,
-    norma: glam::Vec3,
-    padding_1: u32,
-    // @todo: add UV
-}
-unsafe impl bytemuck::Pod for VertexGPU {}
-unsafe impl bytemuck::Zeroable for VertexGPU {}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct LightGPU {
-    normal: glam::Vec4,
-    tangent: glam::Vec4,
-    bitangent: glam::Vec4,
-    intensity: f32,
-    padding_0: u32,
-    padding_1: u32,
-    padding_2: u32,
-}
-unsafe impl bytemuck::Pod for LightGPU {}
-unsafe impl bytemuck::Zeroable for LightGPU {}
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -75,33 +40,21 @@ unsafe impl bytemuck::Zeroable for CameraGPU {}
 pub struct RenderInfo {
     width: u32,
     height: u32,
-    instanceCount: u32,
-    lightCount: u32,
-    frameCount: u32,
+    instance_count: u32,
+    light_count: u32,
+    frame_count: u32,
 }
 unsafe impl bytemuck::Pod for RenderInfo {}
 unsafe impl bytemuck::Zeroable for RenderInfo {}
 
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct Instance {
-    world_to_model: glam::Mat4,
-    bvh_root_index: u32,
-    material_index: u32,
-    padding_0: u32,
-    padding_1: u32,
-}
-unsafe impl bytemuck::Pod for Instance {}
-unsafe impl bytemuck::Zeroable for Instance {}
-
 struct PathtracePassResources {
     pub(crate) render_info: UniformBuffer<RenderInfo>,
-    pub(crate) instances: GPUBuffer<Instance>,
+    pub(crate) instances: GPUBuffer<resources::InstanceGPU>,
     pub(crate) nodes: GPUBuffer<accel::BVHNodeGPU>,
     pub(crate) index_buffer: GPUBuffer<u32>,
-    pub(crate) vertex_buffer: GPUBuffer<VertexGPU>,
-    pub(crate) material_buffer: GPUBuffer<MaterialGPU>,
-    pub(crate) light_buffer: GPUBuffer<LightGPU>,
+    pub(crate) vertex_buffer: GPUBuffer<resources::VertexGPU>,
+    pub(crate) material_buffer: GPUBuffer<resources::MaterialGPU>,
+    pub(crate) light_buffer: GPUBuffer<resources::LightGPU>,
     pub(crate) uniform_buffer: UniformBuffer<UniformsGPU>,
     pub(crate) camera_uniform_buffer: UniformBuffer<CameraGPU>,
     pub render_target: wgpu::Texture,
@@ -116,6 +69,7 @@ struct PathtracePass {
     scene_bind_group: BindGroup,
     camera_bind_group: BindGroup,
     pipeline: ComputePipeline,
+    needs_bind_group_update: bool,
 }
 
 impl PathtracePass {
@@ -363,15 +317,65 @@ impl PathtracePass {
             targets_bind_group,
             pipeline,
             gpu_resources,
+            needs_bind_group_update: false
         }
     }
 
+    pub fn update_resources(&mut self, device: &wgpu::Device) {
+        self.scene_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Pathtracing Scene"),
+            layout: &self.bind_group_layouts[1],
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: self.gpu_resources.render_info.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: self.gpu_resources.instances.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: self.gpu_resources.nodes.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: self.gpu_resources.index_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: self.gpu_resources.vertex_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 5,
+                    resource: self.gpu_resources.material_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 6,
+                    resource: self.gpu_resources.light_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 7,
+                    resource: self.gpu_resources.uniform_buffer.as_entire_binding(),
+                },
+                // @todo: add probes
+                // @todo: add materials
+                // @todo: add textures
+            ],
+        });
+    }
+
     pub fn render(
-        &self,
+        &mut self,
+        device: &Device,
         frame: &wgpu::SwapChainTexture,
         queue: &wgpu::Queue,
         encoder: &mut CommandEncoder,
     ) {
+        if self.needs_bind_group_update {
+            self.update_resources(device);
+            self.needs_bind_group_update = false;
+        }
         // @todo: do not harcode.
         let width = 640;
         let height = 480;
@@ -409,45 +413,64 @@ impl Renderer {
         }
     }
 
-    pub fn commit_bvh(&self, bvhs: &[BVHNodeGPU], queue: &wgpu::Queue) {
+    // @todo: those `commit` methods are just to try out the entire pipeline.
+    // Remove them.
+
+    pub fn commit_instances(&mut self, instances: &[resources::InstanceGPU], device: &Device, queue: &wgpu::Queue) {
         // @todo: authorize offset. Should I just expose the gpu resources
         // to the user and he does everything?
-        queue.write_buffer(
-            self.pathtrace_pass.gpu_resources.nodes,
-            0,
-            bytemuck::bytes_of(&bvhs),
-        )
+        if !self.pathtrace_pass.gpu_resources.instances.fits(instances) {
+            self.pathtrace_pass.gpu_resources.instances = GPUBuffer::from_data(device, instances);
+            // @todo: better if the access to the buffer was controlled and so
+            // this flag would be automatically handled
+            self.pathtrace_pass.needs_bind_group_update = true;
+
+        }
+        self.pathtrace_pass.gpu_resources.instances.update(queue, instances);
     }
 
-    pub fn commit_vertices(&self, vertices: &[VertexGPU], queue: &wgpu::Queue) {
+    pub fn commit_bvh(&mut self, bvhs: &[BVHNodeGPU], device: &Device, queue: &wgpu::Queue) {
         // @todo: authorize offset. Should I just expose the gpu resources
         // to the user and he does everything?
-        queue.write_buffer(
-            self.pathtrace_pass.gpu_resources.vertex_buffer,
-            0,
-            bytemuck::bytes_of(&vertices),
-        )
+        if !self.pathtrace_pass.gpu_resources.nodes.fits(bvhs) {
+            self.pathtrace_pass.gpu_resources.nodes = GPUBuffer::from_data(device, bvhs);
+            // @todo: better if the access to the buffer was controlled and so
+            // this flag would be automatically handled
+            self.pathtrace_pass.needs_bind_group_update = true;
+
+        }
+        self.pathtrace_pass.gpu_resources.nodes.update(queue, bvhs);
     }
 
-    pub fn commit_indices(&self, indices: &[u32], queue: &wgpu::Queue) {
+    pub fn commit_vertices(&mut self, vertices: &[resources::VertexGPU], device: &Device, queue: &wgpu::Queue) {
         // @todo: authorize offset. Should I just expose the gpu resources
         // to the user and he does everything?
-        queue.write_buffer(
-            self.pathtrace_pass.gpu_resources.index_buffer,
-            0,
-            bytemuck::bytes_of(&indices),
-        )
+        if !self.pathtrace_pass.gpu_resources.vertex_buffer.fits(vertices) {
+            self.pathtrace_pass.gpu_resources.vertex_buffer = GPUBuffer::from_data(device, vertices);
+            self.pathtrace_pass.needs_bind_group_update = true;
+        }
+        self.pathtrace_pass.gpu_resources.vertex_buffer.update(queue, vertices);
+    }
+
+    pub fn commit_indices(&mut self, indices: &[u32], device: &Device, queue: &wgpu::Queue) {
+        // @todo: authorize offset. Should I just expose the gpu resources
+        // to the user and he does everything?
+        if !self.pathtrace_pass.gpu_resources.index_buffer.fits(indices) {
+            self.pathtrace_pass.gpu_resources.index_buffer = GPUBuffer::from_data(device, indices);
+            self.pathtrace_pass.needs_bind_group_update = true;
+        }
+        self.pathtrace_pass.gpu_resources.index_buffer.update(queue, indices);
     }
 
     pub fn render(
-        &self,
+        &mut self,
         device: &wgpu::Device,
         frame: &wgpu::SwapChainTexture,
         queue: &wgpu::Queue,
     ) {
         let mut encoder =
             device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-        self.pathtrace_pass.render(frame, queue, &mut encoder);
+        self.pathtrace_pass.render(device, frame, queue, &mut encoder);
         self.blit_pass.render(frame, queue, &mut encoder);
         queue.submit(Some(encoder.finish()));
     }

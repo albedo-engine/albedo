@@ -23,6 +23,7 @@ name = "albedo"
 version = "0.0.1"
 dependencies = [
  "albedo_rtx",
+ "glam",
  "gltf",
  "pollster",
  "wgpu",

@@ -3,6 +3,7 @@ use wgpu;
 // @todo: migrate to gfx.
 pub struct GPUBuffer<T> {
     gpu_buffer: wgpu::Buffer,
+    byte_count: u64,
     content_type: PhantomData<T>,
 }
 
@@ -16,42 +17,53 @@ impl<T: bytemuck::Pod> GPUBuffer<T> {
         });
         GPUBuffer {
             gpu_buffer,
+            byte_count: 0,
             content_type: PhantomData,
         }
     }
 
     pub fn new_with_count(device: &wgpu::Device, count: usize) -> Self {
+        let byte_count = (std::mem::size_of::<T>() * count) as u64;
         let gpu_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
-            size: (std::mem::size_of::<T>() * count) as u64,
+            size: byte_count,
             usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
             mapped_at_creation: false,
         });
         GPUBuffer {
             gpu_buffer,
+            byte_count,
             content_type: PhantomData,
         }
     }
 
-    pub fn from_data(device: &wgpu::Device, content: Vec<T>) -> Self {
+    pub fn from_data(device: &wgpu::Device, content: &[T]) -> Self {
+        let byte_count = (std::mem::size_of::<T>() * content.len()) as u64;
         let gpu_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
-            size: (std::mem::size_of::<T>() * content.len()) as u64,
+            size: byte_count,
             usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
             mapped_at_creation: false,
         });
         GPUBuffer {
             gpu_buffer,
+            byte_count,
             content_type: PhantomData,
         }
     }
 
-    pub fn update(&mut self, queue: &wgpu::Queue, content: T) {
-        queue.write_buffer(&self.gpu_buffer, 0, bytemuck::bytes_of(&content));
+    pub fn update(&mut self, queue: &wgpu::Queue, content: &[T]) {
+        let slice = bytemuck::cast_slice(content);
+        queue.write_buffer(&self.gpu_buffer, 0, slice);
     }
 
     pub fn as_entire_binding(&self) -> wgpu::BindingResource {
         self.gpu_buffer.as_entire_binding()
+    }
+
+    pub fn fits(&self, content: &[T]) -> bool {
+        let byte_count = (std::mem::size_of::<T>() * content.len()) as u64;
+        byte_count <= self.byte_count
     }
 }
 

@@ -15,7 +15,8 @@
 #define INVALID_UINT MAX_UINT
 
 // #define DEBUG_BOX
-#define NB_BOUNCES 4
+// #define NB_BOUNCES 4
+#define NB_BOUNCES 1
 
 // TODO: move to intersection pass.
 struct Ray {
@@ -41,10 +42,10 @@ struct BRDFSample
 struct Instance
 {
   mat4 worldToModel;
-  uint bvhRootIndex;
   uint materialIndex;
-  uint padding_0;
-  uint padding_1;
+  uint bvhRootIndex;
+  uint vertexRootIndex;
+  uint indexRootIndex;
 };
 
 struct BVHNode
@@ -558,7 +559,9 @@ void main()
     // sampled in a cosine hemisphere.
     BRDFSample brdf = LambertBRDF(normal, randState);
 
-    Material mat = materials[intersection.materialIndex];
+    // Material mat = materials[intersection.materialIndex];
+    Material mat;
+    mat.color = vec4(1.0, 0.0, 0.0, 1.0);
 
     vec3 albedo = mat.color.rgb;
     if (mat.albedoIndex != INVALID_UINT)
@@ -586,5 +589,8 @@ void main()
   // if (RenderSettings.frameCount == 1) { c = vec4(0.0); }
   // imageStore(uRenderTargetWrite, idx, c + radiance);
   imageStore(uRenderTargetWrite, idx, radiance);
+  // if (instances[0].worldToModel[0].x >= 0.99) {
+  //   imageStore(uRenderTargetWrite, idx, vec4(0.5, 1.0, 1.0, 1.0));
+  // }
   // imageStore(uRenderTargetWrite, idx, vec4(0.2, 1.0, 0.0, 1.0));
 }
