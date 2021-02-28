@@ -1,13 +1,15 @@
 mod blit_pass;
 use blit_pass::BlitPass;
 
+pub mod utils;
+
+mod commands;
+
 use accel::BVHNodeGPU;
 use glam;
-use std::{borrow::Cow, result};
 use wgpu::{
-    BindGroup, BindGroupLayout, BindGroupLayoutEntry, BindingType, CommandEncoder, ComputePipeline,
-    ComputePipelineDescriptor, Device, PipelineLayoutDescriptor, ShaderStage, StorageTextureAccess,
-    TextureFormat, TextureViewDimension,
+    BindGroup, BindGroupLayoutEntry, CommandEncoder, ComputePipeline, ComputePipelineDescriptor,
+    Device, PipelineLayoutDescriptor, ShaderStage,
 };
 
 use crate::accel;
@@ -23,7 +25,7 @@ unsafe impl bytemuck::Zeroable for MaterialGPU {}
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-struct VertexGPU {
+pub struct VertexGPU {
     position: glam::Vec3,
     padding_0: u32,
     norma: glam::Vec3,
@@ -35,7 +37,7 @@ unsafe impl bytemuck::Zeroable for VertexGPU {}
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-struct LightGPU {
+pub struct LightGPU {
     normal: glam::Vec4,
     tangent: glam::Vec4,
     bitangent: glam::Vec4,
@@ -49,7 +51,7 @@ unsafe impl bytemuck::Zeroable for LightGPU {}
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-struct UniformsGPU {
+pub struct UniformsGPU {
     time: f32,
 }
 unsafe impl bytemuck::Pod for UniformsGPU {}
@@ -57,7 +59,7 @@ unsafe impl bytemuck::Zeroable for UniformsGPU {}
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-struct CameraGPU {
+pub struct CameraGPU {
     origin: glam::Vec3,
     v_fov: f32,
     up: glam::Vec3,
@@ -70,7 +72,7 @@ unsafe impl bytemuck::Zeroable for CameraGPU {}
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-struct RenderInfo {
+pub struct RenderInfo {
     width: u32,
     height: u32,
     instanceCount: u32,
@@ -407,6 +409,36 @@ impl Renderer {
         }
     }
 
+    pub fn commit_bvh(&self, bvhs: &[BVHNodeGPU], queue: &wgpu::Queue) {
+        // @todo: authorize offset. Should I just expose the gpu resources
+        // to the user and he does everything?
+        queue.write_buffer(
+            self.pathtrace_pass.gpu_resources.nodes,
+            0,
+            bytemuck::bytes_of(&bvhs),
+        )
+    }
+
+    pub fn commit_vertices(&self, vertices: &[VertexGPU], queue: &wgpu::Queue) {
+        // @todo: authorize offset. Should I just expose the gpu resources
+        // to the user and he does everything?
+        queue.write_buffer(
+            self.pathtrace_pass.gpu_resources.vertex_buffer,
+            0,
+            bytemuck::bytes_of(&vertices),
+        )
+    }
+
+    pub fn commit_indices(&self, indices: &[u32], queue: &wgpu::Queue) {
+        // @todo: authorize offset. Should I just expose the gpu resources
+        // to the user and he does everything?
+        queue.write_buffer(
+            self.pathtrace_pass.gpu_resources.index_buffer,
+            0,
+            bytemuck::bytes_of(&indices),
+        )
+    }
+
     pub fn render(
         &self,
         device: &wgpu::Device,
@@ -418,13 +450,5 @@ impl Renderer {
         self.pathtrace_pass.render(frame, queue, &mut encoder);
         self.blit_pass.render(frame, queue, &mut encoder);
         queue.submit(Some(encoder.finish()));
-    }
-
-    pub fn push_command() {
-        todo!()
-    }
-
-    pub fn apply() {
-        todo!()
     }
 }
