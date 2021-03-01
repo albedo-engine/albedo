@@ -23,27 +23,57 @@ unsafe impl bytemuck::Pod for UniformsGPU {}
 unsafe impl bytemuck::Zeroable for UniformsGPU {}
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct CameraGPU {
-    origin: glam::Vec3,
-    v_fov: f32,
-    up: glam::Vec3,
+    pub origin: glam::Vec3,
+    pub v_fov: f32,
+    pub up: glam::Vec3,
     padding_0: f32,
-    right: glam::Vec3,
+    pub right: glam::Vec3,
     padding_1: f32,
 }
+
+impl CameraGPU {
+
+    pub fn new() -> Self {
+        CameraGPU {
+            origin: glam::Vec3::new(0.0, 0.0, 2.0),
+            v_fov: 0.78,
+            up: glam::Vec3::new(0.0, 1.0, 0.0),
+            right: glam::Vec3::new(1.0, 0.0, 0.0),
+            ..Default::default()
+        }
+    }
+
+}
+
 unsafe impl bytemuck::Pod for CameraGPU {}
 unsafe impl bytemuck::Zeroable for CameraGPU {}
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct RenderInfo {
     width: u32,
     height: u32,
     instance_count: u32,
     light_count: u32,
     frame_count: u32,
+    padding_0: f32,
+    padding_1: f32,
+    padding_2: f32,
 }
+
+impl RenderInfo {
+
+    pub fn new(width: u32, height: u32) -> Self {
+        RenderInfo {
+            width, height,
+            ..Default::default()
+        }
+    }
+
+}
+
 unsafe impl bytemuck::Pod for RenderInfo {}
 unsafe impl bytemuck::Zeroable for RenderInfo {}
 
@@ -69,11 +99,13 @@ struct PathtracePass {
     scene_bind_group: BindGroup,
     camera_bind_group: BindGroup,
     pipeline: ComputePipeline,
+    render_info: RenderInfo,
     needs_bind_group_update: bool,
+    needs_render_info_update: bool,
 }
 
 impl PathtracePass {
-    pub fn new(device: &Device) -> PathtracePass {
+    pub fn new(device: &Device, width: u32, height: u32) -> PathtracePass {
         let bind_group_layouts = [
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: None,
@@ -317,7 +349,9 @@ impl PathtracePass {
             targets_bind_group,
             pipeline,
             gpu_resources,
-            needs_bind_group_update: false
+            needs_bind_group_update: false,
+            needs_render_info_update: true,
+            render_info: RenderInfo::new(width, height)
         }
     }
 
@@ -376,9 +410,12 @@ impl PathtracePass {
             self.update_resources(device);
             self.needs_bind_group_update = false;
         }
+        if self.needs_render_info_update {
+            self.gpu_resources.render_info.update(queue, &self.render_info);
+            self.needs_render_info_update = false;
+        }
         // @todo: do not harcode.
-        let width = 640;
-        let height = 480;
+        let RenderInfo { width, height, .. } = self.render_info;
         let mut compute_pass =
             encoder.begin_compute_pass(&wgpu::ComputePassDescriptor { label: None });
         compute_pass.set_pipeline(&self.pipeline);
@@ -398,7 +435,11 @@ pub struct Renderer {
 // This may slightly reduce performance but then the intersector is reusable.
 impl Renderer {
     pub fn new(device: &Device, swap_chain_format: wgpu::TextureFormat) -> Renderer {
-        let pathtrace_pass = PathtracePass::new(device);
+        // @todo: do not hardcode
+        let width: u32 = 640;
+        let height: u32 = 480;
+
+        let pathtrace_pass = PathtracePass::new(device, width, height);
         let mut blit_pass = BlitPass::new(device, swap_chain_format);
         // @todo: refactor init somewhere.
         blit_pass.init(
@@ -416,6 +457,10 @@ impl Renderer {
     // @todo: those `commit` methods are just to try out the entire pipeline.
     // Remove them.
 
+    pub fn commit_camera(&mut self, queue: &wgpu::Queue, camera: &CameraGPU) {
+        self.pathtrace_pass.gpu_resources.camera_uniform_buffer.update(queue, camera);
+    }
+
     pub fn commit_instances(&mut self, instances: &[resources::InstanceGPU], device: &Device, queue: &wgpu::Queue) {
         // @todo: authorize offset. Should I just expose the gpu resources
         // to the user and he does everything?
@@ -424,9 +469,25 @@ impl Renderer {
             // @todo: better if the access to the buffer was controlled and so
             // this flag would be automatically handled
             self.pathtrace_pass.needs_bind_group_update = true;
-
         }
+        self.pathtrace_pass.render_info.instance_count = instances.len() as u32;
+        self.pathtrace_pass.needs_render_info_update = true;
         self.pathtrace_pass.gpu_resources.instances.update(queue, instances);
+    }
+
+    pub fn commit_lights(&mut self, lights: &[resources::LightGPU], device: &Device, queue: &wgpu::Queue) {
+        // @todo: authorize offset. Should I just expose the gpu resources
+        // to the user and he does everything?
+        if !self.pathtrace_pass.gpu_resources.light_buffer.fits(lights) {
+            self.pathtrace_pass.gpu_resources.light_buffer = GPUBuffer::from_data(device, lights);
+
+            // @todo: better if the access to the buffer was controlled and so
+            // this flag would be automatically handled
+            self.pathtrace_pass.needs_bind_group_update = true;
+        }
+        self.pathtrace_pass.render_info.light_count = lights.len() as u32;
+        self.pathtrace_pass.needs_render_info_update = true;
+        self.pathtrace_pass.gpu_resources.light_buffer.update(queue, lights);
     }
 
     pub fn commit_bvh(&mut self, bvhs: &[BVHNodeGPU], device: &Device, queue: &wgpu::Queue) {

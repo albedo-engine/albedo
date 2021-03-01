@@ -1,4 +1,4 @@
-use albedo_rtx::renderer;
+use albedo_rtx::renderer::{self, CameraGPU};
 
 use wgpu::{Device, PowerPreference};
 use winit::{
@@ -98,10 +98,19 @@ fn main() {
     let mut renderer = renderer::Renderer::new(&device, sc_desc.format);
     let scene = load_gltf(&"./examples/pathtracing/assets/box.glb");
 
+    let lights = vec![
+        renderer::resources::LightGPU::from_origin(glam::Vec3::new(0.0, 0.0, -2.0))
+    ];
+
     renderer.commit_bvh(&scene.node_buffer, &device, &queue);
     renderer.commit_vertices(&scene.vertex_buffer , &device, &queue);
-    renderer.commit_indices(&scene.index_buffer , &device, &queue);
+    renderer.commit_indices(&scene.index_buffer, &device, &queue);
     renderer.commit_instances(&scene.instances, &device, &queue);
+    renderer.commit_lights(&lights, &device, &queue);
+
+    let mut camera = CameraGPU::new();
+    camera.origin = glam::Vec3::new(0.0, 0.0, 5.0);
+    renderer.commit_camera(&queue, &camera);
 
     println!("{}", scene.instances[0].world_to_model);
 

@@ -78,7 +78,7 @@ impl<T: bytemuck::Pod> UniformBuffer<T> {
         let gpu_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
             size: std::mem::size_of::<T>() as u64,
-            usage: wgpu::BufferUsage::UNIFORM,
+            usage: wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
             mapped_at_creation: false,
         });
         UniformBuffer {
@@ -87,8 +87,8 @@ impl<T: bytemuck::Pod> UniformBuffer<T> {
         }
     }
 
-    pub fn update(&mut self, queue: &wgpu::Queue, content: T) {
-        queue.write_buffer(&self.gpu_buffer, 0, bytemuck::bytes_of(&content));
+    pub fn update(&mut self, queue: &wgpu::Queue, content: &T) {
+        queue.write_buffer(&self.gpu_buffer, 0, bytemuck::bytes_of(content));
     }
 
     pub fn as_entire_binding(&self) -> wgpu::BindingResource {

@@ -1,3 +1,5 @@
+use core::panic;
+
 use albedo_math::{clamp, AABB};
 use glam::Vec3;
 
@@ -38,9 +40,10 @@ impl BVHBuilder for SAHBuilder {
         // @todo: this assumes model is triangulated. Fix that.
         // Creates all leaf nodes.
         for i in 0..nb_triangles {
-            let i0 = mesh.index(i * 3).unwrap();
-            let i1 = mesh.index(i * 3 + 1).unwrap();
-            let i2 = mesh.index(i * 3 + 2).unwrap();
+            let primitiveStart = i * 3;
+            let i0 = mesh.index(primitiveStart).unwrap();
+            let i1 = mesh.index(primitiveStart + 1).unwrap();
+            let i2 = mesh.index(primitiveStart + 2).unwrap();
             let v0_pos = mesh.position(*i0).unwrap();
             let v1_pos = mesh.position(*i1).unwrap();
             let v2_pos = mesh.position(*i2).unwrap();
@@ -49,10 +52,17 @@ impl BVHBuilder for SAHBuilder {
             aabb.expand_mut(&Vec3::from(*v0_pos));
             aabb.expand_mut(&Vec3::from(*v1_pos));
             aabb.expand_mut(&Vec3::from(*v2_pos));
-            nodes.push(BVHNode::make_leaf(aabb, i as u32));
+            nodes.push(BVHNode::make_leaf(aabb, primitiveStart));
         }
 
         let root = rec_build(&mut nodes, &mut self._bins, 0, nb_triangles as usize);
+
+        for n in &nodes {
+            match n {
+                BVHNode::Leaf { .. } => { println!("is leaf") }
+                BVHNode::Node { .. } => { println!("is root") }
+            };
+        }
 
         Ok(BVH::new(nodes, nb_triangles, root as u32))
     }
@@ -102,12 +112,13 @@ fn rec_build(nodes: &mut Vec<BVHNode>, bins: &mut [SAHBin], start: usize, end: u
     }
 
     let split_index = find_best_split(bins);
-    let mut middle = partition(&mut nodes[start..=end], |val| {
+    let mut middle = partition(&mut nodes[start..end], |val| {
         let center_on_axis = val.aabb().center()[split_axis];
         // @todo: cache center computation
         let i = get_bin_index(center_on_axis, centroids.min[split_axis], split_axis_len);
         i < split_index
     });
+
     if middle <= start || middle >= end {
         middle = (start + end) / 2;
     }
@@ -119,23 +130,24 @@ fn rec_build(nodes: &mut Vec<BVHNode>, bins: &mut [SAHBin], start: usize, end: u
     let right_surface_area = nodes[right_child_index].aabb().surface_area();
     let right_forest_size = nodes[right_child_index].forest_size();
 
-    if let BVHNode::Node {
-        ref mut forest_size,
-        ref mut left_child,
-        ref mut right_child,
-        ..
-    } = nodes[curr_node_index]
-    {
-        *forest_size += 1 + left_forest_size + 1 + right_forest_size;
-        *left_child = left_child_index as u32;
-        *right_child = right_child_index as u32;
-        if right_surface_area > left_surface_area {
-            *left_child = right_child_index as u32;
-            *right_child = left_child_index as u32;
+    match nodes[curr_node_index] {
+        BVHNode::Node{
+            ref mut forest_size,
+            ref mut left_child,
+            ref mut right_child,
+            ..
+        } => {
+            *forest_size += 1 + left_forest_size + 1 + right_forest_size;
+            *left_child = left_child_index as u32;
+            *right_child = right_child_index as u32;
+            if right_surface_area > left_surface_area {
+                *left_child = right_child_index as u32;
+                *right_child = left_child_index as u32;
+            }
         }
-    }
-
-    0
+        _ => ()
+    };
+    curr_node_index
 }
 
 fn find_best_split(bins: &mut [SAHBin]) -> usize {

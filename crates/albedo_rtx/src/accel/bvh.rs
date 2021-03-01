@@ -65,6 +65,27 @@ pub struct BVHNodeGPU {
     max: [f32; 3],
     primitive_index: u32,
 }
+
+impl BVHNodeGPU {
+
+    pub fn min(&self) -> &[f32; 3] {
+        &self.min
+    }
+
+    pub fn next(&self) -> u32 {
+        self.next_node_index
+    }
+
+    pub fn primitive(&self) -> u32 {
+        self.primitive_index
+    }
+
+    pub fn max(&self) -> &[f32; 3] {
+        &self.max
+    }
+
+}
+
 unsafe impl bytemuck::Pod for BVHNodeGPU {}
 unsafe impl bytemuck::Zeroable for BVHNodeGPU {}
 
@@ -146,26 +167,24 @@ fn flatten_bvh_rec(
     });
 
     // @todo: check that no overflow occurs
-    let curr_count = nodes.len() as u32;
+    let curr_count = out.len() as u32;
 
-    if let BVHNode::Node {
-        forest_size,
-        left_child,
-        right_child,
-        ..
-    } = node
-    {
-        if *left_child != std::u32::MAX {
-            let left_node = &nodes[*left_child as usize];
+    match node {
+        BVHNode::Node { left_child, right_child, .. } => {
+            if *left_child != std::u32::MAX {
+                let left_node = &nodes[*left_child as usize];
+                if *right_child != std::u32::MAX {
+                    let miss_idx = left_node.forest_size() + curr_count + 1;
+                    flatten_bvh_rec(out, nodes, *left_child, miss_idx);
+                } else {
+                    flatten_bvh_rec(out, nodes, *left_child, missIndex);
+                }
+            }
             if *right_child != std::u32::MAX {
-                let miss_idx = left_node.forest_size() + curr_count + 1;
-                flatten_bvh_rec(out, nodes, *left_child, miss_idx);
-            } else {
-                flatten_bvh_rec(out, nodes, *left_child, missIndex);
+                flatten_bvh_rec(out, nodes, *right_child as u32, missIndex);
             }
         }
-        if *right_child != std::u32::MAX {
-            flatten_bvh_rec(out, nodes, *right_child as u32, missIndex);
-        }
+        _ => ()
     }
+
 }

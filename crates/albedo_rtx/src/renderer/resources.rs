@@ -1,5 +1,3 @@
-use std::default;
-
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct InstanceGPU {
@@ -71,15 +69,62 @@ impl From<&[f32; 3]> for VertexGPU {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct LightGPU {
-    normal: glam::Vec4,
-    tangent: glam::Vec4,
-    bitangent: glam::Vec4,
-    intensity: f32,
+    pub normal: glam::Vec4,
+    pub tangent: glam::Vec4,
+    pub bitangent: glam::Vec4,
+    pub intensity: f32,
     padding_0: u32,
     padding_1: u32,
     padding_2: u32,
 }
+
+impl LightGPU {
+
+    pub fn new() -> Self {
+        // `origin` is packed in `normal`, `tangent`, and `bitangent`.
+        // By default, camera set at the origin.
+        LightGPU {
+            normal: glam::Vec4::new(0.0, 0.0, 1.0, 0.0),
+            tangent: glam::Vec4::new(1.0,0.0, 0.0, 0.0),
+            bitangent: glam::Vec4::new(0.0, - 1.0, 0.0, 0.0),
+            intensity: 1.0,
+            ..Default::default()
+        }
+    }
+
+    pub fn from_origin(origin: glam::Vec3) -> Self {
+        LightGPU {
+            normal: glam::Vec4::new(0.0, 0.0, 1.0, origin.x),
+            tangent: glam::Vec4::new(1.0,0.0, 0.0, origin.y),
+            bitangent: glam::Vec4::new(0.0, - 1.0, 0.0, origin.z),
+            intensity: 1.0,
+            ..Default::default()
+        }
+    }
+
+    pub fn from_matrix(local_to_world: glam::Mat4) -> Self {
+        let mut light = LightGPU::new();
+        light.set_from_matrix(local_to_world, 1.0, 1.0);
+        light
+    }
+
+    pub fn set_from_matrix(&mut self, local_to_world: glam::Mat4, width: f32, height: f32) {
+        let mut origin = local_to_world.w_axis;
+        self.normal = local_to_world * glam::Vec4::new(0.0, 0.0, 1.0, 0.0);
+        self.tangent = local_to_world * glam::Vec4::new(width, 0.0, 0.0, 0.0);
+        self.bitangent = local_to_world * glam::Vec4::new(0.0, - height, 0.0, 0.0);
+
+        origin = origin - 0.5 * self.tangent - 0.5 * self.bitangent;
+
+        // Pack origin into the normal, tangent, and bitangent vectors.
+        self.normal.w = origin.x;
+        self.tangent.w = origin.y;
+        self.bitangent.w = origin.z;
+    }
+
+}
+
 unsafe impl bytemuck::Pod for LightGPU {}
 unsafe impl bytemuck::Zeroable for LightGPU {}

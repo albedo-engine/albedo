@@ -65,6 +65,11 @@ pub fn build_acceleration_structure_gpu<'a>(bvhs: &[BVH], meshes: &[impl Mesh]) 
         let bvh = &bvhs[i];
         let mesh = &meshes[i];
 
+        println!("Flat nodes = {}", bvh.flat.nodes().len());
+        for n in bvh.flat.nodes() {
+            println!("Next = {}, Primitive = {}", n.next(), n.primitive());
+        }
+
         nodes_buffer.extend(bvh.flat.nodes());
 
         // @todo: optimized: replace by memcpy when possible.

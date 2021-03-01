@@ -96,7 +96,9 @@ pub fn load_gltf<P: AsRef<Path>>(file_path: &P) -> Scene {
         .map(|mesh| {
             // @todo: allow user to choose builder.
             let mut builder = SAHBuilder::new();
-            builder.build(mesh).unwrap()
+            let mut bvh = builder.build(mesh).unwrap();
+            bvh.flatten();
+            bvh
         })
         .collect();
 
