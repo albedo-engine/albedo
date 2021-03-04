@@ -1,0 +1,332 @@
+#version 450
+
+#include "structures.comp"
+
+#define EPSILON 0.000001
+#define NEG_EPSILON -0.000001
+#define EPSILON1 1.000001
+
+#define PI_F 3.14159265359
+#define TWO_PI 6.28318530718
+#define TO_RAD_F (PI_F / 180.0)
+#define MAX_FLOAT 3.402823466e+38
+
+#define VEC3_UP vec3(0.0, 0.999999995, 0.0001)
+
+#define MAX_UINT 0xFFFFFFFF
+#define INVALID_UINT MAX_UINT
+
+struct BVHNode
+{
+  vec3 min;
+  uint nextNodeIndex;
+  vec3 max;
+  uint primitiveStartIndex;
+};
+
+struct Vertex
+{
+  vec3 position;
+  float padding_0;
+  vec3 normal;
+  float padding_1;
+};
+
+layout(local_size_x = 8, local_size_y = 1) in;
+
+/**
+ * Layout 0
+ */
+
+layout (set = 0, binding = 0, std430) readonly buffer InstanceBuffer {
+  Instance instances[];
+};
+
+layout (set = 0, binding = 1, std430) readonly buffer BVHNodeBuffer {
+  BVHNode nodes[];
+};
+
+layout (set = 0, binding = 2, std430) readonly buffer IndexBuffer {
+  uint indices[];
+};
+
+layout (set = 0, binding = 3, std430) readonly buffer VertexBuffer {
+  Vertex vertices[];
+};
+
+layout (set = 0, binding = 4, std430) readonly buffer LightBuffer {
+  Light lights[];
+};
+
+layout (set = 0, binding = 5, std430) readonly buffer RayBuffer {
+  Ray rays[];
+};
+
+layout (set = 0, binding = 6, std430) writeonly buffer IntersectionBuffer {
+  Intersection intersections[];
+};
+
+layout (set = 0, binding = 7) uniform SceneSettingsBuffer {
+  uint instanceCount;
+  uint lightCount;
+} RenderSettings;
+
+/* Utils */
+
+uint
+WangHash(inout uint seed)
+{
+  seed = uint(seed ^ uint(61)) ^ uint(seed >> uint(16));
+  seed *= uint(9);
+  seed = seed ^ (seed >> 4);
+  seed *= uint(0x27d4eb2d);
+  seed = seed ^ (seed >> 15);
+  return seed;
+}
+
+float rand(inout uint seed)
+{
+  return float(WangHash(seed)) / 4294967296.0;
+}
+
+vec2
+cartesianToEqui(vec3 dir)
+{
+  dir = dir.xzy;
+  vec2 longlat = vec2(atan(dir.y, dir.x), acos(dir.z));
+  longlat.x += PI_F;
+  // Normalize
+  return longlat / vec2(2.0 * PI_F, PI_F);
+}
+
+vec3 interpolate(vec3 v0, vec3 v1, vec3 v2, vec3 barycentric)
+{
+  return (
+    barycentric.x * v0 +
+    barycentric.y * v1 +
+    barycentric.z * v2
+  );
+}
+
+vec2 interpolate(vec2 v0, vec2 v1, vec2 v2, vec3 barycentric)
+{
+  return (
+    barycentric.x * v0 +
+    barycentric.y * v1 +
+    barycentric.z * v2
+  );
+}
+
+vec3
+transformPosition(vec3 position, mat4 transform)
+{
+  vec4 pos = transform * vec4(position, 1.0);
+  return pos.xyz / pos.w;
+}
+
+vec3
+transformDirection(vec3 direction, mat4 transform)
+{
+  return normalize((transform * vec4(direction, 0.0)).xyz);
+}
+
+Ray
+transformRay(inout Ray ray, mat4 transform)
+{
+  Ray result;
+  result.origin = transformPosition(ray.origin, transform);
+  result.dir = transformDirection(ray.dir, transform);
+  return result;
+}
+
+// Implementation of Hammersley Points on the Hemisphere
+vec3
+randomCosineWeightedVector(inout uint seed)
+{
+  // To avoid to use a second sine and a normalization, it's possible to
+  // use directly the random number in [0.0; 1.0] and scale the generated
+  // `x` and `z` coordinates by it to obtain a normalized vector.
+  // The code below is equivalent to:
+  //   x = cos(theta), y = sin(phi), z = sin(theta);
+  //   normalize(x, y, z);
+
+  float theta = rand(seed) * TWO_PI;
+  float r = max(EPSILON, rand(seed));
+  float rLen = sqrt(max(EPSILON, 1.0 - r));
+
+  float z = sqrt(r); // weights the samples to tend the normal
+  float x = cos(theta) * rLen; // weights to preserve normalization
+  float y = sin(theta) * rLen; // weights to preserve normalization
+
+  return vec3(x, y, z);
+}
+
+/* Intersection */
+
+Vertex
+getVertex(uint vertexOffset, uint index)
+{
+  return vertices[vertexOffset + indices[index]];
+}
+
+float
+intersectPlane(Ray ray, vec3 normal, vec3 origin, vec3 edge01, vec3 edge02)
+{
+  float NdotD = dot(normal, ray.dir);
+  if (NdotD < EPSILON) { return MAX_FLOAT; }
+
+  float t = dot(normal, origin - ray.origin) / NdotD;
+  if (t < EPSILON) { return MAX_FLOAT; }
+
+  vec3 intersection = (ray.origin + ray.dir * t) - origin;
+
+  // Check not before first edge.
+  float interProj = dot(edge01, intersection);
+  if (interProj < EPSILON || interProj > dot(edge01, edge01)) { return MAX_FLOAT; }
+
+  interProj = dot(edge02, intersection);
+  if (interProj < EPSILON || interProj > dot(edge02, edge02)) { return MAX_FLOAT; }
+
+  return t;
+}
+
+// TODO: implement watertight version of Ray-Triangle intersection, available
+// behind a flag
+
+// Implementation of:
+// Möller, Tomas; Trumbore, Ben (1997). "Fast, Minimum Storage Ray-Triangle Intersection"
+float
+intersectTriangle(Ray ray, uint startIndex, uint vertexOffset, inout vec2 uv)
+{
+  // TODO: pre-process edge?
+  // Maybe not really useful if decide to add skinning in shader.
+  vec3 v0 = getVertex(vertexOffset, startIndex).position;
+  vec3 v1 = getVertex(vertexOffset, startIndex + 1).position;
+  vec3 v2 = getVertex(vertexOffset, startIndex + 2).position;
+
+  vec3 e1 = v1 - v0;
+  vec3 e2 = v2 - v0;
+
+  vec3 p = cross(ray.dir, e2);
+  float det = dot(e1, p);
+
+  // Ray is parralel to edge.
+  if (det <= NEG_EPSILON) { return MAX_FLOAT; }
+  if (det > NEG_EPSILON && det < EPSILON) { return MAX_FLOAT; }
+
+  float invDet = 1.0 / det;
+
+  // Computes Barycentric coordinates.
+  vec3 centered = ray.origin - v0;
+
+  float u = dot(centered, p) * invDet;
+  if (u < EPSILON || u > EPSILON1) { return MAX_FLOAT; }
+
+  vec3 q = cross(centered, e1);
+  float v = dot(ray.dir, q) * invDet;
+  if (v < EPSILON || u + v > EPSILON1) { return MAX_FLOAT; }
+
+  uv = vec2(u, v);
+  return dot(e2, q) * invDet;
+}
+
+float
+intersectAABB(vec3 origin, vec3 inverseDir, vec3 aabbMin, vec3 aabbMax)
+{
+  // Ray is assumed to be in local coordinates, ie:
+  // ray = inverse(objectMatrix * invCameraMatrix) * ray
+
+  // Equation of ray: O + D * t
+
+  vec3 tbottom = inverseDir * (aabbMin - origin);
+  vec3 ttop = inverseDir * (aabbMax - origin);
+
+  vec3 tmin = min(ttop, tbottom);
+  vec3 tmax = max(ttop, tbottom);
+
+  float smallestMax = min(min(tmax.x, tmax.y), min(tmax.x, tmax.z));
+  float largestMin = max(max(tmin.x, tmin.y), max(tmin.x, tmin.z));
+
+  if (smallestMax < largestMin || smallestMax < 0.0) { return MAX_FLOAT; }
+  return (largestMin > 0.0) ? largestMin : smallestMax;
+}
+
+float
+intersectAABB(Ray ray, vec3 aabbMin, vec3 aabbMax)
+{
+  return intersectAABB(ray.origin, 1.0 / ray.dir, aabbMin, aabbMax);
+}
+
+float
+sceneHit(Ray ray, inout Intersection intersection)
+{
+  float dist = MAX_FLOAT;
+  vec2 uv = vec2(0.0);
+  uint materialIndex = INVALID_UINT;
+
+  for (uint i = 0; i < RenderSettings.lightCount; ++i)
+  {
+    Light light = lights[i];
+    vec3 origin = vec3(light.normal.w, light.tangent.w, light.bitangent.w);
+    float t = intersectPlane(
+      ray, - light.normal.xyz, origin, light.tangent.xyz, light.bitangent.xyz
+    );
+    if (t > 0.0 && t < dist)
+    {
+      intersection.emitter = i;
+      dist = t;
+    }
+  }
+
+  for (uint i = 0; i < RenderSettings.instanceCount; ++i)
+  {
+    Instance instance = instances[i];
+
+    // Performs intersection in model space.
+    Ray rayModel = transformRay(ray, instance.worldToModel);
+    vec3 rayInverseDir = 1.0 / rayModel.dir;
+
+    uint nextIndex = 0;
+
+    while (nextIndex != INVALID_UINT)
+    {
+      BVHNode node = nodes[instance.bvhRootIndex + nextIndex];
+
+      float d = intersectAABB(rayModel.origin, rayInverseDir, node.min, node.max);
+      if (d < MAX_FLOAT && d < dist)
+      {
+        if (node.primitiveStartIndex != INVALID_UINT)
+        {
+          uint relativeIndex = node.primitiveStartIndex + instance.indexRootIndex;
+          float t = intersectTriangle(rayModel, relativeIndex, instance.vertexRootIndex, uv);
+          if (t > 0.0 && t < dist)
+          {
+            intersection.uv = uv;
+            intersection.index = relativeIndex;
+            intersection.instance = i;
+            intersection.emitter = INVALID_UINT;
+            dist = t;
+          }
+          nextIndex = node.nextNodeIndex;
+          continue;
+        }
+        nextIndex++;
+      }
+      else
+      {
+        nextIndex = node.nextNodeIndex;
+      }
+    }
+  }
+  return dist;
+}
+
+void main()
+{
+  Intersection intersection;
+  intersection.index = INVALID_UINT;
+  intersection.instance = INVALID_UINT;
+  intersection.emitter = INVALID_UINT;
+  intersection.dist = sceneHit(ray, intersection);
+  intersections[gl_GlobalInvocationID.x] = intersection;
+}
