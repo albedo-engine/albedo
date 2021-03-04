@@ -1,3 +1,5 @@
+use std::cmp::max;
+
 use crate::mesh::Mesh;
 use albedo_math::AABB;
 
@@ -55,6 +57,20 @@ impl BVHNode {
             BVHNode::Node { forest_size, .. } => forest_size,
         }
     }
+
+    pub fn left_child(&self) -> Option<u32> {
+        match *self {
+            BVHNode::Leaf { .. } => None,
+            BVHNode::Node { left_child, .. } => Some(left_child),
+        }
+    }
+
+    pub fn right_child(&self) -> Option<u32> {
+        match *self {
+            BVHNode::Leaf { .. } => None,
+            BVHNode::Node { right_child, .. } => Some(right_child),
+        }
+    }
 }
 
 #[repr(C)]
@@ -67,7 +83,6 @@ pub struct BVHNodeGPU {
 }
 
 impl BVHNodeGPU {
-
     pub fn min(&self) -> &[f32; 3] {
         &self.min
     }
@@ -83,7 +98,6 @@ impl BVHNodeGPU {
     pub fn max(&self) -> &[f32; 3] {
         &self.max
     }
-
 }
 
 unsafe impl bytemuck::Pod for BVHNodeGPU {}
@@ -94,11 +108,9 @@ pub struct FlatBVH {
 }
 
 impl FlatBVH {
-
     pub fn nodes(&self) -> &Vec<BVHNodeGPU> {
         &self.nodes
     }
-
 }
 
 pub struct BVH {
@@ -130,6 +142,9 @@ impl BVH {
     pub fn flatten(&mut self) {
         self.flat.nodes.clear();
         self.flat.nodes.reserve_exact(self.nodes.len());
+
+        println!("Depth = {}", depth_omp(&self.nodes, self.root() as usize, 0));
+
         flatten_bvh_rec(
             &mut self.flat.nodes,
             &self.nodes,
@@ -170,7 +185,11 @@ fn flatten_bvh_rec(
     let curr_count = out.len() as u32;
 
     match node {
-        BVHNode::Node { left_child, right_child, .. } => {
+        BVHNode::Node {
+            left_child,
+            right_child,
+            ..
+        } => {
             if *left_child != std::u32::MAX {
                 let left_node = &nodes[*left_child as usize];
                 if *right_child != std::u32::MAX {
@@ -184,7 +203,17 @@ fn flatten_bvh_rec(
                 flatten_bvh_rec(out, nodes, *right_child as u32, missIndex);
             }
         }
-        _ => ()
+        _ => (),
     }
+}
 
+fn depth_omp(nodes: &[BVHNode], input: usize, depth: usize) -> usize {
+    let node = &nodes[input];
+    let left_depth = if let Some(x) = node.left_child() {
+        depth_omp(nodes, x as usize, depth + 1)
+    } else {
+        0 as usize
+    };
+    let right_depth = if let Some(x) = node.right_child() { depth_omp(nodes, x as usize, depth + 1) } else { 0 as usize };
+    depth + std::cmp::max(left_depth, right_depth)
 }

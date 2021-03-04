@@ -40,10 +40,10 @@ impl BVHBuilder for SAHBuilder {
         // @todo: this assumes model is triangulated. Fix that.
         // Creates all leaf nodes.
         for i in 0..nb_triangles {
-            let primitiveStart = i * 3;
-            let i0 = mesh.index(primitiveStart).unwrap();
-            let i1 = mesh.index(primitiveStart + 1).unwrap();
-            let i2 = mesh.index(primitiveStart + 2).unwrap();
+            let primitive_start = i * 3;
+            let i0 = mesh.index(primitive_start).unwrap();
+            let i1 = mesh.index(primitive_start + 1).unwrap();
+            let i2 = mesh.index(primitive_start + 2).unwrap();
             let v0_pos = mesh.position(*i0).unwrap();
             let v1_pos = mesh.position(*i1).unwrap();
             let v2_pos = mesh.position(*i2).unwrap();
@@ -52,15 +52,19 @@ impl BVHBuilder for SAHBuilder {
             aabb.expand_mut(&Vec3::from(*v0_pos));
             aabb.expand_mut(&Vec3::from(*v1_pos));
             aabb.expand_mut(&Vec3::from(*v2_pos));
-            nodes.push(BVHNode::make_leaf(aabb, primitiveStart));
+            nodes.push(BVHNode::make_leaf(aabb, primitive_start));
         }
 
         let root = rec_build(&mut nodes, &mut self._bins, 0, nb_triangles as usize);
 
         for n in &nodes {
             match n {
-                BVHNode::Leaf { .. } => { println!("is leaf") }
-                BVHNode::Node { .. } => { println!("is root") }
+                BVHNode::Leaf { .. } => {
+                    println!("is leaf")
+                }
+                BVHNode::Node { .. } => {
+                    println!("is root")
+                }
             };
         }
 
@@ -82,9 +86,6 @@ fn rec_build(nodes: &mut Vec<BVHNode>, bins: &mut [SAHBin], start: usize, end: u
         // @todo: cache center computation.
         centroids.expand_mut(&node.aabb().center());
     }
-
-    let curr_node_index = nodes.len();
-    nodes.push(BVHNode::make_node(aabb));
 
     // The split is based on the largest dimension.
     let split_axis = centroids.maximum_extent();
@@ -112,6 +113,9 @@ fn rec_build(nodes: &mut Vec<BVHNode>, bins: &mut [SAHBin], start: usize, end: u
     }
 
     let split_index = find_best_split(bins);
+
+    println!("Split Index = {}", split_index);
+
     let mut middle = partition(&mut nodes[start..end], |val| {
         let center_on_axis = val.aabb().center()[split_axis];
         // @todo: cache center computation
@@ -123,31 +127,28 @@ fn rec_build(nodes: &mut Vec<BVHNode>, bins: &mut [SAHBin], start: usize, end: u
         middle = (start + end) / 2;
     }
 
-    let left_child_index = rec_build(nodes, bins, start, middle) as usize;
-    let right_child_index = rec_build(nodes, bins, middle, end) as usize;
+    // println!("Start  = {}, Middle = {}, End = {}", start, middle, end);
+
+    let mut left_child_index = rec_build(nodes, bins, start, middle) as usize;
+    let mut right_child_index = rec_build(nodes, bins, middle, end) as usize;
     let left_surface_area = nodes[left_child_index].aabb().surface_area();
     let left_forest_size = nodes[left_child_index].forest_size();
     let right_surface_area = nodes[right_child_index].aabb().surface_area();
     let right_forest_size = nodes[right_child_index].forest_size();
+    if right_surface_area > left_surface_area {
+        let tmp = left_child_index;
+        left_child_index = right_child_index;
+        right_child_index = tmp;
+    }
 
-    match nodes[curr_node_index] {
-        BVHNode::Node{
-            ref mut forest_size,
-            ref mut left_child,
-            ref mut right_child,
-            ..
-        } => {
-            *forest_size += 1 + left_forest_size + 1 + right_forest_size;
-            *left_child = left_child_index as u32;
-            *right_child = right_child_index as u32;
-            if right_surface_area > left_surface_area {
-                *left_child = right_child_index as u32;
-                *right_child = left_child_index as u32;
-            }
-        }
-        _ => ()
-    };
-    curr_node_index
+    nodes.push(BVHNode::Node {
+        aabb,
+        left_child: left_child_index as u32,
+        right_child: right_child_index as u32,
+        forest_size: 1 + left_forest_size + 1 + right_forest_size,
+    });
+
+    nodes.len() - 1
 }
 
 fn find_best_split(bins: &mut [SAHBin]) -> usize {

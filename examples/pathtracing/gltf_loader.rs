@@ -1,5 +1,8 @@
-use albedo_rtx::{accel::{BVH, BVHNodeGPU, BVHBuilder, SAHBuilder}, mesh::Mesh};
 use albedo_rtx::renderer;
+use albedo_rtx::{
+    accel::{BVHBuilder, BVHNodeGPU, SAHBuilder, BVH},
+    mesh::Mesh,
+};
 use gltf::{self, json::Index};
 use std::path::Path;
 
@@ -9,7 +12,6 @@ pub struct ProxyMesh {
     indices: Vec<u32>,
 }
 impl Mesh for ProxyMesh {
-
     fn index(&self, index: u32) -> Option<&u32> {
         self.indices.get(index as usize)
     }
@@ -74,14 +76,17 @@ pub fn load_gltf<P: AsRef<Path>>(file_path: &P) -> Scene {
         let mut normals: Vec<[f32; 3]> = Vec::new();
         let mut indices: Vec<u32> = Vec::new();
 
+        println!("Primitive count = {}", mesh.primitives().len());
+
         for primitive in mesh.primitives() {
             let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
             positions.extend(reader.read_positions().unwrap());
             normals.extend(reader.read_normals().unwrap());
-            indices.extend(reader
-                .read_indices()
-                .map(|read_indices| read_indices.into_u32())
-                .unwrap()
+            indices.extend(
+                reader
+                    .read_indices()
+                    .map(|read_indices| read_indices.into_u32())
+                    .unwrap(),
             );
         }
         meshes.push(ProxyMesh {
@@ -102,10 +107,7 @@ pub fn load_gltf<P: AsRef<Path>>(file_path: &P) -> Scene {
         })
         .collect();
 
-    let gpu_resources = renderer::utils::build_acceleration_structure_gpu(
-        &bvhs,
-        &meshes
-    );
+    let gpu_resources = renderer::utils::build_acceleration_structure_gpu(&bvhs, &meshes);
 
     for node in doc.nodes() {
         // @todo: handle scene graph.
@@ -116,7 +118,8 @@ pub fn load_gltf<P: AsRef<Path>>(file_path: &P) -> Scene {
             let index = mesh.index();
             let offset_table = gpu_resources.offset_table.get(index).unwrap();
             instances.push(renderer::resources::InstanceGPU {
-                world_to_model: glam::Mat4::from_cols_array_2d(&node.transform().matrix()).inverse(),
+                world_to_model: glam::Mat4::from_cols_array_2d(&node.transform().matrix())
+                    .inverse(),
                 material_index: 0,
                 bvh_root_index: offset_table.node(),
                 vertex_root_index: offset_table.vertex(),
@@ -131,6 +134,6 @@ pub fn load_gltf<P: AsRef<Path>>(file_path: &P) -> Scene {
         bvhs,
         node_buffer: gpu_resources.nodes_buffer,
         vertex_buffer: gpu_resources.vertex_buffer,
-        index_buffer: gpu_resources.index_buffer
+        index_buffer: gpu_resources.index_buffer,
     }
 }

@@ -10,11 +10,12 @@ pub struct InstanceGPU {
 }
 
 impl InstanceGPU {
-
     fn new(world_to_model: glam::Mat4) -> Self {
-        InstanceGPU { world_to_model, ..Default::default() }
+        InstanceGPU {
+            world_to_model,
+            ..Default::default()
+        }
     }
-
 }
 
 unsafe impl bytemuck::Pod for InstanceGPU {}
@@ -31,17 +32,16 @@ unsafe impl bytemuck::Zeroable for MaterialGPU {}
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct VertexGPU {
-    position: glam::Vec3,
-    padding_0: u32,
-    normal: glam::Vec3,
-    padding_1: u32,
+    pub position: glam::Vec3,
+    padding_0: f32,
+    pub normal: glam::Vec3,
+    padding_1: f32,
     // @todo: add UV
 }
 unsafe impl bytemuck::Pod for VertexGPU {}
 unsafe impl bytemuck::Zeroable for VertexGPU {}
 
 impl VertexGPU {
-
     pub fn from_position(position: &[f32; 3]) -> Self {
         VertexGPU {
             position: (*position).into(),
@@ -52,20 +52,16 @@ impl VertexGPU {
     pub fn new(position: &[f32; 3], normal: &[f32; 3]) -> Self {
         VertexGPU {
             position: (*position).into(),
-            padding_0: 0,
-            normal: (*position).into(),
-            padding_1: 1
+            normal: (*normal).into(),
+            ..Default::default()
         }
     }
-
 }
 
 impl From<&[f32; 3]> for VertexGPU {
-
     fn from(item: &[f32; 3]) -> Self {
         VertexGPU::from_position(item)
     }
-
 }
 
 #[repr(C)]
@@ -81,14 +77,13 @@ pub struct LightGPU {
 }
 
 impl LightGPU {
-
     pub fn new() -> Self {
         // `origin` is packed in `normal`, `tangent`, and `bitangent`.
         // By default, camera set at the origin.
         LightGPU {
             normal: glam::Vec4::new(0.0, 0.0, 1.0, 0.0),
-            tangent: glam::Vec4::new(1.0,0.0, 0.0, 0.0),
-            bitangent: glam::Vec4::new(0.0, - 1.0, 0.0, 0.0),
+            tangent: glam::Vec4::new(1.0, 0.0, 0.0, 0.0),
+            bitangent: glam::Vec4::new(0.0, -1.0, 0.0, 0.0),
             intensity: 1.0,
             ..Default::default()
         }
@@ -97,8 +92,8 @@ impl LightGPU {
     pub fn from_origin(origin: glam::Vec3) -> Self {
         LightGPU {
             normal: glam::Vec4::new(0.0, 0.0, 1.0, origin.x),
-            tangent: glam::Vec4::new(1.0,0.0, 0.0, origin.y),
-            bitangent: glam::Vec4::new(0.0, - 1.0, 0.0, origin.z),
+            tangent: glam::Vec4::new(1.0, 0.0, 0.0, origin.y),
+            bitangent: glam::Vec4::new(0.0, -1.0, 0.0, origin.z),
             intensity: 1.0,
             ..Default::default()
         }
@@ -114,7 +109,7 @@ impl LightGPU {
         let mut origin = local_to_world.w_axis;
         self.normal = local_to_world * glam::Vec4::new(0.0, 0.0, 1.0, 0.0);
         self.tangent = local_to_world * glam::Vec4::new(width, 0.0, 0.0, 0.0);
-        self.bitangent = local_to_world * glam::Vec4::new(0.0, - height, 0.0, 0.0);
+        self.bitangent = local_to_world * glam::Vec4::new(0.0, -height, 0.0, 0.0);
 
         origin = origin - 0.5 * self.tangent - 0.5 * self.bitangent;
 
@@ -123,7 +118,6 @@ impl LightGPU {
         self.tangent.w = origin.y;
         self.bitangent.w = origin.z;
     }
-
 }
 
 unsafe impl bytemuck::Pod for LightGPU {}

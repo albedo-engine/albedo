@@ -61,10 +61,10 @@ struct BVHNode
 struct Vertex
 {
   vec3 position;
-  uint padding_0;
+  float padding_0;
   vec3 normal;
-  uint padding_1;
-  vec2 uv;
+  float padding_1;
+  // vec2 uv;
 };
 
 struct Material
@@ -426,40 +426,58 @@ sceneHit(Ray ray, inout Intersection intersection)
     float depth = 1.0;
     #endif
 
-    uint nextIndex = instance.bvhRootIndex;
+    uint nextIndex = 0;
 
-    while (nextIndex != INVALID_UINT)
+    for (uint i = 0; i < 36; i +=3 )
     {
-      BVHNode node = nodes[nextIndex];
+      uint relativeIndex = i + instance.indexRootIndex;
+      float t = intersectTriangle(rayModel, relativeIndex, instance.vertexRootIndex, uv);
+      if (t > 0.0 && t < dist)
+      {
+          intersection.uv = uv;
+          intersection.index = relativeIndex;
+          intersection.vertexOffset = instance.vertexRootIndex;
+          intersection.instance = i;
+          // TODO: remove material as we now pass instance directly.
+          intersection.materialIndex = instance.materialIndex;
+          intersection.emitter = false;
+          dist = t;
+      }
 
-      float d = intersectAABB(rayModel.origin, rayInverseDir, node.min, node.max);
-      if (d < MAX_FLOAT && d < dist)
-      {
-        if (node.primitiveStartIndex != INVALID_UINT)
-        {
-          uint relativeIndex = node.primitiveStartIndex + instance.indexRootIndex;
-          float t = intersectTriangle(rayModel, relativeIndex, instance.vertexRootIndex, uv);
-          if (t > 0.0 && t < dist)
-          {
-            intersection.uv = uv;
-            intersection.index = relativeIndex;
-            intersection.vertexOffset = instance.vertexRootIndex;
-            intersection.instance = i;
-            // TODO: remove material as we now pass instance directly.
-            intersection.materialIndex = instance.materialIndex;
-            intersection.emitter = false;
-            dist = t;
-          }
-          nextIndex = node.nextNodeIndex;
-          continue;
-        }
-        nextIndex++;
-      }
-      else
-      {
-        nextIndex = node.nextNodeIndex;
-      }
     }
+
+    // while (nextIndex != INVALID_UINT)
+    // {
+    //   BVHNode node = nodes[instance.bvhRootIndex + nextIndex];
+
+    //   float d = intersectAABB(rayModel.origin, rayInverseDir, node.min, node.max);
+    //   if (d < MAX_FLOAT && d < dist)
+    //   {
+    //     if (node.primitiveStartIndex != INVALID_UINT)
+    //     {
+    //       uint relativeIndex = node.primitiveStartIndex + instance.indexRootIndex;
+    //       float t = intersectTriangle(rayModel, relativeIndex, instance.vertexRootIndex, uv);
+    //       if (t > 0.0 && t < dist)
+    //       {
+    //         intersection.uv = uv;
+    //         intersection.index = relativeIndex;
+    //         intersection.vertexOffset = instance.vertexRootIndex;
+    //         intersection.instance = i;
+    //         // TODO: remove material as we now pass instance directly.
+    //         intersection.materialIndex = instance.materialIndex;
+    //         intersection.emitter = false;
+    //         dist = t;
+    //       }
+    //       nextIndex = node.nextNodeIndex;
+    //       continue;
+    //     }
+    //     nextIndex++;
+    //   }
+    //   else
+    //   {
+    //     nextIndex = node.nextNodeIndex;
+    //   }
+    // }
   }
 
   // intersection.emissive.b = test / 8000.0;
@@ -482,7 +500,7 @@ void main()
 
   Intersection intersection;
   #ifdef DEBUG_BOX
-  for (uint bounces = 0; bounces < 1; ++bounces)
+  for (uint bounces = 0; bounces < 4; ++bounces)
   #else
   for (uint bounces = 0; bounces < NB_BOUNCES; ++bounces)
   #endif
@@ -491,12 +509,20 @@ void main()
     intersection.emitter = false;
 
     float t = sceneHit(ray, intersection);
-    if (intersection.emitter) {
-      imageStore(uRenderTargetWrite, idx, vec4(0., 1., 0., 1.));
-      break;
-    } else if (t < MAX_FLOAT) {
-      imageStore(uRenderTargetWrite, idx, vec4(0., 0., 1., 1.0));
-    }
+
+    // DEBUG
+    // if (intersection.emitter) {
+    //   imageStore(uRenderTargetWrite, idx, vec4(0., 1., 0., 1.));
+    //   break;
+    // } else if (t < MAX_FLOAT) {
+    //   imageStore(uRenderTargetWrite, idx, vec4(0., 0., 1., 1.0));
+    //   break;
+    // }
+    // if (indices[35] == 21) {
+    //   imageStore(uRenderTargetWrite, idx, vec4(1.0, 1., 0., 1.0));
+    //   break;
+    // }
+    // END DEBUG
 
 
     #ifdef DEBUG_BOX
@@ -529,7 +555,7 @@ void main()
     Vertex vertex2 = getVertex(intersection.vertexOffset, intersection.index + 2);
 
     vec3 normal = interpolate(vertex0.normal, vertex1.normal, vertex2.normal, barycentric);
-    vec2 uv = interpolate(vertex0.uv, vertex1.uv, vertex2.uv, barycentric);
+    // vec2 uv = interpolate(vertex0.uv, vertex1.uv, vertex2.uv, barycentric);
 
     // 𝐿𝑟 𝛚𝑟 ≈ 𝑁 𝑓𝑟 𝛚𝑖,𝛚𝑟 𝐿𝑖 𝛚𝑖 cos𝜃𝑖⁡
 
@@ -567,6 +593,6 @@ void main()
   // vec4 c = imageLoad(uRenderTarget, idx);
   // if (RenderSettings.frameCount == 1) { c = vec4(0.0); }
   // imageStore(uRenderTargetWrite, idx, c + radiance);
-  // imageStore(uRenderTargetWrite, idx, radiance);
+  imageStore(uRenderTargetWrite, idx, radiance);
   // imageStore(uRenderTargetWrite, idx, vec4(0.2, 1.0, 0.0, 1.0));
 }
