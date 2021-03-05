@@ -428,59 +428,58 @@ sceneHit(Ray ray, inout Intersection intersection)
 
     uint nextIndex = 0;
 
-    for (uint i = 0; i < 36; i +=3 )
-    {
-      uint relativeIndex = i + instance.indexRootIndex;
-      float t = intersectTriangle(rayModel, relativeIndex, instance.vertexRootIndex, uv);
-      if (t > 0.0 && t < dist)
-      {
-          intersection.uv = uv;
-          intersection.index = relativeIndex;
-          intersection.vertexOffset = instance.vertexRootIndex;
-          intersection.instance = i;
-          // TODO: remove material as we now pass instance directly.
-          intersection.materialIndex = instance.materialIndex;
-          intersection.emitter = false;
-          dist = t;
-      }
-
-    }
-
-    // while (nextIndex != INVALID_UINT)
+    // for (uint i = 0; i < 36; i +=3 )
     // {
-    //   BVHNode node = nodes[instance.bvhRootIndex + nextIndex];
+    //   uint relativeIndex = i + instance.indexRootIndex;
+    //   float t = intersectTriangle(rayModel, relativeIndex, instance.vertexRootIndex, uv);
+    //   if (t > 0.0 && t < dist)
+    //   {
+    //       intersection.uv = uv;
+    //       intersection.index = relativeIndex;
+    //       intersection.vertexOffset = instance.vertexRootIndex;
+    //       intersection.instance = i;
+    //       // TODO: remove material as we now pass instance directly.
+    //       intersection.materialIndex = instance.materialIndex;
+    //       intersection.emitter = false;
+    //       dist = t;
+    //   }
 
-    //   float d = intersectAABB(rayModel.origin, rayInverseDir, node.min, node.max);
-    //   if (d < MAX_FLOAT && d < dist)
-    //   {
-    //     if (node.primitiveStartIndex != INVALID_UINT)
-    //     {
-    //       uint relativeIndex = node.primitiveStartIndex + instance.indexRootIndex;
-    //       float t = intersectTriangle(rayModel, relativeIndex, instance.vertexRootIndex, uv);
-    //       if (t > 0.0 && t < dist)
-    //       {
-    //         intersection.uv = uv;
-    //         intersection.index = relativeIndex;
-    //         intersection.vertexOffset = instance.vertexRootIndex;
-    //         intersection.instance = i;
-    //         // TODO: remove material as we now pass instance directly.
-    //         intersection.materialIndex = instance.materialIndex;
-    //         intersection.emitter = false;
-    //         dist = t;
-    //       }
-    //       nextIndex = node.nextNodeIndex;
-    //       continue;
-    //     }
-    //     nextIndex++;
-    //   }
-    //   else
-    //   {
-    //     nextIndex = node.nextNodeIndex;
-    //   }
     // }
+
+    while (nextIndex != INVALID_UINT)
+    {
+      BVHNode node = nodes[instance.bvhRootIndex + nextIndex];
+
+      float d = intersectAABB(rayModel.origin, rayInverseDir, node.min, node.max);
+      if (d < MAX_FLOAT && d < dist)
+      {
+        if (node.primitiveStartIndex != INVALID_UINT)
+        {
+          uint relativeIndex = node.primitiveStartIndex + instance.indexRootIndex;
+          float t = intersectTriangle(rayModel, relativeIndex, instance.vertexRootIndex, uv);
+          if (t > 0.0 && t < dist)
+          {
+            intersection.uv = uv;
+            intersection.index = relativeIndex;
+            intersection.vertexOffset = instance.vertexRootIndex;
+            intersection.instance = i;
+            // TODO: remove material as we now pass instance directly.
+            intersection.materialIndex = instance.materialIndex;
+            intersection.emitter = false;
+            dist = t;
+          }
+          nextIndex = node.nextNodeIndex;
+          continue;
+        }
+        nextIndex++;
+      }
+      else
+      {
+        nextIndex = node.nextNodeIndex;
+      }
+    }
   }
 
-  // intersection.emissive.b = test / 8000.0;
   return dist;
 }
 
