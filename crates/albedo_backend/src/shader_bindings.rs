@@ -9,6 +9,37 @@
 //     }
 // }
 
+/**
+ * Layouts
+ */
+
+pub const fn uniform_entry(binding: u32, visibility: wgpu::ShaderStage) -> wgpu::BindGroupLayoutEntry {
+    wgpu::BindGroupLayoutEntry {
+        binding,
+        visibility,
+        ty: uniform(),
+        count: None,
+    }
+}
+
+pub const fn buffer_entry(binding: u32, visibility: wgpu::ShaderStage, readonly: bool) -> wgpu::BindGroupLayoutEntry {
+    BindGroupLayoutEntry {
+        binding,
+        visibility,
+        ty: shader_bindings::buffer(readonly),
+        count: None,
+    }
+}
+
+pub const fn uniform_entry() -> wgpu::BindGroupLayoutEntry {
+    BindGroupLayoutEntry {
+        binding: 0,
+        visibility: ShaderStage::COMPUTE,
+        ty: shader_bindings::uniform(),
+        count: None,
+    }
+}
+
 pub const fn buffer(readonly: bool) -> wgpu::BindingType {
     wgpu::BindingType::Buffer {
         ty: wgpu::BufferBindingType::Storage {
