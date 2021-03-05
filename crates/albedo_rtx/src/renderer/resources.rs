@@ -1,4 +1,34 @@
 #[repr(C)]
+#[derive(Clone, Copy)]
+pub struct BVHNodeGPU {
+    min: [f32; 3],
+    next_node_index: u32,
+    max: [f32; 3],
+    primitive_index: u32,
+}
+
+impl BVHNodeGPU {
+    pub fn min(&self) -> &[f32; 3] {
+        &self.min
+    }
+
+    pub fn next(&self) -> u32 {
+        self.next_node_index
+    }
+
+    pub fn primitive(&self) -> u32 {
+        self.primitive_index
+    }
+
+    pub fn max(&self) -> &[f32; 3] {
+        &self.max
+    }
+}
+
+unsafe impl bytemuck::Pod for BVHNodeGPU {}
+unsafe impl bytemuck::Zeroable for BVHNodeGPU {}
+
+#[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct InstanceGPU {
     pub world_to_model: glam::Mat4,
@@ -120,5 +150,37 @@ impl LightGPU {
     }
 }
 
-unsafe impl bytemuck::Pod for LightGPU {}
-unsafe impl bytemuck::Zeroable for LightGPU {}
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct SceneSettingsGPU {
+    pub instance_count: u32,
+    pub light_count: u32,
+}
+
+unsafe impl bytemuck::Pod for SceneSettingsGPU {}
+unsafe impl bytemuck::Zeroable for SceneSettingsGPU {}
+
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+struct RayGPU {
+    origin: glam::Vec3,
+    padding_0: f32,
+    dir: glam::Vec3,
+    padding_1: f32,
+}
+
+unsafe impl bytemuck::Pod for RayGPU {}
+unsafe impl bytemuck::Zeroable for RayGPU {}
+
+struct IntersectionGPU {
+    uv: glam::Vec2,
+    index, u32
+    instance: u32
+    emitter: u32
+    dist: f32,
+    padding_0: f32,
+    padding_1: f32,
+}
+
+unsafe impl bytemuck::Pod for IntersectionGPU {}
+unsafe impl bytemuck::Zeroable for IntersectionGPU {}

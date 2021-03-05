@@ -3,7 +3,7 @@ use wgpu;
 // @todo: migrate to gfx.
 pub struct GPUBuffer<T> {
     gpu_buffer: wgpu::Buffer,
-    byte_count: u64,
+    count: u64,
     content_type: PhantomData<T>,
 }
 
@@ -17,7 +17,7 @@ impl<T: bytemuck::Pod> GPUBuffer<T> {
         });
         GPUBuffer {
             gpu_buffer,
-            byte_count: 0,
+            count: 0,
             content_type: PhantomData,
         }
     }
@@ -32,7 +32,7 @@ impl<T: bytemuck::Pod> GPUBuffer<T> {
         });
         GPUBuffer {
             gpu_buffer,
-            byte_count,
+            count,
             content_type: PhantomData,
         }
     }
@@ -47,7 +47,7 @@ impl<T: bytemuck::Pod> GPUBuffer<T> {
         });
         GPUBuffer {
             gpu_buffer,
-            byte_count,
+            count: content.len(),
             content_type: PhantomData,
         }
     }
@@ -62,8 +62,11 @@ impl<T: bytemuck::Pod> GPUBuffer<T> {
     }
 
     pub fn fits(&self, content: &[T]) -> bool {
-        let byte_count = (std::mem::size_of::<T>() * content.len()) as u64;
-        byte_count <= self.byte_count
+        content.len() <= self.count
+    }
+
+    pub fn count(&self) -> u64 {
+        self.count
     }
 }
 
