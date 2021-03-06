@@ -1,6 +1,4 @@
-use wgpu::Device;
-
-use albedo_backend::{shader_bindings, GPUBuffer, UniformBuffer};
+// use albedo_backend::{shader_bindings, GPUBuffer, UniformBuffer};
 
 pub struct BlitPass {
     bind_group_layout: wgpu::BindGroupLayout,
@@ -16,12 +14,6 @@ impl BlitPass {
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,
                     visibility: wgpu::ShaderStage::FRAGMENT,
-                    ty: shader_bindings::uniform(),
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStage::FRAGMENT,
                     ty: wgpu::BindingType::Sampler {
                         comparison: false,
                         filtering: true,
@@ -29,7 +21,7 @@ impl BlitPass {
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry {
-                    binding: 2,
+                    binding: 1,
                     visibility: wgpu::ShaderStage::FRAGMENT,
                     ty: wgpu::BindingType::Texture {
                         multisampled: false,
@@ -80,21 +72,16 @@ impl BlitPass {
         }
     }
 
-    pub fn init(
+    pub fn bind(
         &mut self,
         device: &wgpu::Device,
         view: &wgpu::TextureView,
-        sampler: &wgpu::Sampler,
-        render_info: wgpu::BindingResource,
+        sampler: &wgpu::Sampler
     ) {
         self.bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Blit"),
+            label: Some("Blit Bind Group"),
             layout: &self.bind_group_layout,
             entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: render_info,
-                },
                 wgpu::BindGroupEntry {
                     binding: 1,
                     resource: wgpu::BindingResource::Sampler(sampler),
@@ -107,7 +94,7 @@ impl BlitPass {
         }));
     }
 
-    pub fn render(
+    pub fn run(
         &self,
         frame: &wgpu::SwapChainTexture,
         queue: &wgpu::Queue,

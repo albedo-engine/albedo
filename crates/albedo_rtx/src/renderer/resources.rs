@@ -1,10 +1,10 @@
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct BVHNodeGPU {
-    min: [f32; 3],
-    next_node_index: u32,
-    max: [f32; 3],
-    primitive_index: u32,
+    pub min: [f32; 3],
+    pub next_node_index: u32,
+    pub max: [f32; 3],
+    pub primitive_index: u32,
 }
 
 impl BVHNodeGPU {
@@ -106,6 +106,9 @@ pub struct LightGPU {
     padding_2: u32,
 }
 
+unsafe impl bytemuck::Pod for LightGPU {}
+unsafe impl bytemuck::Zeroable for LightGPU {}
+
 impl LightGPU {
     pub fn new() -> Self {
         // `origin` is packed in `normal`, `tangent`, and `bitangent`.
@@ -162,7 +165,33 @@ unsafe impl bytemuck::Zeroable for SceneSettingsGPU {}
 
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
-struct RayGPU {
+pub struct CameraGPU {
+    pub origin: glam::Vec3,
+    pub v_fov: f32,
+    pub up: glam::Vec3,
+    padding_0: f32,
+    pub right: glam::Vec3,
+    padding_1: f32,
+}
+
+impl CameraGPU {
+    pub fn new() -> Self {
+        CameraGPU {
+            origin: glam::Vec3::new(0.0, 0.0, 2.0),
+            v_fov: 0.78,
+            up: glam::Vec3::new(0.0, 1.0, 0.0),
+            right: glam::Vec3::new(1.0, 0.0, 0.0),
+            ..Default::default()
+        }
+    }
+}
+
+unsafe impl bytemuck::Pod for CameraGPU {}
+unsafe impl bytemuck::Zeroable for CameraGPU {}
+
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct RayGPU {
     origin: glam::Vec3,
     padding_0: f32,
     dir: glam::Vec3,
@@ -171,12 +200,13 @@ struct RayGPU {
 
 unsafe impl bytemuck::Pod for RayGPU {}
 unsafe impl bytemuck::Zeroable for RayGPU {}
-
-struct IntersectionGPU {
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct IntersectionGPU {
     uv: glam::Vec2,
-    index, u32
-    instance: u32
-    emitter: u32
+    index: u32,
+    instance: u32,
+    emitter: u32,
     dist: f32,
     padding_0: f32,
     padding_1: f32,

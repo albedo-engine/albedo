@@ -1,4 +1,4 @@
-use crate::accel::{BVH, BVHNodeGPU};
+use crate::accel::{BVH};
 use crate::mesh::Mesh;
 use crate::renderer::resources;
 
@@ -26,7 +26,7 @@ impl Offsets {
 
 pub struct GPUResources {
     pub offset_table: Vec<Offsets>,
-    pub nodes_buffer: Vec<BVHNodeGPU>,
+    pub nodes_buffer: Vec<resources::BVHNodeGPU>,
     pub vertex_buffer: Vec<resources::VertexGPU>,
     pub index_buffer: Vec<u32>,
 }
@@ -57,7 +57,7 @@ pub fn build_acceleration_structure_gpu<'a>(bvhs: &[BVH], meshes: &[impl Mesh]) 
     }
 
     // @todo: parallel for.
-    let mut nodes_buffer: Vec<BVHNodeGPU> = Vec::with_capacity(node_count as usize);
+    let mut nodes_buffer: Vec<resources::BVHNodeGPU> = Vec::with_capacity(node_count as usize);
     let mut vertex_buffer: Vec<resources::VertexGPU> = Vec::with_capacity(vertex_count as usize);
     let mut index_buffer: Vec<u32> = Vec::with_capacity(index_count as usize);
 

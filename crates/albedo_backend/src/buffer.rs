@@ -3,7 +3,7 @@ use wgpu;
 // @todo: migrate to gfx.
 pub struct GPUBuffer<T> {
     gpu_buffer: wgpu::Buffer,
-    count: u64,
+    count: usize,
     content_type: PhantomData<T>,
 }
 
@@ -65,7 +65,7 @@ impl<T: bytemuck::Pod> GPUBuffer<T> {
         content.len() <= self.count
     }
 
-    pub fn count(&self) -> u64 {
+    pub fn count(&self) -> usize {
         self.count
     }
 }

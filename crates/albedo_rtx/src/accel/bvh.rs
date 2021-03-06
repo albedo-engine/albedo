@@ -138,13 +138,13 @@ pub trait BVHBuilder {
 }
 
 fn flatten_bvh_rec(
-    out: &mut Vec<BVHNodeGPU>,
+    out: &mut Vec<resources::BVHNodeGPU>,
     nodes: &Vec<BVHNode>,
     inputIndex: u32,
     missIndex: u32,
 ) {
     let node = &nodes[inputIndex as usize];
-    out.push(BVHNodeGPU {
+    out.push(resources::BVHNodeGPU {
         min: node.aabb().min.into(),
         max: node.aabb().max.into(),
         next_node_index: missIndex,

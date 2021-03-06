@@ -1,17 +1,13 @@
-mod blit_pass;
-use blit_pass::BlitPass;
+use crate::passes::BlitPass;
 
 pub mod resources;
 pub mod utils;
 
-use accel::BVHNodeGPU;
-use glam;
 use wgpu::{
     BindGroup, BindGroupLayoutEntry, CommandEncoder, ComputePipeline, ComputePipelineDescriptor,
     Device, PipelineLayoutDescriptor, ShaderStage,
 };
 
-use crate::accel;
 use albedo_backend::{shader_bindings, GPUBuffer, UniformBuffer};
 
 #[repr(C)]
@@ -21,32 +17,6 @@ pub struct UniformsGPU {
 }
 unsafe impl bytemuck::Pod for UniformsGPU {}
 unsafe impl bytemuck::Zeroable for UniformsGPU {}
-
-#[repr(C)]
-#[derive(Clone, Copy, Default)]
-pub struct CameraGPU {
-    pub origin: glam::Vec3,
-    pub v_fov: f32,
-    pub up: glam::Vec3,
-    padding_0: f32,
-    pub right: glam::Vec3,
-    padding_1: f32,
-}
-
-impl CameraGPU {
-    pub fn new() -> Self {
-        CameraGPU {
-            origin: glam::Vec3::new(0.0, 0.0, 2.0),
-            v_fov: 0.78,
-            up: glam::Vec3::new(0.0, 1.0, 0.0),
-            right: glam::Vec3::new(1.0, 0.0, 0.0),
-            ..Default::default()
-        }
-    }
-}
-
-unsafe impl bytemuck::Pod for CameraGPU {}
-unsafe impl bytemuck::Zeroable for CameraGPU {}
 
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
@@ -77,13 +47,13 @@ unsafe impl bytemuck::Zeroable for RenderInfo {}
 struct PathtracePassResources {
     pub(crate) render_info: UniformBuffer<RenderInfo>,
     pub(crate) instances: GPUBuffer<resources::InstanceGPU>,
-    pub(crate) nodes: GPUBuffer<accel::BVHNodeGPU>,
+    pub(crate) nodes: GPUBuffer<resources::BVHNodeGPU>,
     pub(crate) index_buffer: GPUBuffer<u32>,
     pub(crate) vertex_buffer: GPUBuffer<resources::VertexGPU>,
     pub(crate) material_buffer: GPUBuffer<resources::MaterialGPU>,
     pub(crate) light_buffer: GPUBuffer<resources::LightGPU>,
     pub(crate) uniform_buffer: UniformBuffer<UniformsGPU>,
-    pub(crate) camera_uniform_buffer: UniformBuffer<CameraGPU>,
+    pub(crate) camera_uniform_buffer: UniformBuffer<resources::CameraGPU>,
     pub render_target: wgpu::Texture,
     pub render_target_view: wgpu::TextureView,
     pub render_target_sampler: wgpu::Sampler,
@@ -441,11 +411,10 @@ impl Renderer {
         let pathtrace_pass = PathtracePass::new(device, width, height);
         let mut blit_pass = BlitPass::new(device, swap_chain_format);
         // @todo: refactor init somewhere.
-        blit_pass.init(
+        blit_pass.bind(
             device,
             &pathtrace_pass.gpu_resources.render_target_view,
             &pathtrace_pass.gpu_resources.render_target_sampler,
-            pathtrace_pass.gpu_resources.render_info.as_entire_binding(),
         );
         Renderer {
             pathtrace_pass,
@@ -456,7 +425,7 @@ impl Renderer {
     // @todo: those `commit` methods are just to try out the entire pipeline.
     // Remove them.
 
-    pub fn commit_camera(&mut self, queue: &wgpu::Queue, camera: &CameraGPU) {
+    pub fn commit_camera(&mut self, queue: &wgpu::Queue, camera: &resources::CameraGPU) {
         self.pathtrace_pass
             .gpu_resources
             .camera_uniform_buffer
@@ -508,7 +477,7 @@ impl Renderer {
             .update(queue, lights);
     }
 
-    pub fn commit_bvh(&mut self, bvhs: &[BVHNodeGPU], device: &Device, queue: &wgpu::Queue) {
+    pub fn commit_bvh(&mut self, bvhs: &[resources::BVHNodeGPU], device: &Device, queue: &wgpu::Queue) {
         // @todo: authorize offset. Should I just expose the gpu resources
         // to the user and he does everything?
         if !self.pathtrace_pass.gpu_resources.nodes.fits(bvhs) {
@@ -567,7 +536,7 @@ impl Renderer {
             device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
         self.pathtrace_pass
             .render(device, frame, queue, &mut encoder);
-        self.blit_pass.render(frame, queue, &mut encoder);
+        self.blit_pass.run(frame, queue, &mut encoder);
         queue.submit(Some(encoder.finish()));
     }
 }

@@ -1,12 +1,12 @@
-use albedo_backend::{shader_bindings};
+use albedo_backend::{GPUBuffer, UniformBuffer, shader_bindings};
 use crate::renderer::resources;
 
 pub struct GPUIntersector {
     bind_group_layout: wgpu::BindGroupLayout,
     pipeline_layout: wgpu::PipelineLayout,
-    pipeline: wgpu::Pipeline,
+    pipeline: wgpu::ComputePipeline,
     bind_group: Option<wgpu::BindGroup>,
-    count: u32,
+    count: usize,
 }
 
 impl GPUIntersector {
@@ -16,18 +16,18 @@ impl GPUIntersector {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("GPUIntersector Layout"),
             entries: &[
-                shader_bindings::buffer_entry(binding: 0, wgpu::ShaderStage::COMPUTE, true),
-                shader_bindings::buffer_entry(binding: 1, wgpu::ShaderStage::COMPUTE, true),
-                shader_bindings::buffer_entry(binding: 2, wgpu::ShaderStage::COMPUTE, true),
-                shader_bindings::buffer_entry(binding: 3, wgpu::ShaderStage::COMPUTE, true),
-                shader_bindings::buffer_entry(binding: 4, wgpu::ShaderStage::COMPUTE, true),
-                shader_bindings::buffer_entry(binding: 5, wgpu::ShaderStage::COMPUTE, true),
-                shader_bindings::buffer_entry(binding: 6, wgpu::ShaderStage::COMPUTE, false),
-                shader_bindings::uniform_entry(binding: 7, wgpu::ShaderStage::COMPUTE),
+                shader_bindings::buffer_entry(0, wgpu::ShaderStage::COMPUTE, true),
+                shader_bindings::buffer_entry(1, wgpu::ShaderStage::COMPUTE, true),
+                shader_bindings::buffer_entry(2, wgpu::ShaderStage::COMPUTE, true),
+                shader_bindings::buffer_entry(3, wgpu::ShaderStage::COMPUTE, true),
+                shader_bindings::buffer_entry(4, wgpu::ShaderStage::COMPUTE, true),
+                shader_bindings::buffer_entry(5, wgpu::ShaderStage::COMPUTE, true),
+                shader_bindings::buffer_entry(6, wgpu::ShaderStage::COMPUTE, false),
+                shader_bindings::uniform_entry(7, wgpu::ShaderStage::COMPUTE),
             ],
         });
 
-        let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Intersector Pipeline Layout"),
             bind_group_layouts: &[&bind_group_layout],
             push_constant_ranges: &[],
@@ -36,11 +36,11 @@ impl GPUIntersector {
         let shader =
             device.create_shader_module(&wgpu::include_spirv!("../shaders/intersection.comp.spv"));
 
-        let pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
+        let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Intersector Pipeline"),
             layout: Some(&pipeline_layout),
             entry_point: "main",
-            module: &cs_module,
+            module: &shader,
         });
 
         GPUIntersector {
@@ -54,6 +54,7 @@ impl GPUIntersector {
 
     pub fn bind_buffers(
         &mut self,
+        device: &wgpu::Device,
         out_intersections: &GPUBuffer<resources::IntersectionGPU>,
         instances: &GPUBuffer<resources::InstanceGPU>,
         nodes: &GPUBuffer<resources::BVHNodeGPU>,
@@ -61,9 +62,9 @@ impl GPUIntersector {
         vertices: &GPUBuffer<resources::VertexGPU>,
         lights: &GPUBuffer<resources::LightGPU>,
         rays: &GPUBuffer<resources::RayGPU>,
-        scene_info: &GPUBuffer<resources::SceneSettingsGPU>
+        scene_info: &UniformBuffer<resources::SceneSettingsGPU>
     ) {
-        self.bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        self.bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Intersector Bind Group"),
             layout: &self.bind_group_layout,
             entries: &[
@@ -100,19 +101,19 @@ impl GPUIntersector {
                     resource: scene_info.as_entire_binding(),
                 },
             ],
-        });
+        }));
         self.count = out_intersections.count();
     }
 
-    pub fn run(&self, device: &Device, encoder: &mut CommandEncoder) {
-        if let Some(bind_group) = self.bind_group {
+    pub fn run(&self, device: &wgpu::Device, encoder: &mut wgpu::CommandEncoder) {
+        if let Some(bind_group) = &self.bind_group {
             let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 label: Some("Intersector Compute Pass")
             });
             compute_pass.set_pipeline(&self.pipeline);
-            compute_pass.set_bind_group(0, &self.bind_group, &[]);
+            compute_pass.set_bind_group(0, bind_group, &[]);
             // @todo: how to deal with hardcoded size.
-            compute_pass.dispatch(self.count / 8, 1, 1);
+            compute_pass.dispatch((self.count as u32) / 8, 1, 1);
         }
     }
 

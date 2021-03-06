@@ -1,4 +1,12 @@
-use albedo_rtx::renderer::{self, CameraGPU};
+use albedo_backend::{GPUBuffer, UniformBuffer, shader_bindings};
+
+use albedo_rtx::renderer::resources;
+use albedo_rtx::passes::{
+    BlitPass,
+    GPURayGenerator,
+    GPUIntersector,
+    GPURadianceEstimator
+};
 
 use wgpu::{Device, PowerPreference};
 use winit::{
@@ -97,14 +105,61 @@ fn main() {
 
     let scene = load_gltf(&"./examples/pathtracing/assets/box.glb");
 
-    let lights = vec![renderer::resources::LightGPU::from_origin(glam::Vec3::new(
+    let lights = vec![resources::LightGPU::from_origin(glam::Vec3::new(
         1.0, 0.0, -2.0,
     ))];
 
-    let mut camera = CameraGPU::new();
+    let mut camera = resources::CameraGPU::new();
     camera.origin = glam::Vec3::new(0.0, 0.0, 2.0);
 
     println!("{}", scene.instances[0].world_to_model);
+
+    let pixelCount = width * height;
+
+    let mut generate_ray_pass = GPURayGenerator::new(&device);
+    let mut intersector_pass = GPUIntersector::new(&device);
+    let mut shade_pass = GPURadianceEstimator::new(&device);
+    let mut blit_pass = BlitPass::new(&device, sc_desc.format);
+
+    let mut camera_buffer = UniformBuffer::new(&device);
+    camera_buffer.update(&queue, &camera);
+
+    let mut instance_buffer = GPUBuffer::from_data(&device, &scene.instances);
+    instance_buffer.update(&queue, &scene.instances);
+
+    let mut bvh_buffer = GPUBuffer::from_data(&device, &scene.node_buffer);
+    bvh_buffer.update(&queue, &scene.node_buffer);
+
+    let mut index_buffer = GPUBuffer::from_data(&device, &scene.index_buffer);
+    index_buffer.update(&queue, &scene.index_buffer);
+
+    let mut vertex_buffer = GPUBuffer::from_data(&device, &scene.vertex_buffer);
+    vertex_buffer.update(&queue, &scene.vertex_buffer);
+
+    let mut light_buffer = GPUBuffer::from_data(&device, &lights);
+    light_buffer.update(&queue, &lights);
+
+    let mut scene_buffer = UniformBuffer::new(&device);
+    scene_buffer.update(&queue, &resources::SceneSettingsGPU {
+        light_count: lights.len() as u32,
+        instance_count: scene.instances.len() as u32,
+    });
+
+    let ray_buffer = GPUBuffer::new_with_count(&device, pixelCount as usize);
+    let intersection_buffer = GPUBuffer::new_with_count(&device, pixelCount as usize);
+
+    generate_ray_pass.bind_buffers(&device, &ray_buffer, &camera_buffer);
+    intersector_pass.bind_buffers(
+        &device,
+        &intersection_buffer,
+        &instance_buffer,
+        &bvh_buffer,
+        &index_buffer,
+        &vertex_buffer,
+        &light_buffer,
+        &ray_buffer,
+        &scene_buffer
+    );
 
     event_loop.run(move |event, _, control_flow| {
         // let _ = (&renderer, &app);
@@ -119,7 +174,17 @@ fn main() {
                             .expect("Failed to acquire next swap chain texture!")
                     }
                 };
-                renderer.render(&device, &frame.output, &queue);
+
+                let mut encoder =
+                device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+
+                generate_ray_pass.run(&mut encoder, width, height);
+                intersector_pass.run(&device, &mut encoder);
+                shade_pass.run(&mut encoder, width, height);
+                blit_pass.run(&frame.output, &queue, &mut encoder);
+
+                queue.submit(Some(encoder.finish()));
+
             }
             _ => {}
         }

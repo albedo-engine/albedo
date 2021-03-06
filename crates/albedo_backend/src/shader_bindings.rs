@@ -13,7 +13,10 @@
  * Layouts
  */
 
-pub const fn uniform_entry(binding: u32, visibility: wgpu::ShaderStage) -> wgpu::BindGroupLayoutEntry {
+pub const fn uniform_entry(
+    binding: u32,
+    visibility: wgpu::ShaderStage,
+) -> wgpu::BindGroupLayoutEntry {
     wgpu::BindGroupLayoutEntry {
         binding,
         visibility,
@@ -22,20 +25,29 @@ pub const fn uniform_entry(binding: u32, visibility: wgpu::ShaderStage) -> wgpu:
     }
 }
 
-pub const fn buffer_entry(binding: u32, visibility: wgpu::ShaderStage, readonly: bool) -> wgpu::BindGroupLayoutEntry {
-    BindGroupLayoutEntry {
+pub const fn buffer_entry(
+    binding: u32,
+    visibility: wgpu::ShaderStage,
+    readonly: bool,
+) -> wgpu::BindGroupLayoutEntry {
+    wgpu::BindGroupLayoutEntry {
         binding,
         visibility,
-        ty: shader_bindings::buffer(readonly),
+        ty: buffer(readonly),
         count: None,
     }
 }
 
-pub const fn uniform_entry() -> wgpu::BindGroupLayoutEntry {
-    BindGroupLayoutEntry {
-        binding: 0,
-        visibility: ShaderStage::COMPUTE,
-        ty: shader_bindings::uniform(),
+pub const fn storage_texture2d_entry(
+    binding: u32,
+    visibility: wgpu::ShaderStage,
+    format: wgpu::TextureFormat,
+    access: wgpu::StorageTextureAccess,
+) -> wgpu::BindGroupLayoutEntry {
+    wgpu::BindGroupLayoutEntry {
+        binding,
+        visibility,
+        ty: storage_texture2d(format, access),
         count: None,
     }
 }

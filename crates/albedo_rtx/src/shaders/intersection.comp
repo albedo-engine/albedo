@@ -1,5 +1,7 @@
 #version 450
 
+#extension GL_GOOGLE_include_directive : enable
+
 #include "structures.comp"
 
 #define EPSILON 0.000001
@@ -22,14 +24,6 @@ struct BVHNode
   uint nextNodeIndex;
   vec3 max;
   uint primitiveStartIndex;
-};
-
-struct Vertex
-{
-  vec3 position;
-  float padding_0;
-  vec3 normal;
-  float padding_1;
 };
 
 layout(local_size_x = 8, local_size_y = 1) in;
@@ -327,6 +321,6 @@ void main()
   intersection.index = INVALID_UINT;
   intersection.instance = INVALID_UINT;
   intersection.emitter = INVALID_UINT;
-  intersection.dist = sceneHit(ray, intersection);
+  // intersection.dist = sceneHit(ray, intersection);
   intersections[gl_GlobalInvocationID.x] = intersection;
 }
