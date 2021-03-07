@@ -20,8 +20,6 @@
 
 #define NB_BOUNCES 1
 
-layout(local_size_x = 8) in;
-
 struct BRDFSample
 {
   float pdf;
@@ -46,9 +44,9 @@ struct Material
  * Layout 0.
  */
 
-layout (set = 0, binding = 0, std430) buffer RayBuffer {
-  Ray rays[];
-};
+// layout (set = 0, binding = 0, std430) buffer RayBuffer {
+//   Ray rays[];
+// };
 
 layout (set = 0, binding = 1, std430) readonly buffer IntersectionBuffer {
   Intersection intersections[];
@@ -62,7 +60,7 @@ layout (set = 0, binding = 3, std430) readonly buffer IndexBuffer {
   uint indices[];
 };
 
-layout (set = 1, binding = 4, std430) readonly buffer VertexBuffer {
+layout (set = 0, binding = 4, std430) readonly buffer VertexBuffer {
   Vertex vertices[];
 };
 
@@ -201,6 +199,7 @@ LambertBRDF(vec3 normal, inout uint randState)
   return brdf;
 }
 
+layout(local_size_x = 8, local_size_y = 8) in;
 void
 main()
 {
@@ -214,7 +213,8 @@ main()
     // + uint(Uniforms.iFrame) * uint(26699)
   ) | uint(1);
 
-  Ray ray = rays[index];
+  // Ray ray = rays[index];
+  Ray ray;
   Intersection intersection = intersections[index];
 
   vec3 throughput = vec3(1.0); // @todo: add on Ray.
@@ -270,7 +270,7 @@ main()
     ray.dir = brdf.dir;
   }
 
-  rays[index] = ray;
+  // rays[index] = ray;
   // vec4 c = imageLoad(uRenderTarget, idx);
   // if (RenderSettings.frameCount == 1) { c = vec4(0.0); }
   // imageStore(uRenderTargetWrite, idx, c + radiance);

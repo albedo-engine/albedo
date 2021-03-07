@@ -1,9 +1,8 @@
 use crate::renderer::resources;
-use albedo_backend::{shader_bindings, GPUBuffer};
+use albedo_backend::{GPUBuffer, UniformBuffer, shader_bindings};
 
 pub struct GPURadianceEstimator {
     bind_group_layouts: [wgpu::BindGroupLayout; 2],
-    pipeline_layout: wgpu::PipelineLayout,
     pipeline: wgpu::ComputePipeline,
     base_bind_group: Option<wgpu::BindGroup>,
     // targets_bind_group: Option<[wgpu::BindGroup; 2]>,
@@ -16,7 +15,7 @@ impl GPURadianceEstimator {
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("Radiance Estimator Base Layout"),
                 entries: &[
-                    shader_bindings::buffer_entry(0, wgpu::ShaderStage::COMPUTE, false),
+                    // shader_bindings::buffer_entry(0, wgpu::ShaderStage::COMPUTE, false),
                     shader_bindings::buffer_entry(1, wgpu::ShaderStage::COMPUTE, true),
                     shader_bindings::buffer_entry(2, wgpu::ShaderStage::COMPUTE, true),
                     shader_bindings::buffer_entry(3, wgpu::ShaderStage::COMPUTE, true),
@@ -36,15 +35,6 @@ impl GPURadianceEstimator {
                         ),
                         count: None,
                     }
-                    // BindGroupLayoutEntry {
-                    //     binding: 1,
-                    //     visibility: ShaderStage::COMPUTE,
-                    //     ty: shader_bindings::storage_texture2d(
-                    //         wgpu::TextureFormat::Rgba32Float,
-                    //         wgpu::StorageTextureAccess::WriteOnly,
-                    //     ),
-                    //     count: None,
-                    // },
                 ],
             }),
         ];
@@ -59,7 +49,7 @@ impl GPURadianceEstimator {
             device.create_shader_module(&wgpu::include_spirv!("../shaders/shading.comp.spv"));
 
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label: Some("Intersector Pipeline"),
+            label: Some("Radiance Estimator Pipeline"),
             layout: Some(&pipeline_layout),
             entry_point: "main",
             module: &shader,
@@ -67,7 +57,6 @@ impl GPURadianceEstimator {
 
         GPURadianceEstimator {
             bind_group_layouts,
-            pipeline_layout,
             pipeline,
             base_bind_group: None,
             target_bind_group: None,
@@ -82,16 +71,16 @@ impl GPURadianceEstimator {
         instances: &GPUBuffer<resources::InstanceGPU>,
         indices: &GPUBuffer<u32>,
         vertices: &GPUBuffer<resources::VertexGPU>,
-        scene_info: &GPUBuffer<resources::SceneSettingsGPU>,
+        scene_info: &UniformBuffer<resources::SceneSettingsGPU>,
     ) {
         self.base_bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Radiance Estimator Base Bind Group"),
             layout: &self.bind_group_layouts[0],
             entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: out_rays.as_entire_binding(),
-                },
+                // wgpu::BindGroupEntry {
+                //     binding: 0,
+                //     resource: out_rays.as_entire_binding(),
+                // },
                 wgpu::BindGroupEntry {
                     binding: 1,
                     resource: intersections.as_entire_binding(),

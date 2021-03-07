@@ -83,11 +83,11 @@ impl BlitPass {
             layout: &self.bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
-                    binding: 1,
+                    binding: 0,
                     resource: wgpu::BindingResource::Sampler(sampler),
                 },
                 wgpu::BindGroupEntry {
-                    binding: 2,
+                    binding: 1,
                     resource: wgpu::BindingResource::TextureView(view),
                 },
             ],

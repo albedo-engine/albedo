@@ -1,12 +1,7 @@
-use albedo_backend::{GPUBuffer, UniformBuffer, shader_bindings};
+use albedo_backend::{shader_bindings, GPUBuffer, UniformBuffer};
 
+use albedo_rtx::passes::{BlitPass, GPUIntersector, GPURadianceEstimator, GPURayGenerator};
 use albedo_rtx::renderer::resources;
-use albedo_rtx::passes::{
-    BlitPass,
-    GPURayGenerator,
-    GPUIntersector,
-    GPURadianceEstimator
-};
 
 use wgpu::{Device, PowerPreference};
 use winit::{
@@ -114,12 +109,27 @@ fn main() {
 
     println!("{}", scene.instances[0].world_to_model);
 
-    let pixelCount = width * height;
+    let pixel_count = width * height;
 
-    let mut generate_ray_pass = GPURayGenerator::new(&device);
-    let mut intersector_pass = GPUIntersector::new(&device);
-    let mut shade_pass = GPURadianceEstimator::new(&device);
-    let mut blit_pass = BlitPass::new(&device, sc_desc.format);
+    let render_target = device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("Render Target"),
+        size: wgpu::Extent3d { width, height, depth: 1, },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba32Float,
+        usage: wgpu::TextureUsage::SAMPLED | wgpu::TextureUsage::STORAGE,
+    });
+    let render_target_view = render_target.create_view(&wgpu::TextureViewDescriptor::default());
+    let render_target_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+        address_mode_u: wgpu::AddressMode::ClampToEdge,
+        address_mode_v: wgpu::AddressMode::ClampToEdge,
+        address_mode_w: wgpu::AddressMode::ClampToEdge,
+        mag_filter: wgpu::FilterMode::Nearest,
+        min_filter: wgpu::FilterMode::Nearest,
+        mipmap_filter: wgpu::FilterMode::Nearest,
+        ..Default::default()
+    });
 
     let mut camera_buffer = UniformBuffer::new(&device);
     camera_buffer.update(&queue, &camera);
@@ -140,13 +150,21 @@ fn main() {
     light_buffer.update(&queue, &lights);
 
     let mut scene_buffer = UniformBuffer::new(&device);
-    scene_buffer.update(&queue, &resources::SceneSettingsGPU {
-        light_count: lights.len() as u32,
-        instance_count: scene.instances.len() as u32,
-    });
+    scene_buffer.update(
+        &queue,
+        &resources::SceneSettingsGPU {
+            light_count: lights.len() as u32,
+            instance_count: scene.instances.len() as u32,
+        },
+    );
 
-    let ray_buffer = GPUBuffer::new_with_count(&device, pixelCount as usize);
-    let intersection_buffer = GPUBuffer::new_with_count(&device, pixelCount as usize);
+    let ray_buffer = GPUBuffer::new_with_count(&device, pixel_count as usize);
+    let intersection_buffer = GPUBuffer::new_with_count(&device, pixel_count as usize);
+
+    let mut generate_ray_pass = GPURayGenerator::new(&device);
+    let mut intersector_pass = GPUIntersector::new(&device);
+    let mut shade_pass = GPURadianceEstimator::new(&device);
+    let mut blit_pass = BlitPass::new(&device, sc_desc.format);
 
     generate_ray_pass.bind_buffers(&device, &ray_buffer, &camera_buffer);
     intersector_pass.bind_buffers(
@@ -158,8 +176,18 @@ fn main() {
         &vertex_buffer,
         &light_buffer,
         &ray_buffer,
+        &scene_buffer,
+    );
+    shade_pass.bind_buffers(
+        &device,
+        &ray_buffer,
+        &intersection_buffer,
+        &instance_buffer,
+        &index_buffer,
+        &vertex_buffer,
         &scene_buffer
     );
+    blit_pass.bind(&device, &render_target_view, &render_target_sampler);
 
     event_loop.run(move |event, _, control_flow| {
         // let _ = (&renderer, &app);
@@ -176,7 +204,7 @@ fn main() {
                 };
 
                 let mut encoder =
-                device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+                    device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
                 generate_ray_pass.run(&mut encoder, width, height);
                 intersector_pass.run(&device, &mut encoder);
@@ -184,7 +212,6 @@ fn main() {
                 blit_pass.run(&frame.output, &queue, &mut encoder);
 
                 queue.submit(Some(encoder.finish()));
-
             }
             _ => {}
         }
