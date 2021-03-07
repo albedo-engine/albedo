@@ -69,7 +69,9 @@ generateRay(uvec3 coords, uvec3 dimensions)
 
 void main()
 {
-  uvec3 dimensions = gl_NumWorkGroups * gl_WorkGroupSize;
+  // uvec3 dimensions = uvec3(gl_NumWorkGroups) * uvec3(gl_WorkGroupSize);
+  // @todo: unharcode
+  uvec3 dimensions = uvec3(640, 480, 1);
   Ray ray = generateRay(gl_GlobalInvocationID, dimensions);
   uint index = gl_GlobalInvocationID.y * dimensions.x + gl_GlobalInvocationID.x;
   rays[index] = ray;

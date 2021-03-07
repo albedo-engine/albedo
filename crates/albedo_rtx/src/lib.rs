@@ -1,4 +1,4 @@
 pub mod accel;
 pub mod mesh;
-pub mod renderer;
 pub mod passes;
+pub mod renderer;

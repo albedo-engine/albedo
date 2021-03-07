@@ -204,7 +204,8 @@ LambertBRDF(vec3 normal, inout uint randState)
 void
 main()
 {
-  uvec3 dimensions = gl_NumWorkGroups * gl_WorkGroupSize;
+  // uvec3 dimensions = gl_NumWorkGroups * gl_WorkGroupSize;
+  uvec3 dimensions = uvec3(640, 480, 1);
   uint index = gl_GlobalInvocationID.y * dimensions.x + gl_GlobalInvocationID.x;
 
   uint randState = uint(

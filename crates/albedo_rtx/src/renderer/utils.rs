@@ -1,4 +1,4 @@
-use crate::accel::{BVH};
+use crate::accel::BVH;
 use crate::mesh::Mesh;
 use crate::renderer::resources;
 
@@ -9,7 +9,6 @@ pub struct Offsets {
 }
 
 impl Offsets {
-
     pub fn node(&self) -> u32 {
         self.node
     }
@@ -21,7 +20,6 @@ impl Offsets {
     pub fn index(&self) -> u32 {
         self.index
     }
-
 }
 
 pub struct GPUResources {
@@ -76,13 +74,18 @@ pub fn build_acceleration_structure_gpu<'a>(bvhs: &[BVH], meshes: &[impl Mesh]) 
             // @todo: this assumes normal are always available.
             vertex_buffer.push(resources::VertexGPU::new(
                 mesh.position(v).unwrap(),
-                mesh.normal(v).unwrap()
+                mesh.normal(v).unwrap(),
             ));
         }
 
         println!("Nodes = [");
         for v in &nodes_buffer {
-            println!("\tMin = {:?}, Max = {:?}, P = {}", v.min(), v.max(), v.primitive());
+            println!(
+                "\tMin = {:?}, Max = {:?}, P = {}",
+                v.min(),
+                v.max(),
+                v.primitive()
+            );
             println!("\t\tNext = {}", v.next());
         }
         println!("]");
@@ -104,6 +107,6 @@ pub fn build_acceleration_structure_gpu<'a>(bvhs: &[BVH], meshes: &[impl Mesh]) 
         offset_table,
         nodes_buffer,
         vertex_buffer,
-        index_buffer
+        index_buffer,
     }
 }

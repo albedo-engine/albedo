@@ -1,5 +1,5 @@
-use albedo_backend::{GPUBuffer, UniformBuffer, shader_bindings};
 use crate::renderer::resources;
+use albedo_backend::{shader_bindings, GPUBuffer, UniformBuffer};
 
 pub struct GPUIntersector {
     bind_group_layout: wgpu::BindGroupLayout,
@@ -10,9 +10,7 @@ pub struct GPUIntersector {
 }
 
 impl GPUIntersector {
-
     pub fn new(device: &wgpu::Device) -> GPUIntersector {
-
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("GPUIntersector Layout"),
             entries: &[
@@ -62,7 +60,7 @@ impl GPUIntersector {
         vertices: &GPUBuffer<resources::VertexGPU>,
         lights: &GPUBuffer<resources::LightGPU>,
         rays: &GPUBuffer<resources::RayGPU>,
-        scene_info: &UniformBuffer<resources::SceneSettingsGPU>
+        scene_info: &UniformBuffer<resources::SceneSettingsGPU>,
     ) {
         self.bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Intersector Bind Group"),
@@ -108,7 +106,7 @@ impl GPUIntersector {
     pub fn run(&self, device: &wgpu::Device, encoder: &mut wgpu::CommandEncoder) {
         if let Some(bind_group) = &self.bind_group {
             let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some("Intersector Compute Pass")
+                label: Some("Intersector Compute Pass"),
             });
             compute_pass.set_pipeline(&self.pipeline);
             compute_pass.set_bind_group(0, bind_group, &[]);
@@ -116,5 +114,4 @@ impl GPUIntersector {
             compute_pass.dispatch((self.count as u32) / 8, 1, 1);
         }
     }
-
 }

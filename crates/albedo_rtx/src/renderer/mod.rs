@@ -477,7 +477,12 @@ impl Renderer {
             .update(queue, lights);
     }
 
-    pub fn commit_bvh(&mut self, bvhs: &[resources::BVHNodeGPU], device: &Device, queue: &wgpu::Queue) {
+    pub fn commit_bvh(
+        &mut self,
+        bvhs: &[resources::BVHNodeGPU],
+        device: &Device,
+        queue: &wgpu::Queue,
+    ) {
         // @todo: authorize offset. Should I just expose the gpu resources
         // to the user and he does everything?
         if !self.pathtrace_pass.gpu_resources.nodes.fits(bvhs) {

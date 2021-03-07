@@ -1,7 +1,7 @@
-use std::cmp::max;
-use albedo_math::AABB;
 use crate::mesh::Mesh;
 use crate::renderer::resources;
+use albedo_math::AABB;
+use std::cmp::max;
 
 // @todo: alias std::u32::MAX with "InvalidValue" for semantic.
 // @todo: make generic
@@ -113,7 +113,10 @@ impl BVH {
         self.flat.nodes.clear();
         self.flat.nodes.reserve_exact(self.nodes.len());
 
-        println!("Depth = {}", depth_omp(&self.nodes, self.root() as usize, 0));
+        println!(
+            "Depth = {}",
+            depth_omp(&self.nodes, self.root() as usize, 0)
+        );
 
         flatten_bvh_rec(
             &mut self.flat.nodes,
@@ -184,6 +187,10 @@ fn depth_omp(nodes: &[BVHNode], input: usize, depth: usize) -> usize {
     } else {
         0 as usize
     };
-    let right_depth = if let Some(x) = node.right_child() { depth_omp(nodes, x as usize, depth + 1) } else { 0 as usize };
+    let right_depth = if let Some(x) = node.right_child() {
+        depth_omp(nodes, x as usize, depth + 1)
+    } else {
+        0 as usize
+    };
     depth + std::cmp::max(left_depth, right_depth)
 }

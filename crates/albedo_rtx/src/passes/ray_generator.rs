@@ -1,17 +1,15 @@
-use albedo_backend::{shader_bindings, GPUBuffer, UniformBuffer};
 use crate::renderer::resources;
+use albedo_backend::{shader_bindings, GPUBuffer, UniformBuffer};
 
 pub struct GPURayGenerator {
     bind_group_layout: wgpu::BindGroupLayout,
     pipeline_layout: wgpu::PipelineLayout,
     pipeline: wgpu::ComputePipeline,
-    bind_group: Option<wgpu::BindGroup>
+    bind_group: Option<wgpu::BindGroup>,
 }
 
 impl GPURayGenerator {
-
     pub fn new(device: &wgpu::Device) -> Self {
-
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Ray Generator Layout"),
             entries: &[
@@ -26,8 +24,8 @@ impl GPURayGenerator {
             push_constant_ranges: &[],
         });
 
-        let shader =
-            device.create_shader_module(&wgpu::include_spirv!("../shaders/ray_generation.comp.spv"));
+        let shader = device
+            .create_shader_module(&wgpu::include_spirv!("../shaders/ray_generation.comp.spv"));
 
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Ray Generator Pipeline"),
@@ -48,7 +46,7 @@ impl GPURayGenerator {
         &mut self,
         device: &wgpu::Device,
         out_rays: &GPUBuffer<resources::RayGPU>,
-        camera: &UniformBuffer<resources::CameraGPU>
+        camera: &UniformBuffer<resources::CameraGPU>,
     ) {
         self.bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Intersector Bind Group"),
@@ -61,20 +59,15 @@ impl GPURayGenerator {
                 wgpu::BindGroupEntry {
                     binding: 1,
                     resource: camera.as_entire_binding(),
-                }
+                },
             ],
         }));
     }
 
-    pub fn run(
-        &self,
-        encoder: &mut wgpu::CommandEncoder,
-        width: u32,
-        height: u32
-    ) {
+    pub fn run(&self, encoder: &mut wgpu::CommandEncoder, width: u32, height: u32) {
         if let Some(bind_group) = &self.bind_group {
             let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some("Ray Generator Compute Pass")
+                label: Some("Ray Generator Compute Pass"),
             });
             compute_pass.set_pipeline(&self.pipeline);
             compute_pass.set_bind_group(0, bind_group, &[]);
@@ -82,5 +75,4 @@ impl GPURayGenerator {
             compute_pass.dispatch(width / 8, height / 8, 1);
         }
     }
-
 }

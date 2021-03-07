@@ -76,7 +76,7 @@ impl BlitPass {
         &mut self,
         device: &wgpu::Device,
         view: &wgpu::TextureView,
-        sampler: &wgpu::Sampler
+        sampler: &wgpu::Sampler,
     ) {
         self.bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Blit Bind Group"),

@@ -1,5 +1,5 @@
-use albedo_backend::{shader_bindings, GPUBuffer};
 use crate::renderer::resources;
+use albedo_backend::{shader_bindings, GPUBuffer};
 
 pub struct GPURadianceEstimator {
     bind_group_layouts: [wgpu::BindGroupLayout; 2],
@@ -11,14 +11,12 @@ pub struct GPURadianceEstimator {
 }
 
 impl GPURadianceEstimator {
-
     pub fn new(device: &wgpu::Device) -> Self {
-
         let bind_group_layouts = [
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("Radiance Estimator Base Layout"),
                 entries: &[
-                    shader_bindings::buffer_entry(0, wgpu::ShaderStage::COMPUTE, true),
+                    shader_bindings::buffer_entry(0, wgpu::ShaderStage::COMPUTE, false),
                     shader_bindings::buffer_entry(1, wgpu::ShaderStage::COMPUTE, true),
                     shader_bindings::buffer_entry(2, wgpu::ShaderStage::COMPUTE, true),
                     shader_bindings::buffer_entry(3, wgpu::ShaderStage::COMPUTE, true),
@@ -53,10 +51,7 @@ impl GPURadianceEstimator {
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Radiance Estimator Pipeline Layout"),
-            bind_group_layouts: &[
-                &bind_group_layouts[0],
-                &bind_group_layouts[1]
-            ],
+            bind_group_layouts: &[&bind_group_layouts[0], &bind_group_layouts[1]],
             push_constant_ranges: &[],
         });
 
@@ -87,7 +82,7 @@ impl GPURadianceEstimator {
         instances: &GPUBuffer<resources::InstanceGPU>,
         indices: &GPUBuffer<u32>,
         vertices: &GPUBuffer<resources::VertexGPU>,
-        scene_info: &GPUBuffer<resources::SceneSettingsGPU>
+        scene_info: &GPUBuffer<resources::SceneSettingsGPU>,
     ) {
         self.base_bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Radiance Estimator Base Bind Group"),
@@ -121,42 +116,30 @@ impl GPURadianceEstimator {
         }));
     }
 
-    pub fn bind_target(
-        &mut self,
-        device: &wgpu::Device,
-        view: &wgpu::TextureView
-    ) {
+    pub fn bind_target(&mut self, device: &wgpu::Device, view: &wgpu::TextureView) {
         self.target_bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Radiance Esimator Render Target Bind Group"),
             layout: &self.bind_group_layouts[1],
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(view),
-                },
-            ],
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(view),
+            }],
         }));
     }
 
-    pub fn run(
-        &self,
-        encoder: &mut wgpu::CommandEncoder,
-        width: u32,
-        height: u32
-    ) {
+    pub fn run(&self, encoder: &mut wgpu::CommandEncoder, width: u32, height: u32) {
         match (&self.base_bind_group, &self.target_bind_group) {
             (Some(base_group), Some(target_group)) => {
                 let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                    label: Some("Radiance Estimator Compute Pass")
+                    label: Some("Radiance Estimator Compute Pass"),
                 });
                 compute_pass.set_pipeline(&self.pipeline);
                 compute_pass.set_bind_group(0, base_group, &[]);
                 compute_pass.set_bind_group(1, target_group, &[]);
                 // @todo: how to deal with hardcoded size.
                 compute_pass.dispatch(width / 8, height / 8, 1);
-            },
-            _ => ()
+            }
+            _ => (),
         }
     }
-
 }
