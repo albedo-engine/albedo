@@ -1,0 +1,56 @@
+#ifndef STRUCTS_H
+#define STRUCTS_H
+
+struct Instance
+{
+  mat4 worldToModel;
+  uint materialIndex;
+  uint bvhRootIndex;
+  uint vertexRootIndex;
+  uint indexRootIndex;
+};
+
+struct Vertex
+{
+  vec3 position;
+  float padding_0;
+  vec3 normal;
+  float padding_1;
+};
+
+struct Light
+{
+  vec4 normal;
+  vec4 tangent;
+  vec4 bitangent;
+  float intensity;
+  float padding_0;
+  float padding_1;
+  float padding_2;
+};
+
+/**
+ * `throughput` saved in `origin.w`, `dir.w`, `radiance,w`
+ */
+struct RayPayload {
+  vec4 origin;
+  vec4 dir;
+  vec4 radiance;
+};
+
+struct Ray {
+  vec3 origin;
+  vec3 dir;
+};
+
+struct Intersection {
+  vec2 uv;
+  uint index;
+  uint instance;
+  uint materialIndex;
+  uint emitter;
+  float dist;
+  float padding_1; // not needed I think
+};
+
+#endif // STRUCTS_H

@@ -1,7 +1,7 @@
-use std::cmp::max;
-
 use crate::mesh::Mesh;
+use crate::renderer::resources;
 use albedo_math::AABB;
+use std::cmp::max;
 
 // @todo: alias std::u32::MAX with "InvalidValue" for semantic.
 // @todo: make generic
@@ -73,42 +73,12 @@ impl BVHNode {
     }
 }
 
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct BVHNodeGPU {
-    min: [f32; 3],
-    next_node_index: u32,
-    max: [f32; 3],
-    primitive_index: u32,
-}
-
-impl BVHNodeGPU {
-    pub fn min(&self) -> &[f32; 3] {
-        &self.min
-    }
-
-    pub fn next(&self) -> u32 {
-        self.next_node_index
-    }
-
-    pub fn primitive(&self) -> u32 {
-        self.primitive_index
-    }
-
-    pub fn max(&self) -> &[f32; 3] {
-        &self.max
-    }
-}
-
-unsafe impl bytemuck::Pod for BVHNodeGPU {}
-unsafe impl bytemuck::Zeroable for BVHNodeGPU {}
-
 pub struct FlatBVH {
-    nodes: Vec<BVHNodeGPU>,
+    nodes: Vec<resources::BVHNodeGPU>,
 }
 
 impl FlatBVH {
-    pub fn nodes(&self) -> &Vec<BVHNodeGPU> {
+    pub fn nodes(&self) -> &Vec<resources::BVHNodeGPU> {
         &self.nodes
     }
 }
@@ -143,7 +113,10 @@ impl BVH {
         self.flat.nodes.clear();
         self.flat.nodes.reserve_exact(self.nodes.len());
 
-        println!("Depth = {}", depth_omp(&self.nodes, self.root() as usize, 0));
+        println!(
+            "Depth = {}",
+            depth_omp(&self.nodes, self.root() as usize, 0)
+        );
 
         flatten_bvh_rec(
             &mut self.flat.nodes,
@@ -168,13 +141,13 @@ pub trait BVHBuilder {
 }
 
 fn flatten_bvh_rec(
-    out: &mut Vec<BVHNodeGPU>,
+    out: &mut Vec<resources::BVHNodeGPU>,
     nodes: &Vec<BVHNode>,
     inputIndex: u32,
     missIndex: u32,
 ) {
     let node = &nodes[inputIndex as usize];
-    out.push(BVHNodeGPU {
+    out.push(resources::BVHNodeGPU {
         min: node.aabb().min.into(),
         max: node.aabb().max.into(),
         next_node_index: missIndex,
@@ -214,6 +187,10 @@ fn depth_omp(nodes: &[BVHNode], input: usize, depth: usize) -> usize {
     } else {
         0 as usize
     };
-    let right_depth = if let Some(x) = node.right_child() { depth_omp(nodes, x as usize, depth + 1) } else { 0 as usize };
+    let right_depth = if let Some(x) = node.right_child() {
+        depth_omp(nodes, x as usize, depth + 1)
+    } else {
+        0 as usize
+    };
     depth + std::cmp::max(left_depth, right_depth)
 }

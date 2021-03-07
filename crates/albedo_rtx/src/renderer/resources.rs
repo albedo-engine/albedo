@@ -1,4 +1,34 @@
 #[repr(C)]
+#[derive(Clone, Copy)]
+pub struct BVHNodeGPU {
+    pub min: [f32; 3],
+    pub next_node_index: u32,
+    pub max: [f32; 3],
+    pub primitive_index: u32,
+}
+
+impl BVHNodeGPU {
+    pub fn min(&self) -> &[f32; 3] {
+        &self.min
+    }
+
+    pub fn next(&self) -> u32 {
+        self.next_node_index
+    }
+
+    pub fn primitive(&self) -> u32 {
+        self.primitive_index
+    }
+
+    pub fn max(&self) -> &[f32; 3] {
+        &self.max
+    }
+}
+
+unsafe impl bytemuck::Pod for BVHNodeGPU {}
+unsafe impl bytemuck::Zeroable for BVHNodeGPU {}
+
+#[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct InstanceGPU {
     pub world_to_model: glam::Mat4,
@@ -10,7 +40,7 @@ pub struct InstanceGPU {
 }
 
 impl InstanceGPU {
-    fn new(world_to_model: glam::Mat4) -> Self {
+    pub fn new(world_to_model: glam::Mat4) -> Self {
         InstanceGPU {
             world_to_model,
             ..Default::default()
@@ -24,7 +54,7 @@ unsafe impl bytemuck::Zeroable for InstanceGPU {}
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct MaterialGPU {
-    color: glam::Vec4,
+    pub color: glam::Vec4,
 }
 unsafe impl bytemuck::Pod for MaterialGPU {}
 unsafe impl bytemuck::Zeroable for MaterialGPU {}
@@ -76,6 +106,9 @@ pub struct LightGPU {
     padding_2: u32,
 }
 
+unsafe impl bytemuck::Pod for LightGPU {}
+unsafe impl bytemuck::Zeroable for LightGPU {}
+
 impl LightGPU {
     pub fn new() -> Self {
         // `origin` is packed in `normal`, `tangent`, and `bitangent`.
@@ -120,5 +153,103 @@ impl LightGPU {
     }
 }
 
-unsafe impl bytemuck::Pod for LightGPU {}
-unsafe impl bytemuck::Zeroable for LightGPU {}
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct GlobalUniformsGPU {
+    pub frame_count: u32,
+}
+
+impl GlobalUniformsGPU {
+
+    pub fn new() -> Self {
+        GlobalUniformsGPU { ..Default::default() }
+    }
+
+}
+
+unsafe impl bytemuck::Pod for GlobalUniformsGPU {}
+unsafe impl bytemuck::Zeroable for GlobalUniformsGPU {}
+
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct SceneSettingsGPU {
+    pub instance_count: u32,
+    pub light_count: u32,
+}
+
+unsafe impl bytemuck::Pod for SceneSettingsGPU {}
+unsafe impl bytemuck::Zeroable for SceneSettingsGPU {}
+
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct CameraGPU {
+    pub origin: glam::Vec3,
+    pub v_fov: f32,
+    pub up: glam::Vec3,
+    padding_0: f32,
+    pub right: glam::Vec3,
+    padding_1: f32,
+}
+
+impl CameraGPU {
+    pub fn new() -> Self {
+        CameraGPU {
+            origin: glam::Vec3::new(0.0, 0.0, 2.0),
+            v_fov: 0.78,
+            up: glam::Vec3::new(0.0, 1.0, 0.0),
+            right: glam::Vec3::new(1.0, 0.0, 0.0),
+            ..Default::default()
+        }
+    }
+}
+
+unsafe impl bytemuck::Pod for CameraGPU {}
+unsafe impl bytemuck::Zeroable for CameraGPU {}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct RayGPU {
+    origin: glam::Vec4,
+    dir: glam::Vec4,
+    radiance: glam::Vec4,
+}
+unsafe impl bytemuck::Pod for RayGPU {}
+unsafe impl bytemuck::Zeroable for RayGPU {}
+
+impl RayGPU {
+
+    pub fn new() -> Self {
+        RayGPU {
+            origin: glam::Vec4::new(0.0, 0.0, 0.0, 1.0),
+            dir: glam::Vec4::new(0.0, 0.0, 0.0, 1.0),
+            radiance: glam::Vec4::new(0.0, 0.0, 0.0, 1.0)
+        }
+    }
+
+    pub fn from_origin_dir(origin: &glam::Vec3, direction: glam::Vec3) -> Self {
+        RayGPU {
+            origin: glam::Vec4::new(origin.x, origin.y, origin.z, 1.0),
+            dir: glam::Vec4::new(direction.x, direction.y, direction.z, 1.0),
+            radiance: glam::Vec4::new(0.0, 0.0, 0.0, 1.0)
+        }
+    }
+
+    pub fn throughput(&self) -> glam::Vec3 {
+        glam::Vec3::new(self.origin.w, self.dir.w, self.radiance.w)
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct IntersectionGPU {
+    uv: glam::Vec2,
+    index: u32,
+    instance: u32,
+    material_index: u32,
+    emitter: u32,
+    dist: f32,
+    padding_0: f32,
+}
+
+unsafe impl bytemuck::Pod for IntersectionGPU {}
+unsafe impl bytemuck::Zeroable for IntersectionGPU {}

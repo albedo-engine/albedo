@@ -1,9 +1,9 @@
 use albedo_rtx::renderer;
 use albedo_rtx::{
-    accel::{BVHBuilder, BVHNodeGPU, SAHBuilder, BVH},
+    accel::{BVHBuilder, SAHBuilder, BVH},
     mesh::Mesh,
 };
-use gltf::{self, json::Index};
+use gltf::{self};
 use std::path::Path;
 
 pub struct ProxyMesh {
@@ -53,7 +53,7 @@ pub struct Scene {
     pub meshes: Vec<ProxyMesh>,
     pub bvhs: Vec<BVH>,
     pub instances: Vec<renderer::resources::InstanceGPU>,
-    pub node_buffer: Vec<BVHNodeGPU>,
+    pub node_buffer: Vec<renderer::resources::BVHNodeGPU>,
     pub vertex_buffer: Vec<renderer::resources::VertexGPU>,
     pub index_buffer: Vec<u32>,
 }

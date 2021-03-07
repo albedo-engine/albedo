@@ -9,6 +9,74 @@
 //     }
 // }
 
+/**
+ * Layouts
+ */
+
+pub const fn uniform_entry(
+    binding: u32,
+    visibility: wgpu::ShaderStage,
+) -> wgpu::BindGroupLayoutEntry {
+    wgpu::BindGroupLayoutEntry {
+        binding,
+        visibility,
+        ty: uniform(),
+        count: None,
+    }
+}
+
+pub const fn buffer_entry(
+    binding: u32,
+    visibility: wgpu::ShaderStage,
+    readonly: bool,
+) -> wgpu::BindGroupLayoutEntry {
+    wgpu::BindGroupLayoutEntry {
+        binding,
+        visibility,
+        ty: buffer(readonly),
+        count: None,
+    }
+}
+
+pub const fn storage_texture2d_entry(
+    binding: u32,
+    visibility: wgpu::ShaderStage,
+    format: wgpu::TextureFormat,
+    access: wgpu::StorageTextureAccess,
+) -> wgpu::BindGroupLayoutEntry {
+    wgpu::BindGroupLayoutEntry {
+        binding,
+        visibility,
+        ty: storage_texture2d(format, access),
+        count: None,
+    }
+}
+
+pub const fn texture2d_entry(
+    binding: u32,
+    visibility: wgpu::ShaderStage,
+) -> wgpu::BindGroupLayoutEntry {
+    wgpu::BindGroupLayoutEntry {
+        binding,
+        visibility,
+        ty: texture2d(),
+        count: None,
+    }
+}
+
+pub const fn sampler_entry(
+    binding: u32,
+    visibility: wgpu::ShaderStage,
+    filtering: bool
+) -> wgpu::BindGroupLayoutEntry {
+    wgpu::BindGroupLayoutEntry {
+        binding,
+        visibility,
+        ty: sampler(filtering),
+        count: None,
+    }
+}
+
 pub const fn buffer(readonly: bool) -> wgpu::BindingType {
     wgpu::BindingType::Buffer {
         ty: wgpu::BufferBindingType::Storage {

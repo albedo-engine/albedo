@@ -1,0 +1,319 @@
+#version 450
+
+#extension GL_GOOGLE_include_directive : enable
+
+#include "structures.comp"
+
+#define EPSILON 0.000001
+#define NEG_EPSILON -0.000001
+#define EPSILON1 1.000001
+
+#define PI_F 3.14159265359
+#define TWO_PI 6.28318530718
+#define TO_RAD_F (PI_F / 180.0)
+#define MAX_FLOAT 3.402823466e+38
+
+#define VEC3_UP vec3(0.0, 0.999999995, 0.0001)
+
+#define MAX_UINT 0xFFFFFFFF
+#define INVALID_UINT MAX_UINT
+
+#define NB_BOUNCES 1
+
+struct BRDFSample
+{
+  float pdf;
+  vec3 dir;
+};
+
+struct Material
+{
+  vec4 color;
+  vec4 emission;
+  float metalnessFactor;
+  float roughnessFactor;
+  uint albedoIndex;
+  uint normalIndex;
+  uint emissionIndex;
+  uint metalRoughnessIndex;
+  uint pad_0;
+  uint pad_1;
+};
+
+/**
+ * Layout 0.
+ */
+
+layout (set = 0, binding = 0, std430) buffer RayBuffer {
+  RayPayload rays[];
+};
+
+layout (set = 0, binding = 1, std430) readonly buffer IntersectionBuffer {
+  Intersection intersections[];
+};
+
+layout (set = 0, binding = 2, std430) readonly buffer InstanceBuffer {
+  Instance instances[];
+};
+
+layout (set = 0, binding = 3, std430) readonly buffer IndexBuffer {
+  uint indices[];
+};
+
+layout (set = 0, binding = 4, std430) readonly buffer VertexBuffer {
+  Vertex vertices[];
+};
+
+// @todo: move to uniform?
+layout (set = 0, binding = 5, std430) readonly buffer LightBuffer {
+  Light lights[];
+};
+
+layout (set = 0, binding = 6, std430) readonly buffer MaterialBuffer {
+  Material materials[];
+};
+
+layout (set = 0, binding = 7) uniform SceneSettingsBuffer {
+  uint instanceCount;
+  uint lightCount;
+} SceneSettings;
+
+layout( set = 0, binding = 8 ) uniform sampler ProbeSampler;
+layout( set = 0, binding = 9 ) uniform texture2D Probe;
+
+/**
+ * Layout 1
+ */
+
+layout(set = 1, binding = 0, rgba32f) uniform writeonly image2D uRenderTarget;
+
+layout (set = 1, binding = 1) uniform GlobalUniformBuffer {
+  uint frame;
+} GlobalUniforms;
+
+/* Utils */
+
+vec3
+decodeRGBE(vec4 hdr)
+{
+  return hdr.rgb * exp2((hdr.a * 255.0) - 128.0);
+}
+
+vec3
+sampleProbe(sampler samp, texture2D probe, vec2 uv)
+{
+  return decodeRGBE(texture(sampler2D(probe, samp), uv));
+}
+
+Vertex
+getVertex(uint vertexOffset, uint index)
+{
+  return vertices[vertexOffset + indices[index]];
+}
+
+vec3
+getThroughput(inout RayPayload ray)
+{
+  return vec3(ray.origin.w, ray.dir.w, ray.radiance.w);
+}
+
+void
+setThroughput(inout RayPayload ray, vec3 throughput)
+{
+  ray.origin.w = throughput.x;
+  ray.dir.w = throughput.y;
+  ray.radiance.w = throughput.z;
+}
+
+uint
+WangHash(inout uint seed)
+{
+  seed = uint(seed ^ uint(61)) ^ uint(seed >> uint(16));
+  seed *= uint(9);
+  seed = seed ^ (seed >> 4);
+  seed *= uint(0x27d4eb2d);
+  seed = seed ^ (seed >> 15);
+  return seed;
+}
+
+float rand(inout uint seed)
+{
+  return float(WangHash(seed)) / 4294967296.0;
+}
+
+vec2
+cartesianToEqui(vec3 dir)
+{
+  dir = dir.xzy;
+  vec2 longlat = vec2(atan(dir.y, dir.x), acos(dir.z));
+  longlat.x += PI_F;
+  // Normalize
+  return longlat / vec2(2.0 * PI_F, PI_F);
+}
+
+vec3 interpolate(vec3 v0, vec3 v1, vec3 v2, vec3 barycentric)
+{
+  return (
+    barycentric.x * v0 +
+    barycentric.y * v1 +
+    barycentric.z * v2
+  );
+}
+
+vec2 interpolate(vec2 v0, vec2 v1, vec2 v2, vec3 barycentric)
+{
+  return (
+    barycentric.x * v0 +
+    barycentric.y * v1 +
+    barycentric.z * v2
+  );
+}
+
+vec3
+transformPosition(vec3 position, mat4 transform)
+{
+  vec4 pos = transform * vec4(position, 1.0);
+  return pos.xyz / pos.w;
+}
+
+vec3
+transformDirection(vec3 direction, mat4 transform)
+{
+  return normalize((transform * vec4(direction, 0.0)).xyz);
+}
+
+Ray
+transformRay(inout Ray ray, mat4 transform)
+{
+  Ray result;
+  result.origin = transformPosition(ray.origin, transform);
+  result.dir = transformDirection(ray.dir, transform);
+  return result;
+}
+
+// Implementation of Hammersley Points on the Hemisphere
+vec3
+randomCosineWeightedVector(inout uint seed)
+{
+  // To avoid to use a second sine and a normalization, it's possible to
+  // use directly the random number in [0.0; 1.0] and scale the generated
+  // `x` and `z` coordinates by it to obtain a normalized vector.
+  // The code below is equivalent to:
+  //   x = cos(theta), y = sin(phi), z = sin(theta);
+  //   normalize(x, y, z);
+
+  float theta = rand(seed) * TWO_PI;
+  float r = max(EPSILON, rand(seed));
+  float rLen = sqrt(max(EPSILON, 1.0 - r));
+
+  float z = sqrt(r); // weights the samples to tend the normal
+  float x = cos(theta) * rLen; // weights to preserve normalization
+  float y = sin(theta) * rLen; // weights to preserve normalization
+
+  return vec3(x, y, z);
+}
+
+BRDFSample
+LambertBRDF(vec3 normal, inout uint randState)
+{
+  vec3 worldUp = abs(normal.z) < 0.9999 ? vec3(0, 0, 1) : vec3(1, 0, 0);
+  vec3 tangent = normalize(cross(worldUp, normal));
+  vec3 bitangent = cross(normal, tangent);
+  vec3 localDir = randomCosineWeightedVector(randState);
+
+  BRDFSample brdf;
+  brdf.dir = normalize(tangent * localDir.x + bitangent * localDir.y + localDir.z * normal);
+  brdf.pdf = 0.5; // Should be PI/2 but cancels out with cosine sampling.
+  return brdf;
+}
+
+// layout(local_size_x = 8, local_size_y = 8) in;
+// void
+// main()
+// {
+//   // @todo: use `gl_NumWorkGroups` when Naga is fixed.
+//   uvec2 numworkGroups = uvec2(1600 / 8, 1200 / 8);
+//   uint index =
+//     gl_GlobalInvocationID.z * gl_WorkGroupSize.x * numworkGroups.x * gl_WorkGroupSize.y * numworkGroups.y +
+//     gl_GlobalInvocationID.y * gl_WorkGroupSize.x * numworkGroups.x +
+//     gl_GlobalInvocationID.x;
+//   Ray ray = rays[index];
+//   imageStore(uRenderTarget, ivec2(gl_GlobalInvocationID.xy), vec4(ray.dir.xy, 0.0, 1.0));
+// }
+
+layout(local_size_x = 8, local_size_y = 8) in;
+void
+main()
+{
+  // uvec3 dimensions = gl_NumWorkGroups * gl_WorkGroupSize;
+  uvec3 dimensions = uvec3(1600, 1200, 1);
+  uvec2 numworkGroups = uvec2(dimensions.x / 8, dimensions.y / 8);
+  uint index =
+    gl_GlobalInvocationID.z * gl_WorkGroupSize.x * numworkGroups.x * gl_WorkGroupSize.y * numworkGroups.y +
+    gl_GlobalInvocationID.y * gl_WorkGroupSize.x * numworkGroups.x +
+    gl_GlobalInvocationID.x;
+
+  uint randState = uint(
+    gl_GlobalInvocationID.x * uint(1973)
+    + gl_GlobalInvocationID.y * uint(9277)
+    + uint(GlobalUniforms.frame) * uint(26699)
+  ) | uint(1);
+
+  RayPayload ray = rays[index];
+  Intersection intersection = intersections[index];
+
+  vec3 throughput = getThroughput(ray);
+  vec3 emissive = vec3(0.0); // @todo: sample light / material?
+  if (abs(MAX_FLOAT - intersection.dist) < 0.00001)
+  {
+    vec2 uv = cartesianToEqui(ray.dir.xyz);
+    ray.radiance.rgb += throughput * sampleProbe(ProbeSampler, Probe, uv);
+  }
+  else
+  {
+    if (intersection.emitter != INVALID_UINT)
+    {
+      Light light = lights[intersection.emitter];
+      emissive = vec3(1.0, 0.9, 0.8) * light.intensity;
+      ray.radiance.rgb += throughput * emissive;
+    }
+    else
+    {
+      vec3 barycentric = vec3(1.0 - intersection.uv.x - intersection.uv.y, intersection.uv);
+      // float barycentricW = 1.0 - uv.x - uv.y;
+
+      uint vertexOffset = instances[intersection.instance].vertexRootIndex;
+      Vertex vertex0 = getVertex(vertexOffset, intersection.index);
+      Vertex vertex1 = getVertex(vertexOffset, intersection.index + 1);
+      Vertex vertex2 = getVertex(vertexOffset, intersection.index + 2);
+
+      vec3 normal = interpolate(vertex0.normal, vertex1.normal, vertex2.normal, barycentric);
+
+      // 𝐿𝑟 𝛚𝑟 ≈ 𝑁 𝑓𝑟 𝛚𝑖,𝛚𝑟 𝐿𝑖 𝛚𝑖 cos𝜃𝑖⁡
+
+      // We sample in a cosine weighted hemisphere, so basially we remove
+      // the 2PI term and the multiplication by cos(𝜃) as the samples are already
+      // sampled in a cosine hemisphere.
+      BRDFSample brdf = LambertBRDF(normal, randState);
+
+      Material mat = materials[intersection.materialIndex];
+      vec3 albedo = mat.color.rgb;
+      // if (mat.albedoIndex != INVALID_UINT)
+      // {
+      //   // albedo *= texture(sampler2DArray(uTextures, uProbeSampler), vec3(uv, mat.albedoIndex)).rgb;
+      //   // albedo *= ;
+      // }
+
+      vec3 directRadiance = albedo * brdf.pdf;
+      throughput *= directRadiance;
+
+      // Diffuse bounce.
+      ray.origin.xyz += intersection.dist * ray.dir.xyz + normal * EPSILON;
+      ray.dir.xyz = brdf.dir;
+      setThroughput(ray, throughput);
+    }
+  }
+
+  rays[index] = ray;
+  imageStore(uRenderTarget, ivec2(gl_GlobalInvocationID.xy), vec4(ray.radiance.rgb, 1.0));
+}
