@@ -40,7 +40,7 @@ pub struct InstanceGPU {
 }
 
 impl InstanceGPU {
-    fn new(world_to_model: glam::Mat4) -> Self {
+    pub fn new(world_to_model: glam::Mat4) -> Self {
         InstanceGPU {
             world_to_model,
             ..Default::default()
@@ -54,7 +54,7 @@ unsafe impl bytemuck::Zeroable for InstanceGPU {}
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct MaterialGPU {
-    color: glam::Vec4,
+    pub color: glam::Vec4,
 }
 unsafe impl bytemuck::Pod for MaterialGPU {}
 unsafe impl bytemuck::Zeroable for MaterialGPU {}
@@ -155,6 +155,23 @@ impl LightGPU {
 
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
+pub struct GlobalUniformsGPU {
+    pub frame_count: u32,
+}
+
+impl GlobalUniformsGPU {
+
+    pub fn new() -> Self {
+        GlobalUniformsGPU { ..Default::default() }
+    }
+
+}
+
+unsafe impl bytemuck::Pod for GlobalUniformsGPU {}
+unsafe impl bytemuck::Zeroable for GlobalUniformsGPU {}
+
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
 pub struct SceneSettingsGPU {
     pub instance_count: u32,
     pub light_count: u32,
@@ -190,26 +207,48 @@ unsafe impl bytemuck::Pod for CameraGPU {}
 unsafe impl bytemuck::Zeroable for CameraGPU {}
 
 #[repr(C)]
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy)]
 pub struct RayGPU {
-    origin: glam::Vec3,
-    padding_0: f32,
-    dir: glam::Vec3,
-    padding_1: f32,
+    origin: glam::Vec4,
+    dir: glam::Vec4,
+    radiance: glam::Vec4,
 }
-
 unsafe impl bytemuck::Pod for RayGPU {}
 unsafe impl bytemuck::Zeroable for RayGPU {}
+
+impl RayGPU {
+
+    pub fn new() -> Self {
+        RayGPU {
+            origin: glam::Vec4::new(0.0, 0.0, 0.0, 1.0),
+            dir: glam::Vec4::new(0.0, 0.0, 0.0, 1.0),
+            radiance: glam::Vec4::new(0.0, 0.0, 0.0, 1.0)
+        }
+    }
+
+    pub fn from_origin_dir(origin: &glam::Vec3, direction: glam::Vec3) -> Self {
+        RayGPU {
+            origin: glam::Vec4::new(origin.x, origin.y, origin.z, 1.0),
+            dir: glam::Vec4::new(direction.x, direction.y, direction.z, 1.0),
+            radiance: glam::Vec4::new(0.0, 0.0, 0.0, 1.0)
+        }
+    }
+
+    pub fn throughput(&self) -> glam::Vec3 {
+        glam::Vec3::new(self.origin.w, self.dir.w, self.radiance.w)
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct IntersectionGPU {
     uv: glam::Vec2,
     index: u32,
     instance: u32,
+    material_index: u32,
     emitter: u32,
     dist: f32,
     padding_0: f32,
-    padding_1: f32,
 }
 
 unsafe impl bytemuck::Pod for IntersectionGPU {}

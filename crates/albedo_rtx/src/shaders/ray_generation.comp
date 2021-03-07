@@ -4,15 +4,12 @@
 
 #include "structures.comp"
 
-// @todo: not hardcoding that means generating the shader at runtime
-layout(local_size_x = 8, local_size_y = 8) in;
-
 /**
  * Layout 0
  */
 
 layout (set = 0, binding = 0, std430) writeonly buffer RayBuffer {
-  Ray rays[];
+  RayPayload rays[];
 };
 
 layout (set = 0, binding = 1) readonly uniform CameraUniformsBuffer {
@@ -42,10 +39,10 @@ float rand(inout uint seed)
   return float(WangHash(seed)) / 4294967296.0;
 }
 
-Ray
-generateRay(uvec3 coords, uvec3 dimensions)
+RayPayload
+generateRay(uvec3 coords, uvec2 dimensions)
 {
-  Ray ray;
+  RayPayload ray;
 
   float half_w = float(dimensions.x) * 0.5;
   float half_h = float(dimensions.y) * 0.5;
@@ -56,23 +53,30 @@ generateRay(uvec3 coords, uvec3 dimensions)
     half_h / tan(CameraUniforms.vFOV * 0.5)
   );
 
-  ray.origin = CameraUniforms.origin;
-
   // TODO: pack direction directly?
   vec3 dir = normalize(cross(CameraUniforms.up, CameraUniforms.right));
 
-  ray.dir = clip.x * CameraUniforms.right + clip.y * CameraUniforms.up + clip.z * dir;
-  ray.dir = normalize(ray.dir);
+  // `throughput` is packed in `origin.w`, `dir.w`, and `radiance.w`.
+  ray.origin = vec4(CameraUniforms.origin, 1.0);
+  ray.dir = vec4(
+    normalize(clip.x * CameraUniforms.right + clip.y * CameraUniforms.up + clip.z * dir),
+    1.0 // throughput component
+  );
+  ray.radiance = vec4(vec3(0.0), 1.0);
 
   return ray;
 }
 
+// @todo: not hardcoding that means generating the shader at runtime
+layout(local_size_x = 8, local_size_y = 8) in;
 void main()
 {
-  // uvec3 dimensions = uvec3(gl_NumWorkGroups) * uvec3(gl_WorkGroupSize);
-  // @todo: unharcode
-  uvec3 dimensions = uvec3(640, 480, 1);
-  Ray ray = generateRay(gl_GlobalInvocationID, dimensions);
-  uint index = gl_GlobalInvocationID.y * dimensions.x + gl_GlobalInvocationID.x;
-  rays[index] = ray;
+  // @todo: use `gl_NumWorkGroups` when Naga is fixed.
+  uvec2 dimensions = uvec2(1600, 1200);
+  uvec2 numworkGroups = uvec2(dimensions.x / 8, dimensions.y / 8);
+  uint index =
+    gl_GlobalInvocationID.z * gl_WorkGroupSize.x * numworkGroups.x * gl_WorkGroupSize.y * numworkGroups.y +
+    gl_GlobalInvocationID.y * gl_WorkGroupSize.x * numworkGroups.x +
+    gl_GlobalInvocationID.x;
+  rays[index] = generateRay(gl_GlobalInvocationID, dimensions);
 }

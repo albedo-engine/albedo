@@ -3,7 +3,7 @@ use albedo_rtx::{
     accel::{BVHBuilder, SAHBuilder, BVH},
     mesh::Mesh,
 };
-use gltf::{self, json::Index};
+use gltf::{self};
 use std::path::Path;
 
 pub struct ProxyMesh {
@@ -53,6 +53,7 @@ pub struct Scene {
     pub meshes: Vec<ProxyMesh>,
     pub bvhs: Vec<BVH>,
     pub instances: Vec<renderer::resources::InstanceGPU>,
+    pub materials: Vec<renderer::resources::MaterialGPU>,
     pub node_buffer: Vec<renderer::resources::BVHNodeGPU>,
     pub vertex_buffer: Vec<renderer::resources::VertexGPU>,
     pub index_buffer: Vec<u32>,
@@ -69,6 +70,7 @@ pub fn load_gltf<P: AsRef<Path>>(file_path: &P) -> Scene {
         }
     };
     let mut meshes: Vec<ProxyMesh> = Vec::new();
+    let mut materials: Vec<renderer::resources::MaterialGPU> = Vec::new();
     let mut instances: Vec<renderer::resources::InstanceGPU> = Vec::new();
 
     for mesh in doc.meshes() {
@@ -96,7 +98,14 @@ pub fn load_gltf<P: AsRef<Path>>(file_path: &P) -> Scene {
         });
     }
 
-    let mut bvhs: Vec<BVH> = meshes
+    for material in doc.materials() {
+        let pbr = material.pbr_metallic_roughness();
+        materials.push(renderer::resources::MaterialGPU {
+            color: pbr.base_color_factor().into()
+        });
+    }
+
+    let bvhs: Vec<BVH> = meshes
         .iter()
         .map(|mesh| {
             // @todo: allow user to choose builder.
@@ -117,20 +126,27 @@ pub fn load_gltf<P: AsRef<Path>>(file_path: &P) -> Scene {
         if let Some(mesh) = node.mesh() {
             let index = mesh.index();
             let offset_table = gpu_resources.offset_table.get(index).unwrap();
-            instances.push(renderer::resources::InstanceGPU {
-                world_to_model: glam::Mat4::from_cols_array_2d(&node.transform().matrix())
-                    .inverse(),
-                material_index: 0,
-                bvh_root_index: offset_table.node(),
-                vertex_root_index: offset_table.vertex(),
-                index_root_index: offset_table.index(),
-            });
+            for primitive in mesh.primitives() {
+                let material_index = match primitive.material().index() {
+                    Some(v) => v as u32,
+                    None => u32::MAX
+                };
+                instances.push(renderer::resources::InstanceGPU {
+                    world_to_model: glam::Mat4::from_cols_array_2d(&node.transform().matrix())
+                        .inverse(),
+                    material_index,
+                    bvh_root_index: offset_table.node(),
+                    vertex_root_index: offset_table.vertex(),
+                    index_root_index: offset_table.index(),
+                });
+            }
         }
     }
 
     Scene {
         meshes,
         instances,
+        materials,
         bvhs,
         node_buffer: gpu_resources.nodes_buffer,
         vertex_buffer: gpu_resources.vertex_buffer,

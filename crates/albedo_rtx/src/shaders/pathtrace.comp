@@ -509,21 +509,6 @@ void main()
 
     float t = sceneHit(ray, intersection);
 
-    // DEBUG
-    // if (intersection.emitter) {
-    //   imageStore(uRenderTargetWrite, idx, vec4(0., 1., 0., 1.));
-    //   break;
-    // } else if (t < MAX_FLOAT) {
-    //   imageStore(uRenderTargetWrite, idx, vec4(0., 0., 1., 1.0));
-    //   break;
-    // }
-    // if (indices[35] == 21) {
-    //   imageStore(uRenderTargetWrite, idx, vec4(1.0, 1., 0., 1.0));
-    //   break;
-    // }
-    // END DEBUG
-
-
     #ifdef DEBUG_BOX
     radiance = vec4(intersection.emissive, 1.0);
     break;

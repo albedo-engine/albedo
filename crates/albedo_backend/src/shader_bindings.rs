@@ -52,6 +52,31 @@ pub const fn storage_texture2d_entry(
     }
 }
 
+pub const fn texture2d_entry(
+    binding: u32,
+    visibility: wgpu::ShaderStage,
+) -> wgpu::BindGroupLayoutEntry {
+    wgpu::BindGroupLayoutEntry {
+        binding,
+        visibility,
+        ty: texture2d(),
+        count: None,
+    }
+}
+
+pub const fn sampler_entry(
+    binding: u32,
+    visibility: wgpu::ShaderStage,
+    filtering: bool
+) -> wgpu::BindGroupLayoutEntry {
+    wgpu::BindGroupLayoutEntry {
+        binding,
+        visibility,
+        ty: sampler(filtering),
+        count: None,
+    }
+}
+
 pub const fn buffer(readonly: bool) -> wgpu::BindingType {
     wgpu::BindingType::Buffer {
         ty: wgpu::BufferBindingType::Storage {

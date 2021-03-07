@@ -44,9 +44,9 @@ struct Material
  * Layout 0.
  */
 
-// layout (set = 0, binding = 0, std430) buffer RayBuffer {
-//   Ray rays[];
-// };
+layout (set = 0, binding = 0, std430) buffer RayBuffer {
+  RayPayload rays[];
+};
 
 layout (set = 0, binding = 1, std430) readonly buffer IntersectionBuffer {
   Intersection intersections[];
@@ -64,37 +64,65 @@ layout (set = 0, binding = 4, std430) readonly buffer VertexBuffer {
   Vertex vertices[];
 };
 
-layout (set = 0, binding = 5) uniform SceneSettingsBuffer {
+// @todo: move to uniform?
+layout (set = 0, binding = 5, std430) readonly buffer LightBuffer {
+  Light lights[];
+};
+
+layout (set = 0, binding = 6, std430) readonly buffer MaterialBuffer {
+  Material materials[];
+};
+
+layout (set = 0, binding = 7) uniform SceneSettingsBuffer {
   uint instanceCount;
   uint lightCount;
 } SceneSettings;
 
-// layout (set = 0, binding = 3, std430) readonly buffer MaterialBuffer {
-//   Material materials[];
-// };
-
-// // @todo: move to uniform?
-// layout (set = 0, binding = 4, std430) readonly buffer LightBuffer {
-//   Light lights[];
-// };
-
-// layout (set = 0, binding = 5) uniform SceneSettingsBuffer {
-//   uint instanceCount;
-//   uint lightCount;
-// } SceneSettings;
+layout( set = 0, binding = 8 ) uniform sampler ProbeSampler;
+layout( set = 0, binding = 9 ) uniform texture2D Probe;
 
 /**
  * Layout 1
  */
 
-layout(set = 1, binding = 0, rgba32f) uniform image2D uRenderTarget;
+layout(set = 1, binding = 0, rgba32f) uniform writeonly image2D uRenderTarget;
+
+layout (set = 1, binding = 1) uniform GlobalUniformBuffer {
+  uint frame;
+} GlobalUniforms;
 
 /* Utils */
+
+vec3
+decodeRGBE(vec4 hdr)
+{
+  return hdr.rgb * exp2((hdr.a * 255.0) - 128.0);
+}
+
+vec3
+sampleProbe(sampler samp, texture2D probe, vec2 uv)
+{
+  return decodeRGBE(texture(sampler2D(probe, samp), uv));
+}
 
 Vertex
 getVertex(uint vertexOffset, uint index)
 {
   return vertices[vertexOffset + indices[index]];
+}
+
+vec3
+getThroughput(inout RayPayload ray)
+{
+  return vec3(ray.origin.w, ray.dir.w, ray.radiance.w);
+}
+
+void
+setThroughput(inout RayPayload ray, vec3 throughput)
+{
+  ray.origin.w = throughput.x;
+  ray.dir.w = throughput.y;
+  ray.radiance.w = throughput.z;
 }
 
 uint
@@ -199,85 +227,93 @@ LambertBRDF(vec3 normal, inout uint randState)
   return brdf;
 }
 
+// layout(local_size_x = 8, local_size_y = 8) in;
+// void
+// main()
+// {
+//   // @todo: use `gl_NumWorkGroups` when Naga is fixed.
+//   uvec2 numworkGroups = uvec2(1600 / 8, 1200 / 8);
+//   uint index =
+//     gl_GlobalInvocationID.z * gl_WorkGroupSize.x * numworkGroups.x * gl_WorkGroupSize.y * numworkGroups.y +
+//     gl_GlobalInvocationID.y * gl_WorkGroupSize.x * numworkGroups.x +
+//     gl_GlobalInvocationID.x;
+//   Ray ray = rays[index];
+//   imageStore(uRenderTarget, ivec2(gl_GlobalInvocationID.xy), vec4(ray.dir.xy, 0.0, 1.0));
+// }
+
 layout(local_size_x = 8, local_size_y = 8) in;
 void
 main()
 {
   // uvec3 dimensions = gl_NumWorkGroups * gl_WorkGroupSize;
-  uvec3 dimensions = uvec3(640, 480, 1);
-  uint index = gl_GlobalInvocationID.y * dimensions.x + gl_GlobalInvocationID.x;
+  uvec3 dimensions = uvec3(1600, 1200, 1);
+  uvec2 numworkGroups = uvec2(dimensions.x / 8, dimensions.y / 8);
+  uint index =
+    gl_GlobalInvocationID.z * gl_WorkGroupSize.x * numworkGroups.x * gl_WorkGroupSize.y * numworkGroups.y +
+    gl_GlobalInvocationID.y * gl_WorkGroupSize.x * numworkGroups.x +
+    gl_GlobalInvocationID.x;
 
   uint randState = uint(
     gl_GlobalInvocationID.x * uint(1973)
     + gl_GlobalInvocationID.y * uint(9277)
-    // + uint(Uniforms.iFrame) * uint(26699)
+    + uint(GlobalUniforms.frame) * uint(26699)
   ) | uint(1);
 
-  // Ray ray = rays[index];
-  Ray ray;
+  RayPayload ray = rays[index];
   Intersection intersection = intersections[index];
 
-  vec3 throughput = vec3(1.0); // @todo: add on Ray.
-  vec3 emissive = vec3(1.0); // @todo: sample light / material?
+  vec3 throughput = getThroughput(ray);
+  vec3 emissive = vec3(0.0); // @todo: sample light / material?
   if (abs(MAX_FLOAT - intersection.dist) < 0.00001)
   {
-    vec2 uv = cartesianToEqui(ray.dir);
-    // vec3 sky = texture(sampler2D(uProbe, uProbeSampler), uv).rgb;
-    vec3 sky = vec3(0.05, 0.05, 0.2);
-    ray.radiance.rgb += throughput * sky;
+    vec2 uv = cartesianToEqui(ray.dir.xyz);
+    ray.radiance.rgb += throughput * sampleProbe(ProbeSampler, Probe, uv);
   }
   else
   {
-    ray.radiance.rgb += throughput * emissive;
+    if (intersection.emitter != INVALID_UINT)
+    {
+      Light light = lights[intersection.emitter];
+      emissive = vec3(1.0, 0.9, 0.8) * light.intensity;
+      ray.radiance.rgb += throughput * emissive;
+    }
+    else
+    {
+      vec3 barycentric = vec3(1.0 - intersection.uv.x - intersection.uv.y, intersection.uv);
+      // float barycentricW = 1.0 - uv.x - uv.y;
 
-    vec3 barycentric = vec3(1.0 - intersection.uv.x - intersection.uv.y, intersection.uv);
-    // float barycentricW = 1.0 - uv.x - uv.y;
+      uint vertexOffset = instances[intersection.instance].vertexRootIndex;
+      Vertex vertex0 = getVertex(vertexOffset, intersection.index);
+      Vertex vertex1 = getVertex(vertexOffset, intersection.index + 1);
+      Vertex vertex2 = getVertex(vertexOffset, intersection.index + 2);
 
-    uint vertexOffset = instances[intersection.instance].vertexRootIndex;
-    Vertex vertex0 = getVertex(vertexOffset, intersection.index);
-    Vertex vertex1 = getVertex(vertexOffset, intersection.index + 1);
-    Vertex vertex2 = getVertex(vertexOffset, intersection.index + 2);
+      vec3 normal = interpolate(vertex0.normal, vertex1.normal, vertex2.normal, barycentric);
 
-    vec3 normal = interpolate(vertex0.normal, vertex1.normal, vertex2.normal, barycentric);
+      // 𝐿𝑟 𝛚𝑟 ≈ 𝑁 𝑓𝑟 𝛚𝑖,𝛚𝑟 𝐿𝑖 𝛚𝑖 cos𝜃𝑖⁡
 
-    // 𝐿𝑟 𝛚𝑟 ≈ 𝑁 𝑓𝑟 𝛚𝑖,𝛚𝑟 𝐿𝑖 𝛚𝑖 cos𝜃𝑖⁡
+      // We sample in a cosine weighted hemisphere, so basially we remove
+      // the 2PI term and the multiplication by cos(𝜃) as the samples are already
+      // sampled in a cosine hemisphere.
+      BRDFSample brdf = LambertBRDF(normal, randState);
 
-    // We sample in a cosine weighted hemisphere, so basially we remove
-    // the 2PI term and the multiplication by cos(𝜃) as the samples are already
-    // sampled in a cosine hemisphere.
-    BRDFSample brdf = LambertBRDF(normal, randState);
+      Material mat = materials[intersection.materialIndex];
+      vec3 albedo = mat.color.rgb;
+      // if (mat.albedoIndex != INVALID_UINT)
+      // {
+      //   // albedo *= texture(sampler2DArray(uTextures, uProbeSampler), vec3(uv, mat.albedoIndex)).rgb;
+      //   // albedo *= ;
+      // }
 
-    // Material mat = materials[intersection.materialIndex];
+      vec3 directRadiance = albedo * brdf.pdf;
+      throughput *= directRadiance;
 
-    // DEBUG
-    Material mat;
-    mat.color = vec4(1.0, 0.0, 0.0, 1.0);
-    ray.radiance *= mat.color.rgb;
-    // END DEBUG
-
-    // vec3 albedo = mat.color.rgb;
-    // if (mat.albedoIndex != INVALID_UINT)
-    // {
-    //   // albedo *= texture(sampler2DArray(uTextures, uProbeSampler), vec3(uv, mat.albedoIndex)).rgb;
-    //   // albedo *= ;
-    // }
-
-    // vec3 directRadiance = albedo * brdf.pdf;
-    // throughput *= directRadiance;
-
-    // Diffuse bounce.
-    ray.origin += intersection.dist * ray.dir + normal * EPSILON;
-    ray.dir = brdf.dir;
+      // Diffuse bounce.
+      ray.origin.xyz += intersection.dist * ray.dir.xyz + normal * EPSILON;
+      ray.dir.xyz = brdf.dir;
+      setThroughput(ray, throughput);
+    }
   }
 
-  // rays[index] = ray;
-  // vec4 c = imageLoad(uRenderTarget, idx);
-  // if (RenderSettings.frameCount == 1) { c = vec4(0.0); }
-  // imageStore(uRenderTargetWrite, idx, c + radiance);
-  imageStore(
-    uRenderTarget,
-    ivec2(gl_GlobalInvocationID.xy),
-    vec4(ray.radiance, 1.0)
-  );
-  // imageStore(uRenderTargetWrite, idx, vec4(0.2, 1.0, 0.0, 1.0));
+  rays[index] = ray;
+  imageStore(uRenderTarget, ivec2(gl_GlobalInvocationID.xy), vec4(ray.radiance.rgb, 1.0));
 }

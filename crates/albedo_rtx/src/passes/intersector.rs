@@ -6,7 +6,6 @@ pub struct GPUIntersector {
     pipeline_layout: wgpu::PipelineLayout,
     pipeline: wgpu::ComputePipeline,
     bind_group: Option<wgpu::BindGroup>,
-    count: usize,
 }
 
 impl GPUIntersector {
@@ -46,7 +45,6 @@ impl GPUIntersector {
             pipeline_layout,
             pipeline,
             bind_group: None,
-            count: 0,
         }
     }
 
@@ -100,10 +98,15 @@ impl GPUIntersector {
                 },
             ],
         }));
-        self.count = out_intersections.count();
     }
 
-    pub fn run(&self, device: &wgpu::Device, encoder: &mut wgpu::CommandEncoder) {
+    pub fn run(
+        &self,
+        device: &wgpu::Device,
+        encoder: &mut wgpu::CommandEncoder,
+        width: u32,
+        height: u32
+    ) {
         if let Some(bind_group) = &self.bind_group {
             let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 label: Some("Intersector Compute Pass"),
@@ -111,7 +114,7 @@ impl GPUIntersector {
             compute_pass.set_pipeline(&self.pipeline);
             compute_pass.set_bind_group(0, bind_group, &[]);
             // @todo: how to deal with hardcoded size.
-            compute_pass.dispatch((self.count as u32) / 8, 1, 1);
+            compute_pass.dispatch(width / 8, height / 8, 1);
         }
     }
 }
