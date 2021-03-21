@@ -29,15 +29,15 @@ struct BRDFSample
 struct Material
 {
   vec4 color;
-  vec4 emission;
-  float metalnessFactor;
-  float roughnessFactor;
-  uint albedoIndex;
-  uint normalIndex;
-  uint emissionIndex;
-  uint metalRoughnessIndex;
-  uint pad_0;
-  uint pad_1;
+  // vec4 emission;
+  // float metalnessFactor;
+  // float roughnessFactor;
+  // uint albedoIndex;
+  // uint normalIndex;
+  // uint emissionIndex;
+  // uint metalRoughnessIndex;
+  // uint pad_0;
+  // uint pad_1;
 };
 
 /**
@@ -85,7 +85,7 @@ layout( set = 0, binding = 9 ) uniform texture2D Probe;
  * Layout 1
  */
 
-layout(set = 1, binding = 0, rgba32f) uniform writeonly image2D uRenderTarget;
+layout(set = 1, binding = 0, rgba32f) uniform image2D uRenderTarget;
 
 layout (set = 1, binding = 1) uniform GlobalUniformBuffer {
   uint frame;
@@ -314,6 +314,15 @@ main()
     }
   }
 
+  // Modified ray is written back to SSBO.
   rays[index] = ray;
-  imageStore(uRenderTarget, ivec2(gl_GlobalInvocationID.xy), vec4(ray.radiance.rgb, 1.0));
+
+  ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
+  // @todo: should we put accumulation in other step?
+  vec4 c = vec4(0.0);
+  if (GlobalUniforms.frame > 1)
+  {
+    c = imageLoad(uRenderTarget, coords);
+  }
+  imageStore(uRenderTarget, coords, c + vec4(ray.radiance.rgb, 1.0));
 }

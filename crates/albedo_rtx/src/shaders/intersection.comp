@@ -254,8 +254,6 @@ float
 sceneHit(Ray ray, inout Intersection intersection)
 {
   float dist = MAX_FLOAT;
-  vec2 uv = vec2(0.0);
-  uint materialIndex = INVALID_UINT;
 
   for (uint i = 0; i < RenderSettings.lightCount; ++i)
   {
@@ -280,7 +278,6 @@ sceneHit(Ray ray, inout Intersection intersection)
     vec3 rayInverseDir = 1.0 / rayModel.dir;
 
     uint nextIndex = 0;
-
     while (nextIndex != INVALID_UINT)
     {
       BVHNode node = nodes[instance.bvhRootIndex + nextIndex];
@@ -290,6 +287,7 @@ sceneHit(Ray ray, inout Intersection intersection)
       {
         if (node.primitiveStartIndex != INVALID_UINT)
         {
+          vec2 uv = vec2(0.0);
           uint relativeIndex = node.primitiveStartIndex + instance.indexRootIndex;
           float t = intersectTriangle(rayModel, relativeIndex, instance.vertexRootIndex, uv);
           if (t > 0.0 && t < dist)

@@ -11,6 +11,9 @@ use winit::{
 mod gltf_loader;
 use gltf_loader::load_gltf;
 
+mod camera;
+use camera::CameraMoveCommand;
+
 struct App {
     instance: wgpu::Instance,
     adapter: wgpu::Adapter,
@@ -99,7 +102,8 @@ fn main() {
     };
     let mut swap_chain = device.create_swap_chain(&surface, &sc_desc);
 
-    let scene = load_gltf(&"./examples/pathtracing/assets/box.glb");
+    // let scene = load_gltf(&"./examples/pathtracing/assets/box.glb");
+    let scene = load_gltf(&"./examples/gpu_intersector/assets/cornell-box.glb");
 
     //// Scene Info
 
@@ -108,6 +112,7 @@ fn main() {
         println!("\t( color: {} ),", mat.color);
     }
     println!("]");
+    println!("Material count = {}", scene.materials.len());
 
     let lights = vec![resources::LightGPU::from_matrix(
         glam::Mat4::from_scale_rotation_translation(
@@ -117,8 +122,13 @@ fn main() {
         )
     )];
 
+    let mut camera_controller = camera::CameraController::from_origin_dir(
+        glam::Vec3::new(0.0, 0.0, 5.0),
+        glam::Vec3::new(0.0, 0.0, -1.0)
+    );
+    camera_controller.move_speed_factor = 0.15;
+
     let mut camera = resources::CameraGPU::new();
-    camera.origin = glam::Vec3::new(0.0, 0.0, 5.0);
 
     let pixel_count = size.width * size.height;
 
@@ -264,16 +274,99 @@ fn main() {
         &filtered_sampler_2d
     );
     shade_pass.bind_target(&device, &render_target_view, &global_uniforms_buffer);
-    blit_pass.bind(&device, &render_target_view, &render_target_sampler);
+    blit_pass.bind(&device, &render_target_view, &render_target_sampler, &global_uniforms_buffer);
 
-    let nb_bounces = 3 as usize;
+    const STATIC_NUM_BOUNCES: usize = 5;
+    const MOVING_NUM_BOUNCES: usize = 2;
+
+    let mut nb_bounces = MOVING_NUM_BOUNCES;
+    let mut was_accumulating = false;
+
+    #[cfg(not(target_arch = "wasm32"))]
+    let mut last_update_inst = std::time::Instant::now();
+    let mut last_time = std::time::Instant::now();
 
     event_loop.run(move |event, _, control_flow| {
         // let _ = (&renderer, &app);
         match event {
-            event::Event::MainEventsCleared => {
-                window.request_redraw();
+
+            event::Event::RedrawEventsCleared => {
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    // Clamp to some max framerate to avoid busy-looping too much
+                    // (we might be in wgpu::PresentMode::Mailbox, thus discarding superfluous frames)
+                    //
+                    // winit has window.current_monitor().video_modes() but that is a list of all full screen video modes.
+                    // So without extra dependencies it's a bit tricky to get the max refresh rate we can run the window on.
+                    // Therefore we just go with 60fps - sorry 120hz+ folks!
+
+                    // @todo: shouldn't limit pathtracer to 60FPS if possible.
+                    let target_frametime = std::time::Duration::from_secs_f64(1.0 / 60.0);
+                    let time_since_last_frame = last_update_inst.elapsed();
+                    if time_since_last_frame >= target_frametime {
+                        window.request_redraw();
+                        last_update_inst = std::time::Instant::now();
+                    } else {
+                        *control_flow = winit::event_loop::ControlFlow::WaitUntil(
+                            std::time::Instant::now() + target_frametime - time_since_last_frame,
+                        );
+                    }
+
+                    // spawner.run_until_stalled();
+                }
             },
+
+            winit::event::Event::DeviceEvent { event, .. } => {
+                match event {
+                    event::DeviceEvent::MouseMotion { delta } => {
+                        // self.mouse_delta = (self.mouse_delta.0 + delta.0, self.mouse_delta.1 + delta.1);
+                        // println!("Velocity = {}, {}", (delta.0 / (size.width as f64)) as f32, (delta.0 / (size.height as f64)) as f32);
+                        camera_controller.rotate((delta.0 / (size.width as f64 * 0.5)) as f32, (delta.1 / (size.height as f64 * 0.5 )) as f32);
+                    }
+                    _ => {}
+                }
+            },
+
+            event::Event::WindowEvent { event, .. } => {
+                match event {
+                    event::WindowEvent::KeyboardInput {
+                        input:
+                            event::KeyboardInput {
+                                virtual_keycode: Some(virtual_keycode),
+                                state,
+                                ..
+                            },
+                        ..
+                    } => {
+                        match virtual_keycode {
+                            event::VirtualKeyCode::Escape => *control_flow = winit::event_loop::ControlFlow::Exit,
+                            _ => ()
+                        };
+                        let direction = match virtual_keycode {
+                            event::VirtualKeyCode::S | event::VirtualKeyCode::Down => CameraMoveCommand::Backward,
+                            event::VirtualKeyCode::A | event::VirtualKeyCode::Left => CameraMoveCommand::Left,
+                            event::VirtualKeyCode::D | event::VirtualKeyCode::Right => CameraMoveCommand::Right,
+                            event::VirtualKeyCode::W | event::VirtualKeyCode::Up => CameraMoveCommand::Forward,
+                            _ => CameraMoveCommand::None,
+                        };
+                        match state {
+                            event::ElementState::Pressed => camera_controller.set_command(direction),
+                            event::ElementState::Released => camera_controller.unset_command(direction),
+                        };
+                    },
+                    event::WindowEvent::CloseRequested => {
+                        *control_flow = winit::event_loop::ControlFlow::Exit;
+                    },
+                    event::WindowEvent::MouseInput { button, state, .. } => {
+
+                        // if *button == winit::event::MouseButton::Right {
+                        //     self.movement_locked = *state == ElementState::Released;
+                        // }
+                    },
+                    _ => {}
+                }
+            },
+
             event::Event::RedrawRequested(_) => {
                 let frame = match swap_chain.get_current_frame() {
                     Ok(frame) => frame,
@@ -285,23 +378,41 @@ fn main() {
                     }
                 };
 
+                // Updates.
+
+                let duration = std::time::Instant::now() - last_time;
+                last_time += duration;
+                // @todo: this assumes 60FPS, it shouldn't.
+                let delta = (duration.as_secs() as f32 + duration.subsec_nanos() as f32 * 1.0e-9) * 60.0;
+
+                let (right, up) = camera_controller.update(delta);
+                camera.origin = camera_controller.origin;
+                camera.right = right;
+                camera.up = up;
+
+                nb_bounces = STATIC_NUM_BOUNCES;
+                if !camera_controller.is_static() {
+                    global_uniforms.frame_count = 1;
+                    nb_bounces = MOVING_NUM_BOUNCES;
+                }
+                camera_buffer.update(&queue, &camera);
+                global_uniforms_buffer.update(&queue, &global_uniforms);
+
+                // Renders.
+
                 let mut encoder =
                     device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
                 generate_ray_pass.run(&mut encoder, size.width, size.height);
 
                 for _ in 0..nb_bounces {
-                    global_uniforms_buffer.update(&queue, &global_uniforms);
-
                     intersector_pass.run(&device, &mut encoder, size.width, size.height);
                     shade_pass.run(&mut encoder, size.width, size.height);
-
-                    global_uniforms.frame_count = global_uniforms.frame_count + 1;
+                    global_uniforms.frame_count += 1;
+                    global_uniforms_buffer.update(&queue, &global_uniforms);
                 }
                 blit_pass.run(&frame.output, &queue, &mut encoder);
                 queue.submit(Some(encoder.finish()));
-
-                global_uniforms.frame_count = global_uniforms.frame_count + 1;
             }
             _ => {}
         }

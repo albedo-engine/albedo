@@ -1,4 +1,4 @@
-use crate::renderer::{UniformsGPU, resources};
+use crate::renderer::{resources};
 use albedo_backend::{GPUBuffer, UniformBuffer, shader_bindings};
 
 pub struct GPURadianceEstimator {

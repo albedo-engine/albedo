@@ -185,12 +185,12 @@ fn depth_omp(nodes: &[BVHNode], input: usize, depth: usize) -> usize {
     let left_depth = if let Some(x) = node.left_child() {
         depth_omp(nodes, x as usize, depth + 1)
     } else {
-        0 as usize
+        depth
     };
     let right_depth = if let Some(x) = node.right_child() {
         depth_omp(nodes, x as usize, depth + 1)
     } else {
-        0 as usize
+        depth
     };
-    depth + std::cmp::max(left_depth, right_depth)
+    std::cmp::max(left_depth, right_depth)
 }

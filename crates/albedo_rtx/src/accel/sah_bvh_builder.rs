@@ -139,6 +139,11 @@ fn rec_build(nodes: &mut Vec<BVHNode>, bins: &mut [SAHBin], start: usize, end: u
         let tmp = left_child_index;
         left_child_index = right_child_index;
         right_child_index = tmp;
+        println!("SWAPPPING")
+    }
+    else
+    {
+        println!("NOTTTTTT SWAPPPING")
     }
 
     nodes.push(BVHNode::Node {

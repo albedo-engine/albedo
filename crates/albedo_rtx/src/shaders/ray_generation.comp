@@ -21,24 +21,6 @@ layout (set = 0, binding = 1) readonly uniform CameraUniformsBuffer {
   float padding_1;
 } CameraUniforms;
 
-/* Utils */
-
-uint
-WangHash(inout uint seed)
-{
-  seed = uint(seed ^ uint(61)) ^ uint(seed >> uint(16));
-  seed *= uint(9);
-  seed = seed ^ (seed >> 4);
-  seed *= uint(0x27d4eb2d);
-  seed = seed ^ (seed >> 15);
-  return seed;
-}
-
-float rand(inout uint seed)
-{
-  return float(WangHash(seed)) / 4294967296.0;
-}
-
 RayPayload
 generateRay(uvec3 coords, uvec2 dimensions)
 {
@@ -78,5 +60,6 @@ void main()
     gl_GlobalInvocationID.z * gl_WorkGroupSize.x * numworkGroups.x * gl_WorkGroupSize.y * numworkGroups.y +
     gl_GlobalInvocationID.y * gl_WorkGroupSize.x * numworkGroups.x +
     gl_GlobalInvocationID.x;
-  rays[index] = generateRay(gl_GlobalInvocationID, dimensions);
+
+  rays[index] = generateRay(gl_GlobalInvocationID, dimensions);;
 }

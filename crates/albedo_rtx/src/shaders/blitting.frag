@@ -4,6 +4,9 @@ layout( location = 0 ) in vec2 vUv;
 
 layout( set = 0, binding = 0 ) uniform sampler uTextureSampler;
 layout( set = 0, binding = 1 ) uniform texture2D uTexture;
+layout (set = 0, binding = 2) uniform GlobalUniformBuffer {
+  uint frame;
+} GlobalUniforms;
 
 layout(location = 0) out vec4 outColor;
 
@@ -19,13 +22,7 @@ vec3 ACESFilmTonemapping(vec3 x)
 }
 
 void main() {
-  // outColor = texture(sampler2D(uTexture, uTextureSampler), vUv).rgba
-  //   / float(RenderSettings.frameCount);
-  // outColor.rgb = ACESFilmTonemapping(outColor.rgb);
-
-  outColor.rgb = texture(sampler2D(uTexture, uTextureSampler), vUv).rgb;
+  outColor = texture(sampler2D(uTexture, uTextureSampler), vUv).rgba / float(GlobalUniforms.frame);
+  outColor.rgb = ACESFilmTonemapping(outColor.rgb);
   outColor.a = 1.0;
-
-  // outColor.rgb = vec3(1.0, 0.0, 0.0);
-  // outColor.a = 1.0;
 }
