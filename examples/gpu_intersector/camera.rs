@@ -8,7 +8,7 @@ pub enum CameraMoveCommand {
     Forward,
     Backward,
     Left,
-    Right = 0b0001_0000
+    Right = 0b0001_0000,
 }
 
 #[derive(Default)]
@@ -25,7 +25,6 @@ pub struct CameraController {
 }
 
 impl CameraController {
-
     pub fn new() -> Self {
         CameraController {
             move_damping_factor: 0.5,
@@ -62,16 +61,15 @@ impl CameraController {
         let mut up = right.cross(self.direction).normalize();
 
         let rot_velocity = self.rot_velocity * self.rot_speed_factor * delta;
-        let rot =
-            glam::Quat::from_axis_angle(up, - rot_velocity.x)
-            * glam::Quat::from_axis_angle(right, - rot_velocity.y);
+        let rot = glam::Quat::from_axis_angle(up, -rot_velocity.x)
+            * glam::Quat::from_axis_angle(right, -rot_velocity.y);
 
         self.direction = (rot * self.direction).normalize();
         right = self.direction.cross(glam::Vec3::unit_y()).normalize();
         up = right.cross(self.direction).normalize();
 
         if self.commands.contains(CameraMoveCommand::Left) {
-            self.move_velocity.x += - 1.0;
+            self.move_velocity.x += -1.0;
         }
         if self.commands.contains(CameraMoveCommand::Right) {
             self.move_velocity.x += 1.0;
@@ -80,7 +78,7 @@ impl CameraController {
             self.move_velocity.z += 1.0;
         }
         if self.commands.contains(CameraMoveCommand::Backward) {
-            self.move_velocity.z += - 1.0;
+            self.move_velocity.z += -1.0;
         }
         let move_velocity = self.move_velocity * self.move_speed_factor * delta;
 
@@ -98,7 +96,6 @@ impl CameraController {
 
     pub fn is_static(&self) -> bool {
         self.rot_velocity.length_squared() < 0.00000001
-        && self.move_velocity.length_squared() < 0.00000001
+            && self.move_velocity.length_squared() < 0.00000001
     }
-
 }

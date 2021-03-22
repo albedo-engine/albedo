@@ -160,11 +160,11 @@ pub struct GlobalUniformsGPU {
 }
 
 impl GlobalUniformsGPU {
-
     pub fn new() -> Self {
-        GlobalUniformsGPU { ..Default::default() }
+        GlobalUniformsGPU {
+            ..Default::default()
+        }
     }
-
 }
 
 unsafe impl bytemuck::Pod for GlobalUniformsGPU {}
@@ -217,12 +217,11 @@ unsafe impl bytemuck::Pod for RayGPU {}
 unsafe impl bytemuck::Zeroable for RayGPU {}
 
 impl RayGPU {
-
     pub fn new() -> Self {
         RayGPU {
             origin: glam::Vec4::new(0.0, 0.0, 0.0, 1.0),
             dir: glam::Vec4::new(0.0, 0.0, 0.0, 1.0),
-            radiance: glam::Vec4::new(0.0, 0.0, 0.0, 1.0)
+            radiance: glam::Vec4::new(0.0, 0.0, 0.0, 1.0),
         }
     }
 
@@ -230,7 +229,7 @@ impl RayGPU {
         RayGPU {
             origin: glam::Vec4::new(origin.x, origin.y, origin.z, 1.0),
             dir: glam::Vec4::new(direction.x, direction.y, direction.z, 1.0),
-            radiance: glam::Vec4::new(0.0, 0.0, 0.0, 1.0)
+            radiance: glam::Vec4::new(0.0, 0.0, 0.0, 1.0),
         }
     }
 

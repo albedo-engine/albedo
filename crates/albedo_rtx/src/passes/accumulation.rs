@@ -24,8 +24,8 @@ impl AccumulationPass {
             push_constant_ranges: &[],
         });
 
-        let shader = device
-            .create_shader_module(&wgpu::include_spirv!("../shaders/accumulation.comp.spv"));
+        let shader =
+            device.create_shader_module(&wgpu::include_spirv!("../shaders/accumulation.comp.spv"));
 
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Accumulation Pipeline"),
@@ -37,7 +37,7 @@ impl AccumulationPass {
         AccumulationPass {
             bind_group: None,
             bind_group_layout,
-            pipeline
+            pipeline,
         }
     }
 
@@ -46,7 +46,7 @@ impl AccumulationPass {
         device: &wgpu::Device,
         in_rays: &GPUBuffer<resources::RayGPU>,
         view: &wgpu::TextureView,
-        global_uniforms: &UniformBuffer<resources::GlobalUniformsGPU>
+        global_uniforms: &UniformBuffer<resources::GlobalUniformsGPU>,
     ) {
         self.bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Accumulation Bind Group"),
@@ -63,7 +63,7 @@ impl AccumulationPass {
                 wgpu::BindGroupEntry {
                     binding: 2,
                     resource: global_uniforms.as_entire_binding(),
-                }
+                },
             ],
         }));
     }

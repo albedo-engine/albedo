@@ -2,7 +2,7 @@ use albedo_backend::UniformBuffer;
 
 use crate::renderer::resources;
 
-use albedo_backend::{shader_bindings};
+use albedo_backend::shader_bindings;
 
 pub struct BlitPass {
     bind_group_layout: wgpu::BindGroupLayout,
@@ -82,7 +82,7 @@ impl BlitPass {
         device: &wgpu::Device,
         view: &wgpu::TextureView,
         sampler: &wgpu::Sampler,
-        global_uniforms: &UniformBuffer<resources::GlobalUniformsGPU>
+        global_uniforms: &UniformBuffer<resources::GlobalUniformsGPU>,
     ) {
         self.bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Blit Bind Group"),
@@ -99,7 +99,7 @@ impl BlitPass {
                 wgpu::BindGroupEntry {
                     binding: 2,
                     resource: global_uniforms.as_entire_binding(),
-                }
+                },
             ],
         }));
     }

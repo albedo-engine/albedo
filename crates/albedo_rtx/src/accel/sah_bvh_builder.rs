@@ -56,18 +56,6 @@ impl BVHBuilder for SAHBuilder {
         }
 
         let root = rec_build(&mut nodes, &mut self._bins, 0, nb_triangles as usize);
-
-        for n in &nodes {
-            match n {
-                BVHNode::Leaf { .. } => {
-                    println!("is leaf")
-                }
-                BVHNode::Node { .. } => {
-                    println!("is root")
-                }
-            };
-        }
-
         Ok(BVH::new(nodes, nb_triangles, root as u32))
     }
 }
@@ -113,9 +101,6 @@ fn rec_build(nodes: &mut Vec<BVHNode>, bins: &mut [SAHBin], start: usize, end: u
     }
 
     let split_index = find_best_split(bins);
-
-    println!("Split Index = {}", split_index);
-
     let mut middle = partition(&mut nodes[start..end], |val| {
         let center_on_axis = val.aabb().center()[split_axis];
         // @todo: cache center computation
@@ -139,11 +124,6 @@ fn rec_build(nodes: &mut Vec<BVHNode>, bins: &mut [SAHBin], start: usize, end: u
         let tmp = left_child_index;
         left_child_index = right_child_index;
         right_child_index = tmp;
-        println!("SWAPPPING")
-    }
-    else
-    {
-        println!("NOTTTTTT SWAPPPING")
     }
 
     nodes.push(BVHNode::Node {

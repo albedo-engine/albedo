@@ -105,7 +105,7 @@ impl GPUIntersector {
         device: &wgpu::Device,
         encoder: &mut wgpu::CommandEncoder,
         width: u32,
-        height: u32
+        height: u32,
     ) {
         if let Some(bind_group) = &self.bind_group {
             let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {

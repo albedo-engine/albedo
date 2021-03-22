@@ -67,7 +67,7 @@ pub const fn texture2d_entry(
 pub const fn sampler_entry(
     binding: u32,
     visibility: wgpu::ShaderStage,
-    filtering: bool
+    filtering: bool,
 ) -> wgpu::BindGroupLayoutEntry {
     wgpu::BindGroupLayoutEntry {
         binding,

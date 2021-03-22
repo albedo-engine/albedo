@@ -1,5 +1,5 @@
-use crate::renderer::{resources};
-use albedo_backend::{GPUBuffer, UniformBuffer, shader_bindings};
+use crate::renderer::resources;
+use albedo_backend::{shader_bindings, GPUBuffer, UniformBuffer};
 
 pub struct GPURadianceEstimator {
     bind_group_layouts: [wgpu::BindGroupLayout; 2],
@@ -29,18 +29,10 @@ impl GPURadianceEstimator {
             }),
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("Radiance Estimator Render Target Layout"),
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStage::COMPUTE,
-                        ty: shader_bindings::storage_texture2d(
-                            wgpu::TextureFormat::Rgba32Float,
-                            wgpu::StorageTextureAccess::WriteOnly,
-                        ),
-                        count: None,
-                    },
-                    shader_bindings::uniform_entry(1, wgpu::ShaderStage::COMPUTE),
-                ],
+                entries: &[shader_bindings::uniform_entry(
+                    0,
+                    wgpu::ShaderStage::COMPUTE,
+                )],
             }),
         ];
 
@@ -80,7 +72,7 @@ impl GPURadianceEstimator {
         materials: &GPUBuffer<resources::MaterialGPU>,
         scene_info: &UniformBuffer<resources::SceneSettingsGPU>,
         probe_view: &wgpu::TextureView,
-        probe_sampler: &wgpu::Sampler
+        probe_sampler: &wgpu::Sampler,
     ) {
         self.base_bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Radiance Estimator Base Bind Group"),
@@ -133,22 +125,15 @@ impl GPURadianceEstimator {
     pub fn bind_target(
         &mut self,
         device: &wgpu::Device,
-        view: &wgpu::TextureView,
-        global_uniforms: &UniformBuffer<resources::GlobalUniformsGPU>
+        global_uniforms: &UniformBuffer<resources::GlobalUniformsGPU>,
     ) {
         self.target_bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Radiance Esimator Render Target Bind Group"),
             layout: &self.bind_group_layouts[1],
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: global_uniforms.as_entire_binding(),
-                }
-            ],
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: global_uniforms.as_entire_binding(),
+            }],
         }));
     }
 

@@ -83,9 +83,7 @@ layout( set = 0, binding = 9 ) uniform texture2D Probe;
  * Layout 1
  */
 
-layout(set = 1, binding = 0, rgba32f) uniform image2D uRenderTarget;
-
-layout (set = 1, binding = 1) uniform GlobalUniformBuffer {
+layout (set = 1, binding = 0) uniform GlobalUniformBuffer {
   uint frame;
 } GlobalUniforms;
 
@@ -314,9 +312,4 @@ main()
 
   // Modified ray is written back to SSBO.
   rays[index] = ray;
-
-  ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
-  // @todo: should we put accumulation in other step?
-  vec4 c = GlobalUniforms.frame > 1 ? imageLoad(uRenderTarget, coords) : vec4(0.0);
-  imageStore(uRenderTarget, coords, c + vec4(ray.radiance.rgb, 1.0));
 }

@@ -78,8 +78,6 @@ pub fn load_gltf<P: AsRef<Path>>(file_path: &P) -> Scene {
         let mut normals: Vec<[f32; 3]> = Vec::new();
         let mut indices: Vec<u32> = Vec::new();
 
-        println!("Primitive count = {}", mesh.primitives().len());
-
         for primitive in mesh.primitives() {
             let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
             positions.extend(reader.read_positions().unwrap());
@@ -101,7 +99,7 @@ pub fn load_gltf<P: AsRef<Path>>(file_path: &P) -> Scene {
     for material in doc.materials() {
         let pbr = material.pbr_metallic_roughness();
         materials.push(renderer::resources::MaterialGPU {
-            color: pbr.base_color_factor().into()
+            color: pbr.base_color_factor().into(),
         });
     }
 
@@ -129,7 +127,7 @@ pub fn load_gltf<P: AsRef<Path>>(file_path: &P) -> Scene {
             for primitive in mesh.primitives() {
                 let material_index = match primitive.material().index() {
                     Some(v) => v as u32,
-                    None => u32::MAX
+                    None => u32::MAX,
                 };
                 instances.push(renderer::resources::InstanceGPU {
                     world_to_model: glam::Mat4::from_cols_array_2d(&node.transform().matrix())

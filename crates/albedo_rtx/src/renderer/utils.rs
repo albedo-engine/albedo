@@ -77,30 +77,6 @@ pub fn build_acceleration_structure_gpu<'a>(bvhs: &[BVH], meshes: &[impl Mesh]) 
                 mesh.normal(v).unwrap(),
             ));
         }
-
-        println!("Nodes = [");
-        for v in &nodes_buffer {
-            println!(
-                "\tMin = {:?}, Max = {:?}, P = {}",
-                v.min(),
-                v.max(),
-                v.primitive()
-            );
-            println!("\t\tNext = {}", v.next());
-        }
-        println!("]");
-        println!("");
-        println!("Positions = [");
-        for v in &vertex_buffer {
-            println!("\t{}", v.position);
-        }
-        println!("]");
-        println!("");
-        println!("Indices = [");
-        for i in &index_buffer {
-            println!("\t{}", i);
-        }
-        println!("]");
     }
 
     GPUResources {
