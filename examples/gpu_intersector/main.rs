@@ -1,6 +1,6 @@
 use albedo_backend::{shader_bindings, GPUBuffer, UniformBuffer};
 
-use albedo_rtx::passes::{BlitPass, GPUIntersector, GPURadianceEstimator, GPURayGenerator};
+use albedo_rtx::passes::{AccumulationPass, BlitPass, GPUIntersector, GPURadianceEstimator, GPURayGenerator};
 use albedo_rtx::renderer::resources;
 
 use winit::{
@@ -246,6 +246,7 @@ fn main() {
     let mut generate_ray_pass = GPURayGenerator::new(&device);
     let mut intersector_pass = GPUIntersector::new(&device);
     let mut shade_pass = GPURadianceEstimator::new(&device);
+    let mut accumulation_pass = AccumulationPass::new(&device);
     let mut blit_pass = BlitPass::new(&device, sc_desc.format);
 
     generate_ray_pass.bind_buffers(&device, &ray_buffer, &camera_buffer);
@@ -280,7 +281,6 @@ fn main() {
     const MOVING_NUM_BOUNCES: usize = 2;
 
     let mut nb_bounces = MOVING_NUM_BOUNCES;
-    let mut was_accumulating = false;
 
     #[cfg(not(target_arch = "wasm32"))]
     let mut last_update_inst = std::time::Instant::now();
@@ -394,6 +394,8 @@ fn main() {
                 if !camera_controller.is_static() {
                     global_uniforms.frame_count = 1;
                     nb_bounces = MOVING_NUM_BOUNCES;
+                } else {
+                    global_uniforms.frame_count += 1;
                 }
                 camera_buffer.update(&queue, &camera);
                 global_uniforms_buffer.update(&queue, &global_uniforms);
@@ -408,9 +410,10 @@ fn main() {
                 for _ in 0..nb_bounces {
                     intersector_pass.run(&device, &mut encoder, size.width, size.height);
                     shade_pass.run(&mut encoder, size.width, size.height);
-                    global_uniforms.frame_count += 1;
-                    global_uniforms_buffer.update(&queue, &global_uniforms);
                 }
+
+                accumulation_pass.run(&mut encoder, size.width, size.height);
+
                 blit_pass.run(&frame.output, &queue, &mut encoder);
                 queue.submit(Some(encoder.finish()));
             }
