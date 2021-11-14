@@ -55,9 +55,27 @@ unsafe impl bytemuck::Zeroable for InstanceGPU {}
 #[derive(Clone, Copy)]
 pub struct MaterialGPU {
     pub color: glam::Vec4,
+    pub roughness: f32,
+    pub reflectivity: f32,
+    pub pad_0: glam::Vec2
 }
 unsafe impl bytemuck::Pod for MaterialGPU {}
 unsafe impl bytemuck::Zeroable for MaterialGPU {}
+
+impl MaterialGPU {
+
+    pub fn new(
+        color: glam::Vec4,
+        roughness: f32,
+        reflectivity: f32
+    ) -> MaterialGPU {
+        MaterialGPU {
+            color, roughness, reflectivity,
+            pad_0: glam::Vec2::new(0.0, 0.0)
+        }
+    }
+
+}
 
 #[repr(C)]
 #[derive(Clone, Copy, Default)]

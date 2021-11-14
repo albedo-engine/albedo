@@ -54,7 +54,8 @@ layout (set = 0, binding = 5, std430) readonly buffer RayBuffer {
   RayPayload rays[];
 };
 
-layout (set = 0, binding = 6, std430) writeonly buffer IntersectionBuffer {
+// @todo: use writeonly when WGPU supports it.
+layout (set = 0, binding = 6, std430) buffer IntersectionBuffer {
   Intersection intersections[];
 };
 

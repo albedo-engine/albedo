@@ -12,9 +12,9 @@ impl AccumulationPass {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Ray Generator Layout"),
             entries: &[
-                shader_bindings::buffer_entry(0, wgpu::ShaderStage::COMPUTE, true),
-                shader_bindings::texture2d_entry(1, wgpu::ShaderStage::COMPUTE),
-                shader_bindings::uniform_entry(2, wgpu::ShaderStage::COMPUTE),
+                shader_bindings::buffer_entry(0, wgpu::ShaderStages::COMPUTE, true),
+                shader_bindings::storage_texture2d_entry(1, wgpu::ShaderStages::COMPUTE, wgpu::TextureFormat::Rgba32Float, wgpu::StorageTextureAccess::ReadWrite),
+                shader_bindings::uniform_entry(2, wgpu::ShaderStages::COMPUTE),
             ],
         });
 

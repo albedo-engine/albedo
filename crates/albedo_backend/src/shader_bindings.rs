@@ -15,7 +15,7 @@
 
 pub const fn uniform_entry(
     binding: u32,
-    visibility: wgpu::ShaderStage,
+    visibility: wgpu::ShaderStages,
 ) -> wgpu::BindGroupLayoutEntry {
     wgpu::BindGroupLayoutEntry {
         binding,
@@ -27,7 +27,7 @@ pub const fn uniform_entry(
 
 pub const fn buffer_entry(
     binding: u32,
-    visibility: wgpu::ShaderStage,
+    visibility: wgpu::ShaderStages,
     readonly: bool,
 ) -> wgpu::BindGroupLayoutEntry {
     wgpu::BindGroupLayoutEntry {
@@ -40,7 +40,7 @@ pub const fn buffer_entry(
 
 pub const fn storage_texture2d_entry(
     binding: u32,
-    visibility: wgpu::ShaderStage,
+    visibility: wgpu::ShaderStages,
     format: wgpu::TextureFormat,
     access: wgpu::StorageTextureAccess,
 ) -> wgpu::BindGroupLayoutEntry {
@@ -54,7 +54,7 @@ pub const fn storage_texture2d_entry(
 
 pub const fn texture2d_entry(
     binding: u32,
-    visibility: wgpu::ShaderStage,
+    visibility: wgpu::ShaderStages,
 ) -> wgpu::BindGroupLayoutEntry {
     wgpu::BindGroupLayoutEntry {
         binding,
@@ -66,7 +66,7 @@ pub const fn texture2d_entry(
 
 pub const fn sampler_entry(
     binding: u32,
-    visibility: wgpu::ShaderStage,
+    visibility: wgpu::ShaderStages,
     filtering: bool,
 ) -> wgpu::BindGroupLayoutEntry {
     wgpu::BindGroupLayoutEntry {

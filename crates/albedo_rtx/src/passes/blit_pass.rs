@@ -17,7 +17,7 @@ impl BlitPass {
             entries: &[
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStage::FRAGMENT,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Sampler {
                         comparison: false,
                         filtering: true,
@@ -26,7 +26,7 @@ impl BlitPass {
                 },
                 wgpu::BindGroupLayoutEntry {
                     binding: 1,
-                    visibility: wgpu::ShaderStage::FRAGMENT,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Texture {
                         multisampled: false,
                         sample_type: wgpu::TextureSampleType::Float { filterable: true },
@@ -34,7 +34,7 @@ impl BlitPass {
                     },
                     count: None,
                 },
-                shader_bindings::uniform_entry(2, wgpu::ShaderStage::FRAGMENT),
+                shader_bindings::uniform_entry(2, wgpu::ShaderStages::FRAGMENT),
             ],
         });
 
@@ -63,7 +63,7 @@ impl BlitPass {
                 targets: &[swap_chain_format.into()],
             }),
             primitive: wgpu::PrimitiveState {
-                cull_mode: wgpu::CullMode::None,
+                cull_mode: None,
                 ..Default::default()
             },
             depth_stencil: None,
@@ -106,14 +106,14 @@ impl BlitPass {
 
     pub fn run(
         &self,
-        frame: &wgpu::SwapChainTexture,
+        view: &wgpu::TextureView,
         queue: &wgpu::Queue,
         encoder: &mut wgpu::CommandEncoder,
     ) {
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
-            color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
-                attachment: &frame.view,
+            color_attachments: &[wgpu::RenderPassColorAttachment {
+                view: view,
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color {

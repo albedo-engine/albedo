@@ -13,14 +13,14 @@ impl GPUIntersector {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("GPUIntersector Layout"),
             entries: &[
-                shader_bindings::buffer_entry(0, wgpu::ShaderStage::COMPUTE, true),
-                shader_bindings::buffer_entry(1, wgpu::ShaderStage::COMPUTE, true),
-                shader_bindings::buffer_entry(2, wgpu::ShaderStage::COMPUTE, true),
-                shader_bindings::buffer_entry(3, wgpu::ShaderStage::COMPUTE, true),
-                shader_bindings::buffer_entry(4, wgpu::ShaderStage::COMPUTE, true),
-                shader_bindings::buffer_entry(5, wgpu::ShaderStage::COMPUTE, true),
-                shader_bindings::buffer_entry(6, wgpu::ShaderStage::COMPUTE, false),
-                shader_bindings::uniform_entry(7, wgpu::ShaderStage::COMPUTE),
+                shader_bindings::buffer_entry(0, wgpu::ShaderStages::COMPUTE, true),
+                shader_bindings::buffer_entry(1, wgpu::ShaderStages::COMPUTE, true),
+                shader_bindings::buffer_entry(2, wgpu::ShaderStages::COMPUTE, true),
+                shader_bindings::buffer_entry(3, wgpu::ShaderStages::COMPUTE, true),
+                shader_bindings::buffer_entry(4, wgpu::ShaderStages::COMPUTE, true),
+                shader_bindings::buffer_entry(5, wgpu::ShaderStages::COMPUTE, true),
+                shader_bindings::buffer_entry(6, wgpu::ShaderStages::COMPUTE, false),
+                shader_bindings::uniform_entry(7, wgpu::ShaderStages::COMPUTE),
             ],
         });
 

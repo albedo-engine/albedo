@@ -9,10 +9,18 @@ pub struct GPUBuffer<T> {
 
 impl<T: bytemuck::Pod> GPUBuffer<T> {
     pub fn new(device: &wgpu::Device) -> Self {
+        GPUBuffer::new_with_usage(
+            device,
+            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST
+        )
+    }
+
+    pub fn new_with_usage_count(device: &wgpu::Device, usage: wgpu::BufferUsages, count: usize) -> Self {
+        let byte_count = (std::mem::size_of::<T>() * count) as u64;
         let gpu_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
-            size: 0,
-            usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
+            size: byte_count,
+            usage,
             mapped_at_creation: false,
         });
         GPUBuffer {
@@ -22,19 +30,16 @@ impl<T: bytemuck::Pod> GPUBuffer<T> {
         }
     }
 
+    pub fn new_with_usage(device: &wgpu::Device, usage: wgpu::BufferUsages) -> Self {
+        GPUBuffer::new_with_usage_count(device, usage, 0)
+    }
+
     pub fn new_with_count(device: &wgpu::Device, count: usize) -> Self {
-        let byte_count = (std::mem::size_of::<T>() * count) as u64;
-        let gpu_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: None,
-            size: byte_count,
-            usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
-            mapped_at_creation: false,
-        });
-        GPUBuffer {
-            gpu_buffer,
-            count,
-            content_type: PhantomData,
-        }
+        GPUBuffer::new_with_usage_count(
+            device,
+            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            count
+        )
     }
 
     pub fn from_data(device: &wgpu::Device, content: &[T]) -> Self {
@@ -42,7 +47,7 @@ impl<T: bytemuck::Pod> GPUBuffer<T> {
         let gpu_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
             size: byte_count,
-            usage: wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
         GPUBuffer {
@@ -81,7 +86,7 @@ impl<T: bytemuck::Pod> UniformBuffer<T> {
         let gpu_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
             size: std::mem::size_of::<T>() as u64,
-            usage: wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
         UniformBuffer {

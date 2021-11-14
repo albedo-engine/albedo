@@ -13,8 +13,8 @@ impl GPURayGenerator {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Ray Generator Layout"),
             entries: &[
-                shader_bindings::buffer_entry(0, wgpu::ShaderStage::COMPUTE, false),
-                shader_bindings::uniform_entry(1, wgpu::ShaderStage::COMPUTE),
+                shader_bindings::buffer_entry(0, wgpu::ShaderStages::COMPUTE, false),
+                shader_bindings::uniform_entry(1, wgpu::ShaderStages::COMPUTE),
             ],
         });
 

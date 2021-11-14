@@ -18,24 +18,23 @@
 #define MAX_UINT 0xFFFFFFFF
 #define INVALID_UINT MAX_UINT
 
-struct BRDFSample
+struct BRDFDiffuseSample
 {
   float pdf;
   vec3 dir;
 };
 
+struct BRDFSpecularSample
+{
+  vec3 dir;
+};
+
 struct Material
 {
-  vec4 color;
-  // vec4 emission;
-  // float metalnessFactor;
-  // float roughnessFactor;
-  // uint albedoIndex;
-  // uint normalIndex;
-  // uint emissionIndex;
-  // uint metalRoughnessIndex;
-  // uint pad_0;
-  // uint pad_1;
+  vec4  color;
+  float roughnessFactor;
+  float metallic;
+  vec2  pad_0;
 };
 
 /**
@@ -209,7 +208,7 @@ randomCosineWeightedVector(inout uint seed)
   return vec3(x, y, z);
 }
 
-BRDFSample
+BRDFDiffuseSample
 LambertBRDF(vec3 normal, inout uint randState)
 {
   vec3 worldUp = abs(normal.z) < 0.9999 ? vec3(0, 0, 1) : vec3(1, 0, 0);
@@ -217,25 +216,19 @@ LambertBRDF(vec3 normal, inout uint randState)
   vec3 bitangent = cross(normal, tangent);
   vec3 localDir = randomCosineWeightedVector(randState);
 
-  BRDFSample brdf;
+  BRDFDiffuseSample brdf;
   brdf.dir = normalize(tangent * localDir.x + bitangent * localDir.y + localDir.z * normal);
   brdf.pdf = 0.5; // Should be PI/2 but cancels out with cosine sampling.
   return brdf;
 }
 
-// layout(local_size_x = 8, local_size_y = 8) in;
-// void
-// main()
-// {
-//   // @todo: use `gl_NumWorkGroups` when Naga is fixed.
-//   uvec2 numworkGroups = uvec2(1600 / 8, 1200 / 8);
-//   uint index =
-//     gl_GlobalInvocationID.z * gl_WorkGroupSize.x * numworkGroups.x * gl_WorkGroupSize.y * numworkGroups.y +
-//     gl_GlobalInvocationID.y * gl_WorkGroupSize.x * numworkGroups.x +
-//     gl_GlobalInvocationID.x;
-//   Ray ray = rays[index];
-//   imageStore(uRenderTarget, ivec2(gl_GlobalInvocationID.xy), vec4(ray.dir.xy, 0.0, 1.0));
-// }
+BRDFSpecularSample
+SpecularBRDF(vec3 dir, vec3 normal)
+{
+  BRDFSpecularSample brdf;
+  brdf.dir = reflect(dir, normal);
+  return brdf;
+}
 
 layout(local_size_x = 8, local_size_y = 8) in;
 void
@@ -263,7 +256,8 @@ main()
   if (abs(MAX_FLOAT - intersection.dist) < 0.00001)
   {
     vec2 uv = cartesianToEqui(ray.dir.xyz);
-    ray.radiance.rgb += throughput * sampleProbe(ProbeSampler, Probe, uv);
+    vec3 probe = sampleProbe(ProbeSampler, Probe, uv);
+    ray.radiance.rgb += throughput * probe;
   }
   else
   {
@@ -276,7 +270,6 @@ main()
     else
     {
       vec3 barycentric = vec3(1.0 - intersection.uv.x - intersection.uv.y, intersection.uv);
-      // float barycentricW = 1.0 - uv.x - uv.y;
 
       uint vertexOffset = instances[intersection.instance].vertexRootIndex;
       Vertex vertex0 = getVertex(vertexOffset, intersection.index);
@@ -290,22 +283,22 @@ main()
       // We sample in a cosine weighted hemisphere, so basially we remove
       // the 2PI term and the multiplication by cos(𝜃) as the samples are already
       // sampled in a cosine hemisphere.
-      BRDFSample brdf = LambertBRDF(normal, randState);
+      BRDFDiffuseSample brdf = LambertBRDF(normal, randState);
+      BRDFSpecularSample specBRDF = SpecularBRDF(ray.dir.xyz, normal);
 
       Material mat = materials[intersection.materialIndex];
+      float r2 = mat.roughnessFactor * mat.roughnessFactor;
       vec3 albedo = mat.color.rgb;
-      // if (mat.albedoIndex != INVALID_UINT)
-      // {
-      //   // albedo *= texture(sampler2DArray(uTextures, uProbeSampler), vec3(uv, mat.albedoIndex)).rgb;
-      //   // albedo *= ;
-      // }
+
+      float pdf =  rand(randState) < mat.metallic ? 1.0 : 0.0;
+      vec3 dir = normalize(mix(specBRDF.dir, brdf.dir, r2));
+      dir = mix(brdf.dir, dir, pdf);
 
       vec3 directRadiance = albedo * brdf.pdf;
-      throughput *= directRadiance;
+      throughput *= mix(directRadiance, vec3(1.0), pdf);
 
-      // Diffuse bounce.
       ray.origin.xyz += intersection.dist * ray.dir.xyz + normal * EPSILON;
-      ray.dir.xyz = brdf.dir;
+      ray.dir.xyz = dir;
       setThroughput(ray, throughput);
     }
   }

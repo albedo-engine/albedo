@@ -8,7 +8,8 @@
  * Layout 0
  */
 
-layout (set = 0, binding = 0, std430) writeonly buffer RayBuffer {
+// @todo: use writeonly when WGPU supports it.
+layout (set = 0, binding = 0, std430) buffer RayBuffer {
   RayPayload rays[];
 };
 
