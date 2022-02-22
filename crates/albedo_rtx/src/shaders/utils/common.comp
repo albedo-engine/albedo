@@ -1,0 +1,40 @@
+#ifndef COMMON_H
+#define COMMON_H
+
+#define EPSILON 0.000001
+#define NEG_EPSILON -0.000001
+#define EPSILON1 1.000001
+
+#define MAX_FLOAT 3.402823466e+38
+
+#define MAX_UINT 0xFFFFFFFF
+#define INVALID_UINT MAX_UINT
+
+/**
+ * Math
+ */
+
+vec3
+transformPosition(vec3 position, mat4 transform)
+{
+  vec4 pos = transform * vec4(position, 1.0);
+  return pos.xyz / pos.w;
+}
+
+vec3
+transformDirection(vec3 direction, mat4 transform)
+{
+  return normalize((transform * vec4(direction, 0.0)).xyz);
+}
+
+Ray
+transformRay(inout Ray ray, mat4 transform)
+{
+  Ray result;
+  // @todo: radiance and throughput should go somewhere else.
+  result.origin = transformPosition(ray.origin, transform);
+  result.dir = transformDirection(ray.dir, transform);
+  return result;
+}
+
+#endif // COMMON_H

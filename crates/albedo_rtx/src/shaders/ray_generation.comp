@@ -62,5 +62,5 @@ void main()
     gl_GlobalInvocationID.y * gl_WorkGroupSize.x * numworkGroups.x +
     gl_GlobalInvocationID.x;
 
-  rays[index] = generateRay(gl_GlobalInvocationID, dimensions);;
+  rays[index] = generateRay(gl_GlobalInvocationID, dimensions);
 }

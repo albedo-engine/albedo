@@ -3,6 +3,7 @@
 #extension GL_GOOGLE_include_directive : enable
 
 #include "structures.comp"
+#include "utils/intersection_utils.comp"
 
 #define EPSILON 0.000001
 #define NEG_EPSILON -0.000001
@@ -17,14 +18,6 @@
 
 #define MAX_UINT 0xFFFFFFFF
 #define INVALID_UINT MAX_UINT
-
-struct BVHNode
-{
-  vec3 min;
-  uint nextNodeIndex;
-  vec3 max;
-  uint primitiveStartIndex;
-};
 
 /**
  * Layout 0
@@ -110,29 +103,6 @@ vec2 interpolate(vec2 v0, vec2 v1, vec2 v2, vec3 barycentric)
   );
 }
 
-vec3
-transformPosition(vec3 position, mat4 transform)
-{
-  vec4 pos = transform * vec4(position, 1.0);
-  return pos.xyz / pos.w;
-}
-
-vec3
-transformDirection(vec3 direction, mat4 transform)
-{
-  return normalize((transform * vec4(direction, 0.0)).xyz);
-}
-
-Ray
-transformRay(inout Ray ray, mat4 transform)
-{
-  Ray result;
-  // @todo: radiance and throughput should go somewhere else.
-  result.origin = transformPosition(ray.origin, transform);
-  result.dir = transformDirection(ray.dir, transform);
-  return result;
-}
-
 // Implementation of Hammersley Points on the Hemisphere
 vec3
 randomCosineWeightedVector(inout uint seed)
@@ -155,33 +125,10 @@ randomCosineWeightedVector(inout uint seed)
   return vec3(x, y, z);
 }
 
-/* Intersection */
-
 Vertex
 getVertex(uint vertexOffset, uint index)
 {
   return vertices[vertexOffset + indices[index]];
-}
-
-float
-intersectPlane(Ray ray, vec3 normal, vec3 origin, vec3 edge01, vec3 edge02)
-{
-  float NdotD = dot(normal, ray.dir);
-  if (NdotD < EPSILON) { return MAX_FLOAT; }
-
-  float t = dot(normal, origin - ray.origin) / NdotD;
-  if (t < EPSILON) { return MAX_FLOAT; }
-
-  vec3 intersection = (ray.origin + ray.dir * t) - origin;
-
-  // Check not before first edge.
-  float interProj = dot(edge01, intersection);
-  if (interProj < EPSILON || interProj > dot(edge01, edge01)) { return MAX_FLOAT; }
-
-  interProj = dot(edge02, intersection);
-  if (interProj < EPSILON || interProj > dot(edge02, edge02)) { return MAX_FLOAT; }
-
-  return t;
 }
 
 // TODO: implement watertight version of Ray-Triangle intersection, available
@@ -224,32 +171,7 @@ intersectTriangle(Ray ray, uint startIndex, uint vertexOffset, inout vec2 uv)
   return dot(e2, q) * invDet;
 }
 
-float
-intersectAABB(vec3 origin, vec3 inverseDir, vec3 aabbMin, vec3 aabbMax)
-{
-  // Ray is assumed to be in local coordinates, ie:
-  // ray = inverse(objectMatrix * invCameraMatrix) * ray
-
-  // Equation of ray: O + D * t
-
-  vec3 tbottom = inverseDir * (aabbMin - origin);
-  vec3 ttop = inverseDir * (aabbMax - origin);
-
-  vec3 tmin = min(ttop, tbottom);
-  vec3 tmax = max(ttop, tbottom);
-
-  float smallestMax = min(min(tmax.x, tmax.y), min(tmax.x, tmax.z));
-  float largestMin = max(max(tmin.x, tmin.y), max(tmin.x, tmin.z));
-
-  if (smallestMax < largestMin || smallestMax < 0.0) { return MAX_FLOAT; }
-  return (largestMin > 0.0) ? largestMin : smallestMax;
-}
-
-float
-intersectAABB(Ray ray, vec3 aabbMin, vec3 aabbMax)
-{
-  return intersectAABB(ray.origin, 1.0 / ray.dir, aabbMin, aabbMax);
-}
+/* Intersection */
 
 float
 sceneHit(Ray ray, inout Intersection intersection)

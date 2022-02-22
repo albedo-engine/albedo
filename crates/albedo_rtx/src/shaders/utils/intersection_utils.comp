@@ -1,0 +1,77 @@
+#ifndef INTERSECTION_UTILS_H
+#define INTERSECTION_UTILS_H
+
+#include "common.comp"
+
+struct BVHNode
+{
+  vec3 min;
+  uint nextNodeIndex;
+  vec3 max;
+  uint primitiveStartIndex;
+};
+
+float
+intersectPlane(Ray ray, vec3 normal, vec3 origin, vec3 edge01, vec3 edge02)
+{
+  float NdotD = dot(normal, ray.dir);
+  if (NdotD < EPSILON) { return MAX_FLOAT; }
+
+  float t = dot(normal, origin - ray.origin) / NdotD;
+  if (t < EPSILON) { return MAX_FLOAT; }
+
+  vec3 intersection = (ray.origin + ray.dir * t) - origin;
+
+  // Check not before first edge.
+  float interProj = dot(edge01, intersection);
+  if (interProj < EPSILON || interProj > dot(edge01, edge01)) { return MAX_FLOAT; }
+
+  interProj = dot(edge02, intersection);
+  if (interProj < EPSILON || interProj > dot(edge02, edge02)) { return MAX_FLOAT; }
+
+  return t;
+}
+
+float
+intersectAABB(vec3 origin, vec3 inverseDir, vec3 aabbMin, vec3 aabbMax)
+{
+  // Ray is assumed to be in local coordinates, ie:
+  // ray = inverse(objectMatrix * invCameraMatrix) * ray
+
+  // Equation of ray: O + D * t
+
+  vec3 tbottom = inverseDir * (aabbMin - origin);
+  vec3 ttop = inverseDir * (aabbMax - origin);
+
+  vec3 tmin = min(ttop, tbottom);
+  vec3 tmax = max(ttop, tbottom);
+
+  float smallestMax = min(min(tmax.x, tmax.y), min(tmax.x, tmax.z));
+  float largestMin = max(max(tmin.x, tmin.y), max(tmin.x, tmin.z));
+
+  if (smallestMax < largestMin || smallestMax < 0.0) { return MAX_FLOAT; }
+  return (largestMin > 0.0) ? largestMin : smallestMax;
+}
+
+bool
+isIntersectingAABB(vec3 origin, vec3 inverseDir, vec3 boxMin, vec3 boxMax)
+{
+  // Ray is assumed to be in local coordinates, ie:
+  // ray = inverse(objectMatrix * invCameraMatrix) * ray
+  // Equation of ray: O + D * t
+  vec3 tMin = (boxMin - origin) * inverseDir;
+  vec3 tMax = (boxMax - origin) * inverseDir;
+  vec3 t1 = min(tMin, tMax);
+  vec3 t2 = max(tMin, tMax);
+  float tNear = max(max(t1.x, t1.y), t1.z);
+  float tFar = min(min(t2.x, t2.y), t2.z);
+  return tFar > tNear;
+}
+
+float
+intersectAABB(Ray ray, vec3 aabbMin, vec3 aabbMax)
+{
+  return intersectAABB(ray.origin, 1.0 / ray.dir, aabbMin, aabbMax);
+}
+
+#endif // INTERSECTION_UTILS_H
