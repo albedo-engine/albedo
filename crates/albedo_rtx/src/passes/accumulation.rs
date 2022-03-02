@@ -1,10 +1,9 @@
 use crate::renderer::resources;
-use albedo_backend::{shader_bindings, GPUBuffer, UniformBuffer};
+use albedo_backend::{shader_bindings, GPUBuffer, UniformBuffer, ComputePass};
 
 pub struct AccumulationPass {
     bind_group_layout: wgpu::BindGroupLayout,
     pipeline: wgpu::ComputePipeline,
-    bind_group: Option<wgpu::BindGroup>,
 }
 
 impl AccumulationPass {
@@ -35,51 +34,58 @@ impl AccumulationPass {
         });
 
         AccumulationPass {
-            bind_group: None,
             bind_group_layout,
             pipeline,
         }
     }
 
-    pub fn bind(
-        &mut self,
+    pub fn create_bind_groups(
+        &self,
         device: &wgpu::Device,
         in_rays: &GPUBuffer<resources::RayGPU>,
         view: &wgpu::TextureView,
         global_uniforms: &UniformBuffer<resources::GlobalUniformsGPU>,
-    ) {
-        self.bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Accumulation Bind Group"),
-            layout: &self.bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: in_rays.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::TextureView(view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: global_uniforms.as_entire_binding(),
-                },
-            ],
-        }));
+    ) -> [wgpu::BindGroup; 1] {
+        [
+            device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("Accumulation Bind Group"),
+                layout: &self.bind_group_layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: in_rays.as_entire_binding(),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::TextureView(view),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 2,
+                        resource: global_uniforms.as_entire_binding(),
+                    },
+                ],
+            })
+        ]
     }
 
-    pub fn run(&self, encoder: &mut wgpu::CommandEncoder, width: u32, height: u32) {
-        match &self.bind_group {
-            Some(bind_group) => {
-                let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                    label: Some("Accumulation Compute Pass"),
-                });
-                compute_pass.set_pipeline(&self.pipeline);
-                compute_pass.set_bind_group(0, bind_group, &[]);
-                // @todo: how to deal with hardcoded size.
-                compute_pass.dispatch(width / 8, height / 8, 1);
-            }
-            _ => (),
-        }
+}
+
+impl ComputePass for AccumulationPass {
+
+    fn get_workgroup_size(&self) -> (u32, u32, u32) {
+        (8, 8, 1)
     }
+
+    fn get_pipeline(&self) -> &wgpu::ComputePipeline {
+        &self.pipeline
+    }
+
+    fn start_pass(
+        &mut self,
+        encoder: &mut wgpu::CommandEncoder,
+        bind_groups: &FrameBindGroups,
+    ) {
+        
+    }
+
 }
