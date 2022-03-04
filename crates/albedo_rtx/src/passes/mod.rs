@@ -5,7 +5,7 @@ mod radiance_estimator;
 mod ray_generator;
 mod debug_bvh_pass;
 
-pub use accumulation::AccumulationPass;
+pub use accumulation::AccumulationPassDescriptor;
 pub use blit_pass::BlitPass;
 pub use intersector::GPUIntersector;
 pub use radiance_estimator::GPURadianceEstimator;
