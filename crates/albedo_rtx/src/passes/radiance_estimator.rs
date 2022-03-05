@@ -1,17 +1,14 @@
 use crate::renderer::resources;
-use albedo_backend::{shader_bindings, GPUBuffer, UniformBuffer};
+use albedo_backend::{shader_bindings, ComputePassDescriptor, GPUBuffer, UniformBuffer};
 
-pub struct GPURadianceEstimator {
-    bind_group_layouts: [wgpu::BindGroupLayout; 2],
+pub struct ShadingPassDescriptor {
+    bind_group_layout: wgpu::BindGroupLayout,
     pipeline: wgpu::ComputePipeline,
-    base_bind_group: Option<wgpu::BindGroup>,
-    // targets_bind_group: Option<[wgpu::BindGroup; 2]>,
-    target_bind_group: Option<wgpu::BindGroup>,
 }
 
-impl GPURadianceEstimator {
+impl ShadingPassDescriptor {
     pub fn new(device: &wgpu::Device) -> Self {
-        let bind_group_layouts = [
+        let bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("Radiance Estimator Base Layout"),
                 entries: &[
@@ -25,20 +22,13 @@ impl GPURadianceEstimator {
                     shader_bindings::uniform_entry(7, wgpu::ShaderStages::COMPUTE),
                     shader_bindings::sampler_entry(8, wgpu::ShaderStages::COMPUTE, true),
                     shader_bindings::texture2d_entry(9, wgpu::ShaderStages::COMPUTE),
+                    shader_bindings::uniform_entry(10, wgpu::ShaderStages::COMPUTE)
                 ],
-            }),
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("Radiance Estimator Render Target Layout"),
-                entries: &[shader_bindings::uniform_entry(
-                    0,
-                    wgpu::ShaderStages::COMPUTE,
-                )],
-            }),
-        ];
+            });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Radiance Estimator Pipeline Layout"),
-            bind_group_layouts: &[&bind_group_layouts[0], &bind_group_layouts[1]],
+            bind_group_layouts: &[&bind_group_layout],
             push_constant_ranges: &[],
         });
 
@@ -52,16 +42,14 @@ impl GPURadianceEstimator {
             module: &shader,
         });
 
-        GPURadianceEstimator {
-            bind_group_layouts,
+        ShadingPassDescriptor {
+            bind_group_layout,
             pipeline,
-            base_bind_group: None,
-            target_bind_group: None,
         }
     }
 
-    pub fn bind_buffers(
-        &mut self,
+    pub fn create_frame_bind_groups(
+        &self,
         device: &wgpu::Device,
         out_rays: &GPUBuffer<resources::RayGPU>,
         intersections: &GPUBuffer<resources::IntersectionGPU>,
@@ -73,10 +61,11 @@ impl GPURadianceEstimator {
         scene_info: &UniformBuffer<resources::SceneSettingsGPU>,
         probe_view: &wgpu::TextureView,
         probe_sampler: &wgpu::Sampler,
-    ) {
-        self.base_bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
+        global_uniforms: &UniformBuffer<resources::GlobalUniformsGPU>
+    ) -> wgpu::BindGroup {
+        device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Radiance Estimator Base Bind Group"),
-            layout: &self.bind_group_layouts[0],
+            layout: &self.bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
@@ -118,38 +107,27 @@ impl GPURadianceEstimator {
                     binding: 9,
                     resource: wgpu::BindingResource::TextureView(probe_view),
                 },
+                wgpu::BindGroupEntry {
+                    binding: 10,
+                    resource: global_uniforms.as_entire_binding(),
+                }
             ],
-        }));
+        })
     }
+}
 
-    pub fn bind_target(
-        &mut self,
-        device: &wgpu::Device,
-        global_uniforms: &UniformBuffer<resources::GlobalUniformsGPU>,
-    ) {
-        self.target_bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Radiance Esimator Render Target Bind Group"),
-            layout: &self.bind_group_layouts[1],
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: global_uniforms.as_entire_binding(),
-            }],
-        }));
-    }
+impl ComputePassDescriptor for ShadingPassDescriptor {
+    type FrameBindGroups = wgpu::BindGroup;
+    type PassBindGroups = ();
 
-    pub fn run(&self, encoder: &mut wgpu::CommandEncoder, width: u32, height: u32) {
-        match (&self.base_bind_group, &self.target_bind_group) {
-            (Some(base_group), Some(target_group)) => {
-                let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                    label: Some("Radiance Estimator Compute Pass"),
-                });
-                compute_pass.set_pipeline(&self.pipeline);
-                compute_pass.set_bind_group(0, base_group, &[]);
-                compute_pass.set_bind_group(1, target_group, &[]);
-                // @todo: how to deal with hardcoded size.
-                compute_pass.dispatch(width / 8, height / 8, 1);
-            }
-            _ => (),
-        }
+    fn get_name() -> &'static str { "Shading Pass" }
+
+    fn get_pipeline(&self) -> &wgpu::ComputePipeline { &self.pipeline }
+
+    fn set_pass_bind_groups(_: &mut wgpu::ComputePass, _: &Self::PassBindGroups) {}
+
+    fn set_frame_bind_groups<'a, 'b>(pass: &mut wgpu::ComputePass<'a>, groups: &'b Self::FrameBindGroups)
+        where 'b: 'a {
+        pass.set_bind_group(0, groups, &[]);
     }
 }

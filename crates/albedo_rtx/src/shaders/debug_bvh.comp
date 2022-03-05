@@ -35,109 +35,12 @@ layout (set = 0, binding = 5) uniform SceneSettingsBuffer {
   uint lightCount;
 } RenderSettings;
 
-float sdBoxFrame(vec3 p, vec3 bMin, vec3 bMax, float e )
-{
-  vec3 b = bMax - bMin;
-  vec3 center = (bMin + bMin) * 0.5;
-  p = p - center;
-  p = abs(p)-b;
-  vec3 q = abs(p+e)-e;
-  return min(min(
-      length(max(vec3(p.x,q.y,q.z),0.0))+min(max(p.x,max(q.y,q.z)),0.0),
-      length(max(vec3(q.x,p.y,q.z),0.0))+min(max(q.x,max(p.y,q.z)),0.0)),
-      length(max(vec3(q.x,q.y,p.z),0.0))+min(max(q.x,max(q.y,p.z)),0.0));
-}
-
-Vertex
-getVertex(uint vertexOffset, uint index)
-{
-  return vertices[vertexOffset + indices[index]];
-}
-
-// TODO: implement watertight version of Ray-Triangle intersection, available
-// behind a flag
-
-// Implementation of:
-// Möller, Tomas; Trumbore, Ben (1997). "Fast, Minimum Storage Ray-Triangle Intersection"
-float
-intersectTriangle(Ray ray, uint startIndex, uint vertexOffset, inout vec2 uv)
-{
-  // TODO: pre-process edge?
-  // Maybe not really useful if decide to add skinning in shader.
-  vec3 v0 = getVertex(vertexOffset, startIndex).position;
-  vec3 v1 = getVertex(vertexOffset, startIndex + 1).position;
-  vec3 v2 = getVertex(vertexOffset, startIndex + 2).position;
-
-  vec3 e1 = v1 - v0;
-  vec3 e2 = v2 - v0;
-
-  vec3 p = cross(ray.dir, e2);
-  float det = dot(e1, p);
-
-  // Ray is parralel to edge.
-  if (det <= NEG_EPSILON) { return MAX_FLOAT; }
-  if (det > NEG_EPSILON && det < EPSILON) { return MAX_FLOAT; }
-
-  float invDet = 1.0 / det;
-
-  // Computes Barycentric coordinates.
-  vec3 centered = ray.origin - v0;
-
-  float u = dot(centered, p) * invDet;
-  if (u < EPSILON || u > EPSILON1) { return MAX_FLOAT; }
-
-  vec3 q = cross(centered, e1);
-  float v = dot(ray.dir, q) * invDet;
-  if (v < EPSILON || u + v > EPSILON1) { return MAX_FLOAT; }
-
-  uv = vec2(u, v);
-  return dot(e2, q) * invDet;
-}
-
-bool
-intersectTriangle2(
-	Ray ray,
-  uint startIndex, uint vertexOffset,
-	out vec3 barycoord,
-  out float dist,
-  out float side
-) {
-  // TODO: pre-process edge?
-  // Maybe not really useful if decide to add skinning in shader.
-  vec3 a = getVertex(vertexOffset, startIndex).position;
-  vec3 b = getVertex(vertexOffset, startIndex + 1).position;
-  vec3 c = getVertex(vertexOffset, startIndex + 2).position;
-	// https://stackoverflow.com/questions/42740765/intersection-between-line-and-triangle-in-3d
-	vec3 edge1 = b - a;
-	vec3 edge2 = c - a;
-	vec3 norm = cross( edge1, edge2 );
-	float det = - dot( ray.dir, norm );
-	float invdet = 1.0 / det;
-	vec3 AO = ray.origin - a;
-	vec3 DAO = cross( AO, ray.dir );
-	vec4 uvt;
-	uvt.x = dot( edge2, DAO ) * invdet;
-	uvt.y = - dot( edge1, DAO ) * invdet;
-	uvt.z = dot( AO, norm ) * invdet;
-	uvt.w = 1.0 - uvt.x - uvt.y;
-	// set the hit information
-	barycoord = uvt.wxy; // arranged in A, B, C order
-	dist = uvt.z;
-	side = sign( det );
-	// norm = side * normalize( norm );
-	// add an epsilon to avoid misses between triangles
-	uvt += vec4( 1e-5 );
-	return all( greaterThanEqual( uvt, vec4( 0.0 ) ) );
-}
-
 layout(local_size_x = 8, local_size_y = 8) in;
 void
 main()
 {
-  // uvec2 localSize = uvec2(2, 2);
   uvec2 localSize = uvec2(8, 8);
-  // uvec3 dimensions = gl_NumWorkGroups * gl_WorkGroupSize;
-  uvec3 dimensions = uvec3(1600, 1200, 1);
+  uvec3 dimensions = gl_NumWorkGroups * gl_WorkGroupSize;
   uvec2 numworkGroups = dimensions.xy / localSize;
   uint index =
     gl_GlobalInvocationID.z * gl_WorkGroupSize.x * numworkGroups.x * gl_WorkGroupSize.y * numworkGroups.y +
@@ -169,26 +72,8 @@ main()
 
       if (isIntersectingAABB(rayModel.origin, rayInverseDir, node.min, node.max))
       {
-        // vec3 hitPoint = rayModel.origin + rayModel.dir * d;
-        // float sdf = sdBoxFrame(hitPoint, node.min, node.max, 0.002);
-        // if (sdf < 0.00001)
-        // {
-        //   sdfColor = vec3(1.0);
-        // }
         if (node.primitiveStartIndex != INVALID_UINT)
         {
-          // vec2 uv = vec2(0.0);
-          // vec3 barycoord = vec3(0.0);
-          // uint relativeIndex = node.primitiveStartIndex + instance.indexRootIndex;
-          // // float t = intersectTriangle(rayModel, relativeIndex, instance.vertexRootIndex, uv);
-          // float t = MAX_FLOAT;
-          // float side = 1.0;
-          // bool inter = intersectTriangle2(rayModel, relativeIndex, instance.vertexRootIndex, barycoord, t, side);
-          // if (inter && t < dist)
-          // {
-          //   triColor = barycoord;
-          //   dist = t;
-          // }
           nextIndex = node.nextNodeIndex;
           continue;
         }
@@ -202,7 +87,6 @@ main()
     }
   }
 
-  // ray.radiance = vec4((sdfColor + triColor) * 0.5, 1.0);
   ray.radiance = vec4(vec3(visited / 100.0), 1.0);
   rays[index] = ray;
 }

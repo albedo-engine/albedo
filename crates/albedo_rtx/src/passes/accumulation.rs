@@ -1,13 +1,16 @@
 use crate::renderer::resources;
-use albedo_backend::{shader_bindings, GPUBuffer, UniformBuffer};
+use albedo_backend::{
+    shader_bindings,
+    GPUBuffer, UniformBuffer,
+    ComputePassDescriptor
+};
 
-pub struct AccumulationPass {
+pub struct AccumulationPassDescriptor {
     bind_group_layout: wgpu::BindGroupLayout,
     pipeline: wgpu::ComputePipeline,
-    bind_group: Option<wgpu::BindGroup>,
 }
 
-impl AccumulationPass {
+impl AccumulationPassDescriptor {
     pub fn new(device: &wgpu::Device) -> Self {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Ray Generator Layout"),
@@ -34,21 +37,20 @@ impl AccumulationPass {
             module: &shader,
         });
 
-        AccumulationPass {
-            bind_group: None,
+        AccumulationPassDescriptor {
             bind_group_layout,
             pipeline,
         }
     }
 
-    pub fn bind(
-        &mut self,
+    pub fn create_frame_bind_groups(
+        &self,
         device: &wgpu::Device,
         in_rays: &GPUBuffer<resources::RayGPU>,
         view: &wgpu::TextureView,
         global_uniforms: &UniformBuffer<resources::GlobalUniformsGPU>,
-    ) {
-        self.bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
+    ) -> wgpu::BindGroup {
+        device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Accumulation Bind Group"),
             layout: &self.bind_group_layout,
             entries: &[
@@ -65,21 +67,23 @@ impl AccumulationPass {
                     resource: global_uniforms.as_entire_binding(),
                 },
             ],
-        }));
+        })
     }
+}
 
-    pub fn run(&self, encoder: &mut wgpu::CommandEncoder, width: u32, height: u32) {
-        match &self.bind_group {
-            Some(bind_group) => {
-                let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                    label: Some("Accumulation Compute Pass"),
-                });
-                compute_pass.set_pipeline(&self.pipeline);
-                compute_pass.set_bind_group(0, bind_group, &[]);
-                // @todo: how to deal with hardcoded size.
-                compute_pass.dispatch(width / 8, height / 8, 1);
-            }
-            _ => (),
-        }
+impl ComputePassDescriptor for AccumulationPassDescriptor {
+    type FrameBindGroups = wgpu::BindGroup;
+    type PassBindGroups = ();
+
+    fn get_name() -> &'static str {
+        "Accumulation Pass"
     }
+    fn get_pipeline(&self) -> &wgpu::ComputePipeline {
+        &self.pipeline
+    }
+    fn set_frame_bind_groups<'a, 'b>(pass: &mut wgpu::ComputePass<'a>, groups: &'b Self::FrameBindGroups)
+        where 'b: 'a {
+        pass.set_bind_group(0, groups, &[]);
+    }
+    fn set_pass_bind_groups(_: &mut wgpu::ComputePass, _: &Self::PassBindGroups) {}
 }

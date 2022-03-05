@@ -14,13 +14,13 @@ struct SAHBin {
 }
 // @todo: allow to change bin size with const generics?
 pub struct SAHBuilder {
-    _bins: [SAHBin; 8],
+    _bins: [SAHBin; 12],
 }
 
 impl SAHBuilder {
     pub fn new() -> SAHBuilder {
         SAHBuilder {
-            _bins: [SAHBin::default(); 8],
+            _bins: [SAHBin::default(); 12],
         }
     }
 }
@@ -138,7 +138,7 @@ fn rec_build(nodes: &mut Vec<BVHNode>, bins: &mut [SAHBin], start: usize, end: u
 
 fn find_best_split(bins: &mut [SAHBin]) -> usize {
     // @todo: use const generics to take bin count into account.
-    const BIN_COUNT: usize = 8;
+    const BIN_COUNT: usize = 12;
 
     let mut aabb = AABB::make_empty();
     let mut primitives_count = 0;
