@@ -1,15 +1,13 @@
 use crate::renderer::resources;
-use albedo_backend::{shader_bindings, GPUBuffer, UniformBuffer};
+use albedo_backend::{shader_bindings, ComputePassDescriptor, GPUBuffer, UniformBuffer};
 
-pub struct GPUIntersector {
+pub struct IntersectorPassDescriptor {
     bind_group_layout: wgpu::BindGroupLayout,
-    pipeline_layout: wgpu::PipelineLayout,
     pipeline: wgpu::ComputePipeline,
-    bind_group: Option<wgpu::BindGroup>,
 }
 
-impl GPUIntersector {
-    pub fn new(device: &wgpu::Device) -> GPUIntersector {
+impl IntersectorPassDescriptor {
+    pub fn new(device: &wgpu::Device) -> IntersectorPassDescriptor {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("GPUIntersector Layout"),
             entries: &[
@@ -40,16 +38,14 @@ impl GPUIntersector {
             module: &shader,
         });
 
-        GPUIntersector {
+        IntersectorPassDescriptor {
             bind_group_layout,
-            pipeline_layout,
             pipeline,
-            bind_group: None,
         }
     }
 
-    pub fn bind_buffers(
-        &mut self,
+    pub fn create_frame_bind_groups(
+        &self,
         device: &wgpu::Device,
         out_intersections: &GPUBuffer<resources::IntersectionGPU>,
         instances: &GPUBuffer<resources::InstanceGPU>,
@@ -59,8 +55,8 @@ impl GPUIntersector {
         lights: &GPUBuffer<resources::LightGPU>,
         rays: &GPUBuffer<resources::RayGPU>,
         scene_info: &UniformBuffer<resources::SceneSettingsGPU>,
-    ) {
-        self.bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
+    ) -> wgpu::BindGroup {
+        device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Intersector Bind Group"),
             layout: &self.bind_group_layout,
             entries: &[
@@ -97,24 +93,22 @@ impl GPUIntersector {
                     resource: scene_info.as_entire_binding(),
                 },
             ],
-        }));
+        })
     }
+}
 
-    pub fn run(
-        &self,
-        device: &wgpu::Device,
-        encoder: &mut wgpu::CommandEncoder,
-        width: u32,
-        height: u32,
-    ) {
-        if let Some(bind_group) = &self.bind_group {
-            let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some("Intersector Compute Pass"),
-            });
-            compute_pass.set_pipeline(&self.pipeline);
-            compute_pass.set_bind_group(0, bind_group, &[]);
-            // @todo: how to deal with hardcoded size.
-            compute_pass.dispatch(width / 8, height / 8, 1);
-        }
+impl ComputePassDescriptor for IntersectorPassDescriptor {
+    type FrameBindGroups = wgpu::BindGroup;
+    type PassBindGroups = ();
+
+    fn get_name() -> &'static str { "Intersection Pass" }
+
+    fn get_pipeline(&self) -> &wgpu::ComputePipeline { &self.pipeline }
+
+    fn set_pass_bind_groups(_: &mut wgpu::ComputePass, _: &Self::PassBindGroups) {}
+
+    fn set_frame_bind_groups<'a, 'b>(pass: &mut wgpu::ComputePass<'a>, groups: &'b Self::FrameBindGroups)
+        where 'b: 'a {
+        pass.set_bind_group(0, groups, &[]);
     }
 }

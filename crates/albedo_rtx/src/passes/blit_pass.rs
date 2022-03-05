@@ -1,4 +1,5 @@
 use albedo_backend::UniformBuffer;
+use wgpu::BindGroup;
 
 use crate::renderer::resources;
 
@@ -6,7 +7,6 @@ use albedo_backend::shader_bindings;
 
 pub struct BlitPass {
     bind_group_layout: wgpu::BindGroupLayout,
-    bind_group: Option<wgpu::BindGroup>,
     pipeline: wgpu::RenderPipeline,
 }
 
@@ -72,19 +72,18 @@ impl BlitPass {
 
         BlitPass {
             bind_group_layout,
-            bind_group: None,
             pipeline,
         }
     }
 
-    pub fn bind(
-        &mut self,
+    pub fn create_frame_bind_groups(
+        &self,
         device: &wgpu::Device,
         view: &wgpu::TextureView,
         sampler: &wgpu::Sampler,
         global_uniforms: &UniformBuffer<resources::GlobalUniformsGPU>,
-    ) {
-        self.bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
+    ) -> BindGroup {
+        device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Blit Bind Group"),
             layout: &self.bind_group_layout,
             entries: &[
@@ -101,14 +100,14 @@ impl BlitPass {
                     resource: global_uniforms.as_entire_binding(),
                 },
             ],
-        }));
+        })
     }
 
-    pub fn run(
+    pub fn draw(
         &self,
-        view: &wgpu::TextureView,
-        queue: &wgpu::Queue,
         encoder: &mut wgpu::CommandEncoder,
+        view: &wgpu::TextureView,
+        bind_group: &BindGroup,
     ) {
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
@@ -128,7 +127,7 @@ impl BlitPass {
             depth_stencil_attachment: None,
         });
         pass.set_pipeline(&self.pipeline);
-        pass.set_bind_group(0, self.bind_group.as_ref().unwrap(), &[]);
+        pass.set_bind_group(0, bind_group, &[]);
         pass.draw(0..3, 0..1);
     }
 }

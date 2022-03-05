@@ -20,9 +20,8 @@ layout(local_size_x = 8, local_size_y = 8) in;
 void
 main()
 {
-  // uvec3 dimensions = gl_NumWorkGroups * gl_WorkGroupSize;
-  uvec3 dimensions = uvec3(1600, 1200, 1);
-  uvec2 numworkGroups = uvec2(dimensions.x / 8, dimensions.y / 8);
+  uvec2 localSize = uvec2(8, 8);
+  uvec2 numworkGroups =  (gl_NumWorkGroups * gl_WorkGroupSize).xy / localSize;
   uint index =
     gl_GlobalInvocationID.z * gl_WorkGroupSize.x * numworkGroups.x * gl_WorkGroupSize.y * numworkGroups.y +
     gl_GlobalInvocationID.y * gl_WorkGroupSize.x * numworkGroups.x +
