@@ -199,24 +199,25 @@ unsafe impl bytemuck::Pod for SceneSettingsGPU {}
 unsafe impl bytemuck::Zeroable for SceneSettingsGPU {}
 
 #[repr(C)]
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy)]
 pub struct CameraGPU {
     pub origin: glam::Vec3,
     pub v_fov: f32,
     pub up: glam::Vec3,
-    padding_0: f32,
+    pub padding_0: f32,
     pub right: glam::Vec3,
-    padding_1: f32,
+    pub padding_1: f32,
 }
 
-impl CameraGPU {
-    pub fn new() -> Self {
+impl Default for CameraGPU {
+    fn default() -> CameraGPU {
         CameraGPU {
             origin: glam::Vec3::new(0.0, 0.0, 2.0),
             v_fov: 0.78,
             up: glam::Vec3::new(0.0, 1.0, 0.0),
             right: glam::Vec3::new(1.0, 0.0, 0.0),
-            ..Default::default()
+            padding_0: 0.0,
+            padding_1: 0.0
         }
     }
 }
