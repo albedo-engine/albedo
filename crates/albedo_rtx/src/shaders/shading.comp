@@ -226,25 +226,14 @@ SpecularBRDF(vec3 dir, vec3 normal)
   return brdf;
 }
 
-layout(local_size_x = 8, local_size_y = 8) in;
-void
-main()
+RayPayload
+shade(RayPayload ray, Intersection intersection)
 {
-  uvec2 localSize = uvec2(8, 8);
-  uvec2 numworkGroups =  (gl_NumWorkGroups * gl_WorkGroupSize).xy / localSize;
-  uint index =
-    gl_GlobalInvocationID.z * gl_WorkGroupSize.x * numworkGroups.x * gl_WorkGroupSize.y * numworkGroups.y +
-    gl_GlobalInvocationID.y * gl_WorkGroupSize.x * numworkGroups.x +
-    gl_GlobalInvocationID.x;
-
-  uint randState = uint(
+    uint randState = uint(
     gl_GlobalInvocationID.x * uint(1973)
     + gl_GlobalInvocationID.y * uint(9277)
     + uint(GlobalUniforms.frame) * uint(26699)
   ) | uint(1);
-
-  RayPayload ray = rays[index];
-  Intersection intersection = intersections[index];
 
   vec3 throughput = getThroughput(ray);
   vec3 emissive = vec3(0.0); // @todo: sample light / material?
@@ -297,7 +286,24 @@ main()
       setThroughput(ray, throughput);
     }
   }
+  return ray;
+}
 
-  // Modified ray is written back to SSBO.
-  rays[index] = ray;
+layout(local_size_x = 8, local_size_y = 8) in;
+void
+main()
+{
+  uint index =
+    gl_GlobalInvocationID.z * gl_WorkGroupSize.x * gl_NumWorkGroups.x * gl_WorkGroupSize.y * gl_NumWorkGroups.y +
+    gl_GlobalInvocationID.y * gl_WorkGroupSize.x * gl_NumWorkGroups.x +
+    gl_GlobalInvocationID.x;
+
+  // @todo: maybe let's just make the array bigger?
+  if (index < rays.length())
+  {
+    RayPayload ray = rays[index];
+    Intersection intersection = intersections[index];
+    // Modified ray is written back to SSBO.
+    rays[index] = shade(ray, intersection);
+  }
 }

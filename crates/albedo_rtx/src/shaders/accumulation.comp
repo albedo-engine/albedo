@@ -20,20 +20,22 @@ layout(local_size_x = 8, local_size_y = 8) in;
 void
 main()
 {
-  uvec2 localSize = uvec2(8, 8);
-  uvec2 numworkGroups =  (gl_NumWorkGroups * gl_WorkGroupSize).xy / localSize;
   uint index =
-    gl_GlobalInvocationID.z * gl_WorkGroupSize.x * numworkGroups.x * gl_WorkGroupSize.y * numworkGroups.y +
-    gl_GlobalInvocationID.y * gl_WorkGroupSize.x * numworkGroups.x +
+    gl_GlobalInvocationID.z * gl_WorkGroupSize.x * gl_NumWorkGroups.x * gl_WorkGroupSize.y * gl_NumWorkGroups.y +
+    gl_GlobalInvocationID.y * gl_WorkGroupSize.x * gl_NumWorkGroups.x +
     gl_GlobalInvocationID.x;
 
   RayPayload ray = rays[index];
 
+  ivec2 targetSize = imageSize(uRenderTarget);
   ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
-  vec4 c = vec4(0.0);
-  if (GlobalUniforms.frame > 1)
+  if (coords.x < targetSize.x && coords.y < targetSize.y)
   {
-    c = imageLoad(uRenderTarget, coords);
+    vec4 c = vec4(0.0);
+    if (GlobalUniforms.frame > 1)
+    {
+      c = imageLoad(uRenderTarget, coords);
+    }
+    imageStore(uRenderTarget, coords, c + vec4(ray.radiance.rgb, 1.0));
   }
-  imageStore(uRenderTarget, coords, c + vec4(ray.radiance.rgb, 1.0));
 }

@@ -54,13 +54,15 @@ generateRay(uvec3 coords, uvec2 dimensions)
 layout(local_size_x = 8, local_size_y = 8) in;
 void main()
 {
-  uvec2 localSize = uvec2(8, 8);
-  uvec2 dimensions = (gl_NumWorkGroups * gl_WorkGroupSize).xy;
-  uvec2 numworkGroups =  dimensions / localSize;
   uint index =
-    gl_GlobalInvocationID.z * gl_WorkGroupSize.x * numworkGroups.x * gl_WorkGroupSize.y * numworkGroups.y +
-    gl_GlobalInvocationID.y * gl_WorkGroupSize.x * numworkGroups.x +
+    gl_GlobalInvocationID.z * gl_WorkGroupSize.x * gl_NumWorkGroups.x * gl_WorkGroupSize.y * gl_NumWorkGroups.y +
+    gl_GlobalInvocationID.y * gl_WorkGroupSize.x * gl_NumWorkGroups.x +
     gl_GlobalInvocationID.x;
 
-  rays[index] = generateRay(gl_GlobalInvocationID, dimensions);
+  // @todo: maybe let's just make the array bigger?
+  if (index < rays.length())
+  {
+    uvec2 dimensions = (gl_NumWorkGroups * gl_WorkGroupSize).xy;
+    rays[index] = generateRay(gl_GlobalInvocationID, dimensions);
+  }
 }
