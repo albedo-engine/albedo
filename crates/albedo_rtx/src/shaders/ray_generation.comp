@@ -20,6 +20,7 @@ layout (set = 0, binding = 1) readonly uniform CameraUniformsBuffer {
   float padding_0;
   vec3 right;
   float padding_1;
+  uvec2 dimensions;
 } CameraUniforms;
 
 RayPayload
@@ -27,13 +28,12 @@ generateRay(uvec3 coords, uvec2 dimensions)
 {
   RayPayload ray;
 
-  float half_w = float(dimensions.x) * 0.5;
-  float half_h = float(dimensions.y) * 0.5;
-
+  // vec2 half = vec2(CameraUniforms.dimensions) * 0.5;
+  vec2 halfSize = vec2(dimensions) * 0.5;
   vec3 clip = vec3(
-    coords.x - half_w,
-    coords.y - half_h,
-    half_h / tan(CameraUniforms.vFOV * 0.5)
+    coords.x - halfSize.x,
+    coords.y - halfSize.y,
+    halfSize.y / tan(CameraUniforms.vFOV * 0.5)
   );
 
   // TODO: pack direction directly?
@@ -62,7 +62,6 @@ void main()
   // @todo: maybe let's just make the array bigger?
   if (index < rays.length())
   {
-    uvec2 dimensions = (gl_NumWorkGroups * gl_WorkGroupSize).xy;
-    rays[index] = generateRay(gl_GlobalInvocationID, dimensions);
+    rays[index] = generateRay(gl_GlobalInvocationID, CameraUniforms.dimensions);
   }
 }

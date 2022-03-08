@@ -203,6 +203,7 @@ pub struct CameraGPU {
     pub padding_0: f32,
     pub right: glam::Vec3,
     pub padding_1: f32,
+    pub dimensions: [u32; 2],
 }
 
 impl Default for CameraGPU {
@@ -214,6 +215,7 @@ impl Default for CameraGPU {
             right: glam::Vec3::new(1.0, 0.0, 0.0),
             padding_0: 0.0,
             padding_1: 0.0,
+            dimensions: [1, 1]
         }
     }
 }
