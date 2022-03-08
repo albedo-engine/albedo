@@ -4,7 +4,7 @@ use wgpu::BindGroup;
 
 pub struct RayGeneratorPassDescriptor {
     bind_group_layout: wgpu::BindGroupLayout,
-    pipeline: wgpu::ComputePipeline
+    pipeline: wgpu::ComputePipeline,
 }
 
 impl RayGeneratorPassDescriptor {
@@ -66,14 +66,22 @@ impl ComputePassDescriptor for RayGeneratorPassDescriptor {
     type FrameBindGroups = wgpu::BindGroup;
     type PassBindGroups = ();
 
-    fn get_name() -> &'static str { "Ray Generation Pass" }
+    fn get_name() -> &'static str {
+        "Ray Generation Pass"
+    }
 
-    fn get_pipeline(&self) -> &wgpu::ComputePipeline { &self.pipeline }
+    fn get_pipeline(&self) -> &wgpu::ComputePipeline {
+        &self.pipeline
+    }
 
     fn set_pass_bind_groups(_: &mut wgpu::ComputePass, _: &Self::PassBindGroups) {}
 
-    fn set_frame_bind_groups<'a, 'b>(pass: &mut wgpu::ComputePass<'a>, groups: &'b Self::FrameBindGroups)
-        where 'b: 'a {
+    fn set_frame_bind_groups<'a, 'b>(
+        pass: &mut wgpu::ComputePass<'a>,
+        groups: &'b Self::FrameBindGroups,
+    ) where
+        'b: 'a,
+    {
         pass.set_bind_group(0, groups, &[]);
     }
 }

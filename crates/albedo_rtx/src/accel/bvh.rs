@@ -140,14 +140,14 @@ pub trait BVHBuilder {
 fn flatten_bvh_rec(
     out: &mut Vec<resources::BVHNodeGPU>,
     nodes: &Vec<BVHNode>,
-    inputIndex: u32,
-    missIndex: u32,
+    input_index: u32,
+    miss_index: u32,
 ) {
-    let node = &nodes[inputIndex as usize];
+    let node = &nodes[input_index as usize];
     out.push(resources::BVHNodeGPU {
         min: node.aabb().min.into(),
         max: node.aabb().max.into(),
-        next_node_index: missIndex,
+        next_node_index: miss_index,
         primitive_index: node.primitive_index(),
     });
 
@@ -166,11 +166,11 @@ fn flatten_bvh_rec(
                     let miss_idx = left_node.forest_size() + curr_count + 1;
                     flatten_bvh_rec(out, nodes, *left_child, miss_idx);
                 } else {
-                    flatten_bvh_rec(out, nodes, *left_child, missIndex);
+                    flatten_bvh_rec(out, nodes, *left_child, miss_index);
                 }
             }
             if *right_child != std::u32::MAX {
-                flatten_bvh_rec(out, nodes, *right_child as u32, missIndex);
+                flatten_bvh_rec(out, nodes, *right_child as u32, miss_index);
             }
         }
         _ => (),

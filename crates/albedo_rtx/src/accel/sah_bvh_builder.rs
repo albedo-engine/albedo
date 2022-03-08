@@ -1,5 +1,3 @@
-use core::panic;
-
 use albedo_math::{clamp, AABB};
 use glam::Vec3;
 

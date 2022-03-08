@@ -3,5 +3,5 @@ mod compute_pass;
 
 pub mod shader_bindings;
 
-pub use compute_pass::{ComputePassDescriptor, ComputePass};
 pub use buffer::{GPUBuffer, UniformBuffer};
+pub use compute_pass::{ComputePass, ComputePassDescriptor};

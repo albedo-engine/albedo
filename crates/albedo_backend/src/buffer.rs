@@ -11,11 +11,15 @@ impl<T: bytemuck::Pod> GPUBuffer<T> {
     pub fn new(device: &wgpu::Device) -> Self {
         GPUBuffer::new_with_usage(
             device,
-            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST
+            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
         )
     }
 
-    pub fn new_with_usage_count(device: &wgpu::Device, usage: wgpu::BufferUsages, count: usize) -> Self {
+    pub fn new_with_usage_count(
+        device: &wgpu::Device,
+        usage: wgpu::BufferUsages,
+        count: usize,
+    ) -> Self {
         let byte_count = (std::mem::size_of::<T>() * count) as u64;
         let gpu_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
@@ -38,7 +42,7 @@ impl<T: bytemuck::Pod> GPUBuffer<T> {
         GPUBuffer::new_with_usage_count(
             device,
             wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-            count
+            count,
         )
     }
 

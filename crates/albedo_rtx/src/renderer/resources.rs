@@ -57,24 +57,20 @@ pub struct MaterialGPU {
     pub color: glam::Vec4,
     pub roughness: f32,
     pub reflectivity: f32,
-    pub pad_0: glam::Vec2
+    pub pad_0: glam::Vec2,
 }
 unsafe impl bytemuck::Pod for MaterialGPU {}
 unsafe impl bytemuck::Zeroable for MaterialGPU {}
 
 impl MaterialGPU {
-
-    pub fn new(
-        color: glam::Vec4,
-        roughness: f32,
-        reflectivity: f32
-    ) -> MaterialGPU {
+    pub fn new(color: glam::Vec4, roughness: f32, reflectivity: f32) -> MaterialGPU {
         MaterialGPU {
-            color, roughness, reflectivity,
-            pad_0: glam::Vec2::new(0.0, 0.0)
+            color,
+            roughness,
+            reflectivity,
+            pad_0: glam::Vec2::new(0.0, 0.0),
         }
     }
-
 }
 
 #[repr(C)]
@@ -217,7 +213,7 @@ impl Default for CameraGPU {
             up: glam::Vec3::new(0.0, 1.0, 0.0),
             right: glam::Vec3::new(1.0, 0.0, 0.0),
             padding_0: 0.0,
-            padding_1: 0.0
+            padding_1: 0.0,
         }
     }
 }

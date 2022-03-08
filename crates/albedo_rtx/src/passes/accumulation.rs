@@ -1,9 +1,5 @@
 use crate::renderer::resources;
-use albedo_backend::{
-    shader_bindings,
-    GPUBuffer, UniformBuffer,
-    ComputePassDescriptor
-};
+use albedo_backend::{shader_bindings, ComputePassDescriptor, GPUBuffer, UniformBuffer};
 
 pub struct AccumulationPassDescriptor {
     bind_group_layout: wgpu::BindGroupLayout,
@@ -16,7 +12,12 @@ impl AccumulationPassDescriptor {
             label: Some("Ray Generator Layout"),
             entries: &[
                 shader_bindings::buffer_entry(0, wgpu::ShaderStages::COMPUTE, true),
-                shader_bindings::storage_texture2d_entry(1, wgpu::ShaderStages::COMPUTE, wgpu::TextureFormat::Rgba32Float, wgpu::StorageTextureAccess::ReadWrite),
+                shader_bindings::storage_texture2d_entry(
+                    1,
+                    wgpu::ShaderStages::COMPUTE,
+                    wgpu::TextureFormat::Rgba32Float,
+                    wgpu::StorageTextureAccess::ReadWrite,
+                ),
                 shader_bindings::uniform_entry(2, wgpu::ShaderStages::COMPUTE),
             ],
         });
@@ -81,8 +82,12 @@ impl ComputePassDescriptor for AccumulationPassDescriptor {
     fn get_pipeline(&self) -> &wgpu::ComputePipeline {
         &self.pipeline
     }
-    fn set_frame_bind_groups<'a, 'b>(pass: &mut wgpu::ComputePass<'a>, groups: &'b Self::FrameBindGroups)
-        where 'b: 'a {
+    fn set_frame_bind_groups<'a, 'b>(
+        pass: &mut wgpu::ComputePass<'a>,
+        groups: &'b Self::FrameBindGroups,
+    ) where
+        'b: 'a,
+    {
         pass.set_bind_group(0, groups, &[]);
     }
     fn set_pass_bind_groups(_: &mut wgpu::ComputePass, _: &Self::PassBindGroups) {}

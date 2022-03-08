@@ -3,28 +3,28 @@ use albedo_backend::{shader_bindings, ComputePassDescriptor, GPUBuffer, UniformB
 
 pub struct ShadingPassDescriptor {
     bind_group_layout: wgpu::BindGroupLayout,
+    pipeline_layout: wgpu::PipelineLayout,
     pipeline: wgpu::ComputePipeline,
 }
 
 impl ShadingPassDescriptor {
     pub fn new(device: &wgpu::Device) -> Self {
-        let bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("Radiance Estimator Base Layout"),
-                entries: &[
-                    shader_bindings::buffer_entry(0, wgpu::ShaderStages::COMPUTE, false),
-                    shader_bindings::buffer_entry(1, wgpu::ShaderStages::COMPUTE, true),
-                    shader_bindings::buffer_entry(2, wgpu::ShaderStages::COMPUTE, true),
-                    shader_bindings::buffer_entry(3, wgpu::ShaderStages::COMPUTE, true),
-                    shader_bindings::buffer_entry(4, wgpu::ShaderStages::COMPUTE, true),
-                    shader_bindings::buffer_entry(5, wgpu::ShaderStages::COMPUTE, true),
-                    shader_bindings::buffer_entry(6, wgpu::ShaderStages::COMPUTE, true),
-                    shader_bindings::uniform_entry(7, wgpu::ShaderStages::COMPUTE),
-                    shader_bindings::sampler_entry(8, wgpu::ShaderStages::COMPUTE, true),
-                    shader_bindings::texture2d_entry(9, wgpu::ShaderStages::COMPUTE),
-                    shader_bindings::uniform_entry(10, wgpu::ShaderStages::COMPUTE)
-                ],
-            });
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("Radiance Estimator Base Layout"),
+            entries: &[
+                shader_bindings::buffer_entry(0, wgpu::ShaderStages::COMPUTE, false),
+                shader_bindings::buffer_entry(1, wgpu::ShaderStages::COMPUTE, true),
+                shader_bindings::buffer_entry(2, wgpu::ShaderStages::COMPUTE, true),
+                shader_bindings::buffer_entry(3, wgpu::ShaderStages::COMPUTE, true),
+                shader_bindings::buffer_entry(4, wgpu::ShaderStages::COMPUTE, true),
+                shader_bindings::buffer_entry(5, wgpu::ShaderStages::COMPUTE, true),
+                shader_bindings::buffer_entry(6, wgpu::ShaderStages::COMPUTE, true),
+                shader_bindings::uniform_entry(7, wgpu::ShaderStages::COMPUTE),
+                shader_bindings::sampler_entry(8, wgpu::ShaderStages::COMPUTE, true),
+                shader_bindings::texture2d_entry(9, wgpu::ShaderStages::COMPUTE),
+                shader_bindings::uniform_entry(10, wgpu::ShaderStages::COMPUTE),
+            ],
+        });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Radiance Estimator Pipeline Layout"),
@@ -44,8 +44,23 @@ impl ShadingPassDescriptor {
 
         ShadingPassDescriptor {
             bind_group_layout,
+            pipeline_layout,
             pipeline,
         }
+    }
+
+    pub fn set_shader(
+        &mut self,
+        device: &wgpu::Device,
+        shader_desc: &wgpu::ShaderModuleDescriptor,
+    ) {
+        let shader = device.create_shader_module(shader_desc);
+        self.pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("Radiance Estimator Pipeline"),
+            layout: Some(&self.pipeline_layout),
+            entry_point: "main",
+            module: &shader,
+        });
     }
 
     pub fn create_frame_bind_groups(
@@ -61,7 +76,7 @@ impl ShadingPassDescriptor {
         scene_info: &UniformBuffer<resources::SceneSettingsGPU>,
         probe_view: &wgpu::TextureView,
         probe_sampler: &wgpu::Sampler,
-        global_uniforms: &UniformBuffer<resources::GlobalUniformsGPU>
+        global_uniforms: &UniformBuffer<resources::GlobalUniformsGPU>,
     ) -> wgpu::BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Radiance Estimator Base Bind Group"),
@@ -110,7 +125,7 @@ impl ShadingPassDescriptor {
                 wgpu::BindGroupEntry {
                     binding: 10,
                     resource: global_uniforms.as_entire_binding(),
-                }
+                },
             ],
         })
     }
@@ -120,14 +135,22 @@ impl ComputePassDescriptor for ShadingPassDescriptor {
     type FrameBindGroups = wgpu::BindGroup;
     type PassBindGroups = ();
 
-    fn get_name() -> &'static str { "Shading Pass" }
+    fn get_name() -> &'static str {
+        "Shading Pass"
+    }
 
-    fn get_pipeline(&self) -> &wgpu::ComputePipeline { &self.pipeline }
+    fn get_pipeline(&self) -> &wgpu::ComputePipeline {
+        &self.pipeline
+    }
 
     fn set_pass_bind_groups(_: &mut wgpu::ComputePass, _: &Self::PassBindGroups) {}
 
-    fn set_frame_bind_groups<'a, 'b>(pass: &mut wgpu::ComputePass<'a>, groups: &'b Self::FrameBindGroups)
-        where 'b: 'a {
+    fn set_frame_bind_groups<'a, 'b>(
+        pass: &mut wgpu::ComputePass<'a>,
+        groups: &'b Self::FrameBindGroups,
+    ) where
+        'b: 'a,
+    {
         pass.set_bind_group(0, groups, &[]);
     }
 }

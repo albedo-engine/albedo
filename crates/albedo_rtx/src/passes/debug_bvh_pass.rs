@@ -4,24 +4,25 @@ use albedo_backend::{shader_bindings, GPUBuffer, UniformBuffer};
 pub struct BVHDebugPass {
     bind_group_layouts: [wgpu::BindGroupLayout; 1],
     pipeline: wgpu::ComputePipeline,
-    base_bind_group: Option<wgpu::BindGroup>
+    base_bind_group: Option<wgpu::BindGroup>,
 }
 
 impl BVHDebugPass {
     pub fn new(device: &wgpu::Device) -> Self {
-        let bind_group_layouts = [
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("Debug BVH Base Layout"),
-                entries: &[
-                    shader_bindings::buffer_entry(0, wgpu::ShaderStages::COMPUTE, false),
-                    shader_bindings::buffer_entry(1, wgpu::ShaderStages::COMPUTE, true),
-                    shader_bindings::buffer_entry(2, wgpu::ShaderStages::COMPUTE, true),
-                    shader_bindings::buffer_entry(3, wgpu::ShaderStages::COMPUTE, true),
-                    shader_bindings::buffer_entry(4, wgpu::ShaderStages::COMPUTE, true),
-                    shader_bindings::uniform_entry(5, wgpu::ShaderStages::COMPUTE)
-                ],
-            })
-        ];
+        let bind_group_layouts =
+            [
+                device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("Debug BVH Base Layout"),
+                    entries: &[
+                        shader_bindings::buffer_entry(0, wgpu::ShaderStages::COMPUTE, false),
+                        shader_bindings::buffer_entry(1, wgpu::ShaderStages::COMPUTE, true),
+                        shader_bindings::buffer_entry(2, wgpu::ShaderStages::COMPUTE, true),
+                        shader_bindings::buffer_entry(3, wgpu::ShaderStages::COMPUTE, true),
+                        shader_bindings::buffer_entry(4, wgpu::ShaderStages::COMPUTE, true),
+                        shader_bindings::uniform_entry(5, wgpu::ShaderStages::COMPUTE),
+                    ],
+                }),
+            ];
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Debug BVH Pipeline Layout"),
@@ -42,7 +43,7 @@ impl BVHDebugPass {
         BVHDebugPass {
             bind_group_layouts,
             pipeline,
-            base_bind_group: None
+            base_bind_group: None,
         }
     }
 
@@ -54,7 +55,7 @@ impl BVHDebugPass {
         nodes: &GPUBuffer<resources::BVHNodeGPU>,
         indices: &GPUBuffer<u32>,
         vertices: &GPUBuffer<resources::VertexGPU>,
-        scene_info: &UniformBuffer<resources::SceneSettingsGPU>
+        scene_info: &UniformBuffer<resources::SceneSettingsGPU>,
     ) {
         self.base_bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Debug BVH Base Bind Group"),
