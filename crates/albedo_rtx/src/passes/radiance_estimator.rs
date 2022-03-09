@@ -35,7 +35,7 @@ impl ShadingPassDescriptor {
 
         let shader =
             device.create_shader_module(&wgpu::include_spirv!(concat!(
-                "..", path_separator!(), "shaders", path_separator!(), "shading.comp.spv"
+                "..", path_separator!(), "shaders", path_separator!(), "spirv", path_separator!(), "shading.comp.spv"
             )));
 
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {

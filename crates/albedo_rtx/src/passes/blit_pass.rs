@@ -41,11 +41,11 @@ impl BlitPass {
 
         let vx_module =
             device.create_shader_module(&wgpu::include_spirv!(concat!(
-                "..", path_separator!(), "shaders", path_separator!(), "blitting.vert.spv"
+                "..", path_separator!(), "shaders", path_separator!(), "spirv", path_separator!(), "blitting.vert.spv"
             )));
         let fg_module =
             device.create_shader_module(&wgpu::include_spirv!(concat!(
-                "..", path_separator!(), "shaders", path_separator!(), "blitting.frag.spv"
+                "..", path_separator!(), "shaders", path_separator!(), "spirv", path_separator!(), "blitting.frag.spv"
             )));
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {

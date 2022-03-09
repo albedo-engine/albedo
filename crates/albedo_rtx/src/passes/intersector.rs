@@ -32,7 +32,7 @@ impl IntersectorPassDescriptor {
 
         let shader =
             device.create_shader_module(&wgpu::include_spirv!(concat!(
-                "..", path_separator!(), "shaders", path_separator!(), "intersection.comp.spv"
+                "..", path_separator!(), "shaders", path_separator!(), "spirv", path_separator!(), "intersection.comp.spv"
             )));
 
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
