@@ -1,6 +1,6 @@
 [package]
 name = "albedo_rtx"
-version = "0.0.1"
+version = "0.0.1-beta.0"
 edition = "2018"
 authors = ["David Peicho <david.peicho@gmail.com>"]
 description = "Provides raytracing capabilities"
@@ -12,5 +12,5 @@ keywords = ["raytracing", "graphics" ]
 bytemuck = "1.4.1"
 glam = "0.11.2"
 wgpu = { version = "0.11.0", features = ["spirv"] }
-albedo_backend = { path = "../albedo_backend", version = "0.0.1" }
-albedo_math = { path = "../albedo_math", version = "0.0.1" }
+albedo_backend = { path = "../albedo_backend", version = "0.0.1-beta.0" }
+albedo_math = { path = "../albedo_math", version = "0.0.1-beta.0" }

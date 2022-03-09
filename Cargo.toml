@@ -1,10 +1,10 @@
 [package]
 name = "albedo"
-version = "0.0.1"
+version = "0.0.1-beta.0"
 edition = "2018"
 authors = ["David Peicho <david.peicho@gmail.com>"]
 categories = ["graphics"]
-description = "Data-driven components for graphics"
+description = "Data-driven graphics library for real-time visualization"
 keywords = ["graphics", "rendering", "raytracing", "albedo"]
 license = "MIT"
 readme = "README.md"
@@ -24,7 +24,3 @@ gltf = "0.15.2"
 pollster = "0.2"
 albedo_backend = { path = "crates/albedo_backend", version = "0.0.1" }
 albedo_rtx = { path = "crates/albedo_rtx", version = "0.0.1" }
-
-[[example]]
-name = "gpu_intersector"
-path = "examples/gpu_intersector/main.rs"
