@@ -1,4 +1,5 @@
 use crate::renderer::resources;
+use crate::macros::path_separator;
 use albedo_backend::{shader_bindings, ComputePassDescriptor, GPUBuffer, UniformBuffer};
 
 pub struct AccumulationPassDescriptor {
@@ -29,7 +30,9 @@ impl AccumulationPassDescriptor {
         });
 
         let shader =
-            device.create_shader_module(&wgpu::include_spirv!("../shaders/accumulation.comp.spv"));
+            device.create_shader_module(&wgpu::include_spirv!(concat!(
+                "..", path_separator!(), "shaders", path_separator!(), "accumulation.comp.spv"
+            )));
 
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Accumulation Pipeline"),

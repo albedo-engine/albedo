@@ -1,5 +1,6 @@
-use crate::renderer::resources;
 use albedo_backend::{shader_bindings, ComputePassDescriptor, GPUBuffer, UniformBuffer};
+use crate::renderer::resources;
+use crate::macros::path_separator;
 
 pub struct ShadingPassDescriptor {
     bind_group_layout: wgpu::BindGroupLayout,
@@ -33,7 +34,9 @@ impl ShadingPassDescriptor {
         });
 
         let shader =
-            device.create_shader_module(&wgpu::include_spirv!("../shaders/shading.comp.spv"));
+            device.create_shader_module(&wgpu::include_spirv!(concat!(
+                "..", path_separator!(), "shaders", path_separator!(), "shading.comp.spv"
+            )));
 
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Radiance Estimator Pipeline"),

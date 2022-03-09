@@ -2,6 +2,7 @@ use albedo_backend::UniformBuffer;
 use wgpu::BindGroup;
 
 use crate::renderer::resources;
+use crate::macros::path_separator;
 
 use albedo_backend::shader_bindings;
 
@@ -39,9 +40,13 @@ impl BlitPass {
         });
 
         let vx_module =
-            device.create_shader_module(&wgpu::include_spirv!("../shaders/blitting.vert.spv"));
+            device.create_shader_module(&wgpu::include_spirv!(concat!(
+                "..", path_separator!(), "shaders", path_separator!(), "blitting.vert.spv"
+            )));
         let fg_module =
-            device.create_shader_module(&wgpu::include_spirv!("../shaders/blitting.frag.spv"));
+            device.create_shader_module(&wgpu::include_spirv!(concat!(
+                "..", path_separator!(), "shaders", path_separator!(), "blitting.frag.spv"
+            )));
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Blit Pipeline"),

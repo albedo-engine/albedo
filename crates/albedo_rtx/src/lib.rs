@@ -1,3 +1,5 @@
+pub mod macros;
+
 pub mod accel;
 pub mod mesh;
 pub mod passes;

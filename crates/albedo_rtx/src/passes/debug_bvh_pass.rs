@@ -1,4 +1,5 @@
 use crate::renderer::resources;
+use crate::macros::path_separator;
 use albedo_backend::{shader_bindings, GPUBuffer, UniformBuffer};
 
 pub struct BVHDebugPass {
@@ -8,6 +9,7 @@ pub struct BVHDebugPass {
 }
 
 impl BVHDebugPass {
+
     pub fn new(device: &wgpu::Device) -> Self {
         let bind_group_layouts =
             [
@@ -31,7 +33,9 @@ impl BVHDebugPass {
         });
 
         let shader =
-            device.create_shader_module(&wgpu::include_spirv!("../shaders/debug_bvh.comp.spv"));
+            device.create_shader_module(&wgpu::include_spirv!(concat!(
+                "..", path_separator!(), "shaders", path_separator!(), "debug_bvh.comp.spv"
+            )));
 
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Debug BVH Pipeline"),

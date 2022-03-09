@@ -1,5 +1,7 @@
-use crate::renderer::resources;
 use albedo_backend::{shader_bindings, ComputePassDescriptor, GPUBuffer, UniformBuffer};
+
+use crate::renderer::resources;
+use crate::macros::path_separator;
 
 pub struct IntersectorPassDescriptor {
     bind_group_layout: wgpu::BindGroupLayout,
@@ -29,7 +31,9 @@ impl IntersectorPassDescriptor {
         });
 
         let shader =
-            device.create_shader_module(&wgpu::include_spirv!("../shaders/intersection.comp.spv"));
+            device.create_shader_module(&wgpu::include_spirv!(concat!(
+                "..", path_separator!(), "shaders", path_separator!(), "intersection.comp.spv"
+            )));
 
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Intersector Pipeline"),
