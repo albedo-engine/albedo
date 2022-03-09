@@ -20,13 +20,12 @@ rendering framework made for real-time visualization. It's possible to
 use as the rendering module for a game, but that's not the use case why it
 was designed.
 
-## API Improvement
----
+## Features
 
-* Use gfx-rs as a backend instead
+### GPU Raytracing
 
-* Instead of letting user manually manger memory / semd stuff, right a
-CommandBuffer system that register addition / removal of mesh, modifications
-of transform, etc...
-Make this system avaiable in `Managed*` data-struct, like `ManagedRenderer`,
-`ManagedIntersector`, etc...
+The [albedo_rtx](./crates/albedo_rtx) exposes GPU software Raytracing. You can use this crate to perform Ray-Triangle intersections.
+
+The [Albedo Pathtracer application](https://github.com/DavidPeicho/albedo) is one example of what you can achieve with the [albedo_rtx](./crates/albedo_rtx) crate:
+
+![Pathtracing Example](https://github.com/DavidPeicho/albedo/raw/master/screenshots/initial_result.gif)
