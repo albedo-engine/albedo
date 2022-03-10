@@ -9,6 +9,7 @@ keywords = ["graphics", "rendering", "raytracing", "albedo"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/albedo-engine/albedo"
+exclude = ["assets/**/*", ".github/**/*", "crates/**/*"]
 resolver = "2"
 
 [workspace]
