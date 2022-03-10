@@ -23,3 +23,7 @@ wgpu = "0.11.0"
 glam = "0.11.2"
 gltf = "0.15.2"
 pollster = "0.2"
+
+[[example]]
+name = "ray_intersection_bvh"
+path = "examples/ray_intersection_bvh/main.rs"
