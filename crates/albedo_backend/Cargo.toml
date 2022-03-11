@@ -1,6 +1,6 @@
 [package]
 name = "albedo_backend"
-version = "0.0.1"
+version = "0.0.1-beta.0"
 edition = "2018"
 authors = ["David Peicho <david.peicho@gmail.com>"]
 description = "Provides GPU backend utils for the albedo components"
