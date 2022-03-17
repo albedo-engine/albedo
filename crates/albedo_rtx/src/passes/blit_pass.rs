@@ -19,10 +19,7 @@ impl BlitPass {
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,
                     visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler {
-                        comparison: false,
-                        filtering: true,
-                    },
+                    ty: shader_bindings::sampler(wgpu::SamplerBindingType::Filtering),
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry {
@@ -73,6 +70,7 @@ impl BlitPass {
             },
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
+            multiview: None
         });
 
         BlitPass {

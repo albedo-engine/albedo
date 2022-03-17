@@ -69,10 +69,15 @@ pub const fn sampler_entry(
     visibility: wgpu::ShaderStages,
     filtering: bool,
 ) -> wgpu::BindGroupLayoutEntry {
+    let ty = if filtering {
+        sampler(wgpu::SamplerBindingType::Filtering)
+    } else {
+        sampler(wgpu::SamplerBindingType::NonFiltering)
+    };
     wgpu::BindGroupLayoutEntry {
         binding,
         visibility,
-        ty: sampler(filtering),
+        ty,
         count: None,
     }
 }
@@ -95,11 +100,8 @@ pub const fn uniform() -> wgpu::BindingType {
     }
 }
 
-pub const fn sampler(filtering: bool) -> wgpu::BindingType {
-    wgpu::BindingType::Sampler {
-        comparison: false,
-        filtering: filtering,
-    }
+pub const fn sampler(binding_type: wgpu::SamplerBindingType) -> wgpu::BindingType {
+    wgpu::BindingType::Sampler(binding_type)
 }
 
 pub const fn storage_texture2d(

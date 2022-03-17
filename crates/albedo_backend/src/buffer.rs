@@ -93,6 +93,7 @@ impl<T: bytemuck::Pod> UniformBuffer<T> {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
+        println!("{}", std::mem::size_of::<T>());
         UniformBuffer {
             gpu_buffer,
             content_type: PhantomData,

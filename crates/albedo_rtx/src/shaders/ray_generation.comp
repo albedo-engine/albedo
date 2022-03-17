@@ -21,6 +21,7 @@ layout (set = 0, binding = 1) readonly uniform CameraUniformsBuffer {
   vec3 right;
   float padding_1;
   uvec2 dimensions;
+  uvec2 padding_2;
 } CameraUniforms;
 
 RayPayload
