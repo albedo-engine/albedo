@@ -1,7 +1,7 @@
 use albedo_backend::{shader_bindings, ComputePassDescriptor, GPUBuffer, UniformBuffer};
 
-use crate::renderer::resources;
 use crate::macros::path_separator;
+use crate::renderer::resources;
 
 pub struct IntersectorPassDescriptor {
     bind_group_layout: wgpu::BindGroupLayout,
@@ -20,7 +20,6 @@ impl IntersectorPassDescriptor {
                 shader_bindings::buffer_entry(4, wgpu::ShaderStages::COMPUTE, true),
                 shader_bindings::buffer_entry(5, wgpu::ShaderStages::COMPUTE, true),
                 shader_bindings::buffer_entry(6, wgpu::ShaderStages::COMPUTE, false),
-                shader_bindings::uniform_entry(7, wgpu::ShaderStages::COMPUTE),
             ],
         });
 
@@ -30,10 +29,15 @@ impl IntersectorPassDescriptor {
             push_constant_ranges: &[],
         });
 
-        let shader =
-            device.create_shader_module(&wgpu::include_spirv!(concat!(
-                "..", path_separator!(), "shaders", path_separator!(), "spirv", path_separator!(), "intersection.comp.spv"
-            )));
+        let shader = device.create_shader_module(&wgpu::include_spirv!(concat!(
+            "..",
+            path_separator!(),
+            "shaders",
+            path_separator!(),
+            "spirv",
+            path_separator!(),
+            "intersection.comp.spv"
+        )));
 
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Intersector Pipeline"),
@@ -58,7 +62,6 @@ impl IntersectorPassDescriptor {
         vertices: &GPUBuffer<resources::VertexGPU>,
         lights: &GPUBuffer<resources::LightGPU>,
         rays: &GPUBuffer<resources::RayGPU>,
-        scene_info: &UniformBuffer<resources::SceneSettingsGPU>,
     ) -> wgpu::BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Intersector Bind Group"),
@@ -91,10 +94,6 @@ impl IntersectorPassDescriptor {
                 wgpu::BindGroupEntry {
                     binding: 6,
                     resource: out_intersections.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 7,
-                    resource: scene_info.as_entire_binding(),
                 },
             ],
         })

@@ -1,7 +1,7 @@
 use albedo_backend::{shader_bindings, ComputePassDescriptor, GPUBuffer, UniformBuffer};
 
-use crate::renderer::resources;
 use crate::macros::path_separator;
+use crate::renderer::resources;
 
 pub struct RayGeneratorPassDescriptor {
     bind_group_layout: wgpu::BindGroupLayout,
@@ -25,8 +25,14 @@ impl RayGeneratorPassDescriptor {
         });
 
         let shader = device.create_shader_module(&wgpu::include_spirv!(concat!(
-                "..", path_separator!(), "shaders", path_separator!(), "spirv", path_separator!(), "ray_generation.comp.spv"
-            )));
+            "..",
+            path_separator!(),
+            "shaders",
+            path_separator!(),
+            "spirv",
+            path_separator!(),
+            "ray_generation.comp.spv"
+        )));
 
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Ray Generator Pipeline"),

@@ -1,5 +1,5 @@
-use crate::renderer::resources;
 use crate::macros::path_separator;
+use crate::renderer::resources;
 use albedo_backend::{shader_bindings, GPUBuffer, UniformBuffer};
 
 pub struct BVHDebugPass {
@@ -9,7 +9,6 @@ pub struct BVHDebugPass {
 }
 
 impl BVHDebugPass {
-
     pub fn new(device: &wgpu::Device) -> Self {
         let bind_group_layouts =
             [
@@ -32,10 +31,15 @@ impl BVHDebugPass {
             push_constant_ranges: &[],
         });
 
-        let shader =
-            device.create_shader_module(&wgpu::include_spirv!(concat!(
-                "..", path_separator!(), "shaders", path_separator!(), "spirv", path_separator!(), "debug_bvh.comp.spv"
-            )));
+        let shader = device.create_shader_module(&wgpu::include_spirv!(concat!(
+            "..",
+            path_separator!(),
+            "shaders",
+            path_separator!(),
+            "spirv",
+            path_separator!(),
+            "debug_bvh.comp.spv"
+        )));
 
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Debug BVH Pipeline"),
@@ -59,7 +63,6 @@ impl BVHDebugPass {
         nodes: &GPUBuffer<resources::BVHNodeGPU>,
         indices: &GPUBuffer<u32>,
         vertices: &GPUBuffer<resources::VertexGPU>,
-        scene_info: &UniformBuffer<resources::SceneSettingsGPU>,
     ) {
         self.base_bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Debug BVH Base Bind Group"),
@@ -84,10 +87,6 @@ impl BVHDebugPass {
                 wgpu::BindGroupEntry {
                     binding: 4,
                     resource: vertices.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 5,
-                    resource: scene_info.as_entire_binding(),
                 },
             ],
         }));

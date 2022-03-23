@@ -1,6 +1,6 @@
-use albedo_backend::{shader_bindings, ComputePassDescriptor, GPUBuffer, UniformBuffer};
-use crate::renderer::resources;
 use crate::macros::path_separator;
+use crate::renderer::resources;
+use albedo_backend::{shader_bindings, ComputePassDescriptor, GPUBuffer, UniformBuffer};
 
 pub struct ShadingPassDescriptor {
     bind_group_layout: wgpu::BindGroupLayout,
@@ -20,10 +20,9 @@ impl ShadingPassDescriptor {
                 shader_bindings::buffer_entry(4, wgpu::ShaderStages::COMPUTE, true),
                 shader_bindings::buffer_entry(5, wgpu::ShaderStages::COMPUTE, true),
                 shader_bindings::buffer_entry(6, wgpu::ShaderStages::COMPUTE, true),
-                shader_bindings::uniform_entry(7, wgpu::ShaderStages::COMPUTE),
-                shader_bindings::sampler_entry(8, wgpu::ShaderStages::COMPUTE, true),
-                shader_bindings::texture2d_entry(9, wgpu::ShaderStages::COMPUTE),
-                shader_bindings::uniform_entry(10, wgpu::ShaderStages::COMPUTE),
+                shader_bindings::sampler_entry(7, wgpu::ShaderStages::COMPUTE, true),
+                shader_bindings::texture2d_entry(8, wgpu::ShaderStages::COMPUTE),
+                shader_bindings::uniform_entry(9, wgpu::ShaderStages::COMPUTE),
             ],
         });
 
@@ -33,10 +32,15 @@ impl ShadingPassDescriptor {
             push_constant_ranges: &[],
         });
 
-        let shader =
-            device.create_shader_module(&wgpu::include_spirv!(concat!(
-                "..", path_separator!(), "shaders", path_separator!(), "spirv", path_separator!(), "shading.comp.spv"
-            )));
+        let shader = device.create_shader_module(&wgpu::include_spirv!(concat!(
+            "..",
+            path_separator!(),
+            "shaders",
+            path_separator!(),
+            "spirv",
+            path_separator!(),
+            "shading.comp.spv"
+        )));
 
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Radiance Estimator Pipeline"),
@@ -76,7 +80,6 @@ impl ShadingPassDescriptor {
         vertices: &GPUBuffer<resources::VertexGPU>,
         lights: &GPUBuffer<resources::LightGPU>,
         materials: &GPUBuffer<resources::MaterialGPU>,
-        scene_info: &UniformBuffer<resources::SceneSettingsGPU>,
         probe_view: &wgpu::TextureView,
         probe_sampler: &wgpu::Sampler,
         global_uniforms: &UniformBuffer<resources::GlobalUniformsGPU>,
@@ -115,18 +118,14 @@ impl ShadingPassDescriptor {
                 },
                 wgpu::BindGroupEntry {
                     binding: 7,
-                    resource: scene_info.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 8,
                     resource: wgpu::BindingResource::Sampler(probe_sampler),
                 },
                 wgpu::BindGroupEntry {
-                    binding: 9,
+                    binding: 8,
                     resource: wgpu::BindingResource::TextureView(probe_view),
                 },
                 wgpu::BindGroupEntry {
-                    binding: 10,
+                    binding: 9,
                     resource: global_uniforms.as_entire_binding(),
                 },
             ],

@@ -52,11 +52,6 @@ layout (set = 0, binding = 6, std430) buffer IntersectionBuffer {
   Intersection intersections[];
 };
 
-layout (set = 0, binding = 7) uniform SceneSettingsBuffer {
-  uint instanceCount;
-  uint lightCount;
-} RenderSettings;
-
 /* Utils */
 
 uint
@@ -213,7 +208,7 @@ sceneHit(Ray ray, inout Intersection intersection)
 {
   float dist = MAX_FLOAT;
 
-  for (uint i = 0; i < RenderSettings.lightCount; ++i)
+  for (uint i = 0; i < lights.length(); ++i)
   {
     Light light = lights[i];
     vec3 origin = vec3(light.normal.w, light.tangent.w, light.bitangent.w);
@@ -227,7 +222,7 @@ sceneHit(Ray ray, inout Intersection intersection)
     }
   }
 
-  for (uint i = 0; i < RenderSettings.instanceCount; ++i)
+  for (uint i = 0; i < instances.length(); ++i)
   {
     Instance instance = instances[i];
 

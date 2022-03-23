@@ -185,16 +185,6 @@ unsafe impl bytemuck::Pod for GlobalUniformsGPU {}
 unsafe impl bytemuck::Zeroable for GlobalUniformsGPU {}
 
 #[repr(C)]
-#[derive(Clone, Copy, Default)]
-pub struct SceneSettingsGPU {
-    pub instance_count: u32,
-    pub light_count: u32,
-}
-
-unsafe impl bytemuck::Pod for SceneSettingsGPU {}
-unsafe impl bytemuck::Zeroable for SceneSettingsGPU {}
-
-#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct CameraGPU {
     pub origin: glam::Vec3,
@@ -217,7 +207,7 @@ impl Default for CameraGPU {
             padding_0: 0.0,
             padding_1: 0.0,
             padding_2: [0, 0],
-            dimensions: [1, 1]
+            dimensions: [1, 1],
         }
     }
 }

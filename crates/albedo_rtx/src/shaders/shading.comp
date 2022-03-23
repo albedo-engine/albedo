@@ -70,15 +70,10 @@ layout (set = 0, binding = 6, std430) readonly buffer MaterialBuffer {
   Material materials[];
 };
 
-layout (set = 0, binding = 7) uniform SceneSettingsBuffer {
-  uint instanceCount;
-  uint lightCount;
-} SceneSettings;
+layout( set = 0, binding = 7 ) uniform sampler ProbeSampler;
+layout( set = 0, binding = 8 ) uniform texture2D Probe;
 
-layout( set = 0, binding = 8 ) uniform sampler ProbeSampler;
-layout( set = 0, binding = 9 ) uniform texture2D Probe;
-
-layout (set = 0, binding = 10) uniform GlobalUniformBuffer {
+layout (set = 0, binding = 9) uniform GlobalUniformBuffer {
   uint frame;
 } GlobalUniforms;
 
