@@ -46,7 +46,7 @@ generateRay(uvec3 coords, uvec2 dimensions)
     normalize(clip.x * CameraUniforms.right + clip.y * CameraUniforms.up + clip.z * dir),
     1.0 // throughput component
   );
-  ray.radiance = vec4(vec3(0.0), 1.0);
+  ray.radiance = vec4(0.0, 0.0, 0.0, 1.0);
 
   return ray;
 }

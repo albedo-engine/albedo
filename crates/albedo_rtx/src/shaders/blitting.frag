@@ -6,6 +6,7 @@ layout( set = 0, binding = 0 ) uniform sampler uTextureSampler;
 layout( set = 0, binding = 1 ) uniform texture2D uTexture;
 layout (set = 0, binding = 2) uniform GlobalUniformBuffer {
   uint frame;
+  uint seed;
 } GlobalUniforms;
 
 layout(location = 0) out vec4 outColor;

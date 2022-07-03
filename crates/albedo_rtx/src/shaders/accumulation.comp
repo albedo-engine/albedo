@@ -14,6 +14,7 @@ layout (set = 0, binding = 0, std430) readonly buffer RayBuffer {
 layout(set = 0, binding = 1, rgba32f) uniform image2D uRenderTarget;
 layout (set = 0, binding = 2) uniform GlobalUniformBuffer {
   uint frame;
+  uint seed;
 } GlobalUniforms;
 
 layout(local_size_x = 8, local_size_y = 8) in;

@@ -75,6 +75,7 @@ layout( set = 0, binding = 8 ) uniform texture2D Probe;
 
 layout (set = 0, binding = 9) uniform GlobalUniformBuffer {
   uint frame;
+  uint seed;
 } GlobalUniforms;
 
 /* Utils */
@@ -227,60 +228,56 @@ shade(RayPayload ray, Intersection intersection)
     uint randState = uint(
     gl_GlobalInvocationID.x * uint(1973)
     + gl_GlobalInvocationID.y * uint(9277)
-    + uint(GlobalUniforms.frame) * uint(26699)
+    + uint(GlobalUniforms.seed) * uint(26699)
   ) | uint(1);
 
   vec3 throughput = getThroughput(ray);
-  vec3 emissive = vec3(0.0); // @todo: sample light / material?
   if (abs(MAX_FLOAT - intersection.dist) < 0.00001)
   {
     vec2 uv = cartesianToEqui(ray.dir.xyz);
     vec3 probe = sampleProbe(ProbeSampler, Probe, uv);
     ray.radiance.rgb += throughput * probe;
+    throughput = vec3(0.0, 0.0, 0.0);
+  }
+  else if (intersection.emitter != INVALID_UINT)
+  {
+    Light light = lights[intersection.emitter];
+    ray.radiance.rgb += throughput * vec3(1.0, 0.9, 0.8) * light.intensity;
   }
   else
   {
-    if (intersection.emitter != INVALID_UINT)
-    {
-      Light light = lights[intersection.emitter];
-      emissive = vec3(1.0, 0.9, 0.8) * light.intensity;
-      ray.radiance.rgb += throughput * emissive;
-    }
-    else
-    {
-      vec3 barycentric = vec3(1.0 - intersection.uv.x - intersection.uv.y, intersection.uv);
+    vec3 barycentric = vec3(1.0 - intersection.uv.x - intersection.uv.y, intersection.uv);
 
-      uint vertexOffset = instances[intersection.instance].vertexRootIndex;
-      Vertex vertex0 = getVertex(vertexOffset, intersection.index);
-      Vertex vertex1 = getVertex(vertexOffset, intersection.index + 1);
-      Vertex vertex2 = getVertex(vertexOffset, intersection.index + 2);
+    uint vertexOffset = instances[intersection.instance].vertexRootIndex;
+    Vertex vertex0 = getVertex(vertexOffset, intersection.index);
+    Vertex vertex1 = getVertex(vertexOffset, intersection.index + 1);
+    Vertex vertex2 = getVertex(vertexOffset, intersection.index + 2);
 
-      vec3 normal = interpolate(vertex0.normal, vertex1.normal, vertex2.normal, barycentric);
+    vec3 normal = interpolate(vertex0.normal, vertex1.normal, vertex2.normal, barycentric);
 
-      // 𝐿𝑟 𝛚𝑟 ≈ 𝑁 𝑓𝑟 𝛚𝑖,𝛚𝑟 𝐿𝑖 𝛚𝑖 cos𝜃𝑖⁡
+    // 𝐿𝑟 𝛚𝑟 ≈ 𝑁 𝑓𝑟 𝛚𝑖,𝛚𝑟 𝐿𝑖 𝛚𝑖 cos𝜃𝑖⁡
 
-      // We sample in a cosine weighted hemisphere, so basially we remove
-      // the 2PI term and the multiplication by cos(𝜃) as the samples are already
-      // sampled in a cosine hemisphere.
-      BRDFDiffuseSample brdf = LambertBRDF(normal, randState);
-      BRDFSpecularSample specBRDF = SpecularBRDF(ray.dir.xyz, normal);
+    // We sample in a cosine weighted hemisphere, so basially we remove
+    // the 2PI term and the multiplication by cos(𝜃) as the samples are already
+    // sampled in a cosine hemisphere.
+    BRDFDiffuseSample brdf = LambertBRDF(normal, randState);
+    BRDFSpecularSample specBRDF = SpecularBRDF(ray.dir.xyz, normal);
 
-      Material mat = materials[intersection.materialIndex];
-      float r2 = mat.roughnessFactor * mat.roughnessFactor;
-      vec3 albedo = mat.color.rgb;
+    Material mat = materials[intersection.materialIndex];
+    float r2 = mat.roughnessFactor * mat.roughnessFactor;
+    vec3 albedo = mat.color.rgb;
 
-      float pdf =  rand(randState) < mat.metallic ? 1.0 : 0.0;
-      vec3 dir = normalize(mix(specBRDF.dir, brdf.dir, r2));
-      dir = mix(brdf.dir, dir, pdf);
+    float pdf =  rand(randState) < mat.metallic ? 1.0 : 0.0;
+    vec3 dir = normalize(mix(specBRDF.dir, brdf.dir, r2));
+    dir = mix(brdf.dir, dir, pdf);
 
-      vec3 directRadiance = albedo * brdf.pdf;
-      throughput *= mix(directRadiance, vec3(1.0), pdf);
+    vec3 directRadiance = albedo * brdf.pdf;
+    throughput *= mix(directRadiance, vec3(1.0), pdf);
 
-      ray.origin.xyz += intersection.dist * ray.dir.xyz + normal * EPSILON;
-      ray.dir.xyz = dir;
-      setThroughput(ray, throughput);
-    }
+    ray.origin.xyz += intersection.dist * ray.dir.xyz + normal * EPSILON;
+    ray.dir.xyz = dir;
   }
+  setThroughput(ray, throughput);
   return ray;
 }
 

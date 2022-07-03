@@ -171,6 +171,7 @@ impl LightGPU {
 #[derive(Clone, Copy, Default)]
 pub struct GlobalUniformsGPU {
     pub frame_count: u32,
+    pub seed: u32
 }
 
 impl GlobalUniformsGPU {

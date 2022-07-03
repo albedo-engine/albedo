@@ -166,41 +166,6 @@ intersectTriangle(Ray ray, uint startIndex, uint vertexOffset, inout vec2 uv)
   return dot(e2, q) * invDet;
 }
 
-// bool
-// intersectTriangle(
-// 	Ray ray,
-//   uint startIndex, uint vertexOffset,
-//   out float dist,
-// 	out vec3 barycoord
-// ) {
-//   // TODO: pre-process edge?
-//   // Maybe not really useful if decide to add skinning in shader.
-//   vec3 a = getVertex(vertexOffset, startIndex).position;
-//   vec3 b = getVertex(vertexOffset, startIndex + 1).position;
-//   vec3 c = getVertex(vertexOffset, startIndex + 2).position;
-// 	// https://stackoverflow.com/questions/42740765/intersection-between-line-and-triangle-in-3d
-// 	vec3 edge1 = b - a;
-// 	vec3 edge2 = c - a;
-// 	vec3 norm = cross( edge1, edge2 );
-// 	float det = - dot( ray.dir, norm );
-// 	float invdet = 1.0 / det;
-// 	vec3 AO = ray.origin - a;
-// 	vec3 DAO = cross( AO, ray.dir );
-// 	vec4 uvt;
-// 	uvt.x = dot( edge2, DAO ) * invdet;
-// 	uvt.y = - dot( edge1, DAO ) * invdet;
-// 	uvt.z = dot( AO, norm ) * invdet;
-// 	uvt.w = 1.0 - uvt.x - uvt.y;
-// 	// set the hit information
-// 	barycoord = uvt.wxy; // arranged in A, B, C order
-// 	dist = uvt.z;
-// 	// side = sign( det );
-// 	// norm = side * normalize( norm );
-// 	// add an epsilon to avoid misses between triangles
-// 	uvt += vec4( 1e-5 );
-// 	return all( greaterThanEqual( uvt, vec4( 0.0 ) ) );
-// }
-
 /* Intersection */
 
 float
@@ -208,19 +173,19 @@ sceneHit(Ray ray, inout Intersection intersection)
 {
   float dist = MAX_FLOAT;
 
-  for (uint i = 0; i < lights.length(); ++i)
-  {
-    Light light = lights[i];
-    vec3 origin = vec3(light.normal.w, light.tangent.w, light.bitangent.w);
-    float t = intersectPlane(
-      ray, - light.normal.xyz, origin, light.tangent.xyz, light.bitangent.xyz
-    );
-    if (t > 0.0 && t < dist)
-    {
-      intersection.emitter = i;
-      dist = t;
-    }
-  }
+  // for (uint i = 0; i < lights.length(); ++i)
+  // {
+  //   Light light = lights[i];
+  //   vec3 origin = vec3(light.normal.w, light.tangent.w, light.bitangent.w);
+  //   float t = intersectPlane(
+  //     ray, - light.normal.xyz, origin, light.tangent.xyz, light.bitangent.xyz
+  //   );
+  //   if (t > 0.0 && t < dist)
+  //   {
+  //     intersection.emitter = i;
+  //     dist = t;
+  //   }
+  // }
 
   for (uint i = 0; i < instances.length(); ++i)
   {
