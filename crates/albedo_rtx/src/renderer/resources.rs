@@ -1,3 +1,5 @@
+pub static INVALID_INDEX: u32 = std::u32::MAX;
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct BVHNodeGPU {
@@ -52,12 +54,13 @@ unsafe impl bytemuck::Pod for InstanceGPU {}
 unsafe impl bytemuck::Zeroable for InstanceGPU {}
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct MaterialGPU {
     pub color: glam::Vec4,
     pub roughness: f32,
     pub reflectivity: f32,
-    pub pad_0: glam::Vec2,
+    pub albedo_texture: u32,
+    pub pad_0: u32,
 }
 unsafe impl bytemuck::Pod for MaterialGPU {}
 unsafe impl bytemuck::Zeroable for MaterialGPU {}
@@ -68,7 +71,7 @@ impl MaterialGPU {
             color,
             roughness,
             reflectivity,
-            pad_0: glam::Vec2::new(0.0, 0.0),
+            ..Default::default()
         }
     }
 }
@@ -270,3 +273,20 @@ pub struct IntersectionGPU {
 
 unsafe impl bytemuck::Pod for IntersectionGPU {}
 unsafe impl bytemuck::Zeroable for IntersectionGPU {}
+
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct BoundsGPU(pub(crate) glam::UVec4);
+impl BoundsGPU {
+    pub fn x(&self) -> u32 { self.0.x }
+    pub fn x_mut(&mut self) -> &mut u32 { &mut self.0.x }
+    pub fn y(&self) -> u32 { self.0.y }
+    pub fn y_mut(&mut self) -> &mut u32 { &mut self.0.y }
+    pub fn width(&self) -> u32 { self.0.z }
+    pub fn width_mut(&mut self) -> &mut u32 { &mut self.0.z }
+    pub fn height(&self) -> u32 { self.0.w }
+    pub fn height_mut(&mut self) -> &mut u32 { &mut self.0.w }
+}
+
+unsafe impl bytemuck::Pod for BoundsGPU {}
+unsafe impl bytemuck::Zeroable for BoundsGPU {}
