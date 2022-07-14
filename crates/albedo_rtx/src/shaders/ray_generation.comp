@@ -47,6 +47,7 @@ generateRay(uvec3 coords, uvec2 dimensions)
     1.0 // throughput component
   );
   ray.radiance = vec4(0.0, 0.0, 0.0, 1.0);
+  ray.terminated = 0u;
 
   return ray;
 }

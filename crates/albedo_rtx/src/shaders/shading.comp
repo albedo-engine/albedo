@@ -45,40 +45,45 @@ layout (set = 0, binding = 0, std430) buffer RayBuffer {
   RayPayload rays[];
 };
 
-layout (set = 0, binding = 1, std430) readonly buffer IntersectionBuffer {
+layout (set = 0, binding = 1, std430) readonly buffer BVHNodeBuffer {
+  BVHNode nodes[];
+};
+
+layout (set = 0, binding = 2, std430) readonly buffer IntersectionBuffer {
   Intersection intersections[];
 };
 
-layout (set = 0, binding = 2, std430) readonly buffer InstanceBuffer {
+layout (set = 0, binding = 3, std430) readonly buffer InstanceBuffer {
   Instance instances[];
 };
 
-layout (set = 0, binding = 3, std430) readonly buffer IndexBuffer {
+layout (set = 0, binding = 4, std430) readonly buffer IndexBuffer {
   uint indices[];
 };
 
-layout (set = 0, binding = 4, std430) readonly buffer VertexBuffer {
+layout (set = 0, binding = 5, std430) readonly buffer VertexBuffer {
   Vertex vertices[];
 };
 
 // @todo: move to uniform?
-layout (set = 0, binding = 5, std430) readonly buffer LightBuffer {
+layout (set = 0, binding = 6, std430) readonly buffer LightBuffer {
   Light lights[];
 };
 
-layout (set = 0, binding = 6, std430) readonly buffer MaterialBuffer {
+layout (set = 0, binding = 7, std430) readonly buffer MaterialBuffer {
   Material materials[];
 };
 
-layout( set = 0, binding = 7 ) uniform sampler ProbeSampler;
-layout( set = 0, binding = 8 ) uniform texture2D Probe;
+layout( set = 0, binding = 8 ) uniform sampler ProbeSampler;
+layout( set = 0, binding = 9 ) uniform texture2D Probe;
 
-layout (set = 0, binding = 9) uniform GlobalUniformBuffer {
-  uint frame;
-  uint seed;
-} GlobalUniforms;
+layout (set = 0, binding = 10) uniform GlobalUniformBuffer {
+  GlobalUniforms global;
+};
 
 /* Utils */
+
+#include "utils/intersection_utils.comp"
 
 vec3
 decodeRGBE(vec4 hdr)
@@ -90,12 +95,6 @@ vec3
 sampleProbe(sampler samp, texture2D probe, vec2 uv)
 {
   return decodeRGBE(texture(sampler2D(probe, samp), uv));
-}
-
-Vertex
-getVertex(uint vertexOffset, uint index)
-{
-  return vertices[vertexOffset + indices[index]];
 }
 
 vec3
@@ -156,28 +155,6 @@ vec2 interpolate(vec2 v0, vec2 v1, vec2 v2, vec3 barycentric)
   );
 }
 
-vec3
-transformPosition(vec3 position, mat4 transform)
-{
-  vec4 pos = transform * vec4(position, 1.0);
-  return pos.xyz / pos.w;
-}
-
-vec3
-transformDirection(vec3 direction, mat4 transform)
-{
-  return normalize((transform * vec4(direction, 0.0)).xyz);
-}
-
-Ray
-transformRay(inout Ray ray, mat4 transform)
-{
-  Ray result;
-  result.origin = transformPosition(ray.origin, transform);
-  result.dir = transformDirection(ray.dir, transform);
-  return result;
-}
-
 // Implementation of Hammersley Points on the Hemisphere
 vec3
 randomCosineWeightedVector(inout uint seed)
@@ -228,8 +205,12 @@ shade(RayPayload ray, Intersection intersection)
     uint randState = uint(
     gl_GlobalInvocationID.x * uint(1973)
     + gl_GlobalInvocationID.y * uint(9277)
-    + uint(GlobalUniforms.seed) * uint(26699)
+    + uint(global.seed) * uint(26699)
   ) | uint(1);
+
+  if (ray.terminated > 0u) {
+    return ray;
+  }
 
   vec3 throughput = getThroughput(ray);
   if (abs(MAX_FLOAT - intersection.dist) < 0.00001)
@@ -267,6 +248,24 @@ shade(RayPayload ray, Intersection intersection)
     float r2 = mat.roughnessFactor * mat.roughnessFactor;
     vec3 albedo = mat.color.rgb;
 
+    #ifdef MIS
+      const float nbLights = 0.0;
+      if (rand() > 1.0 / (nbLight + 1.0))
+      {
+
+      }
+      else
+      {
+        // Ray rayEnv;
+        //   rayEnv.origin = ray.origin;
+        //   rayEnv.dir = ray.dir;
+        // Intersection i;
+        // if (sceneHit(rayEnv, i) == MAX_FLOAT)
+        // {
+        // }
+      }
+    #endif // MIS
+
     float pdf =  rand(randState) < mat.metallic ? 1.0 : 0.0;
     vec3 dir = normalize(mix(specBRDF.dir, brdf.dir, r2));
     dir = mix(brdf.dir, dir, pdf);
@@ -277,6 +276,17 @@ shade(RayPayload ray, Intersection intersection)
     ray.origin.xyz += intersection.dist * ray.dir.xyz + normal * EPSILON;
     ray.dir.xyz = dir;
   }
+
+  // {
+  //   // Russian roulette.
+  //   float p = max(throughput.r, max(throughput.g, throughput.b));
+  //   if (rand(randState) > p) {
+  //     ray.terminated = 1u;
+  //   } else {
+  //     throughput *= 1.0 / p;
+  //   }
+  // }
+
   setThroughput(ray, throughput);
   return ray;
 }

@@ -20,9 +20,10 @@ impl ShadingPassDescriptor {
                 shader_bindings::buffer_entry(4, wgpu::ShaderStages::COMPUTE, true),
                 shader_bindings::buffer_entry(5, wgpu::ShaderStages::COMPUTE, true),
                 shader_bindings::buffer_entry(6, wgpu::ShaderStages::COMPUTE, true),
-                shader_bindings::sampler_entry(7, wgpu::ShaderStages::COMPUTE, true),
-                shader_bindings::texture2d_entry(8, wgpu::ShaderStages::COMPUTE),
-                shader_bindings::uniform_entry(9, wgpu::ShaderStages::COMPUTE),
+                shader_bindings::buffer_entry(7, wgpu::ShaderStages::COMPUTE, true),
+                shader_bindings::sampler_entry(8, wgpu::ShaderStages::COMPUTE, true),
+                shader_bindings::texture2d_entry(9, wgpu::ShaderStages::COMPUTE),
+                shader_bindings::uniform_entry(10, wgpu::ShaderStages::COMPUTE),
             ],
         });
 
@@ -74,6 +75,7 @@ impl ShadingPassDescriptor {
         &self,
         device: &wgpu::Device,
         out_rays: &GPUBuffer<resources::RayGPU>,
+        nodes: &GPUBuffer<resources::BVHNodeGPU>,
         intersections: &GPUBuffer<resources::IntersectionGPU>,
         instances: &GPUBuffer<resources::InstanceGPU>,
         indices: &GPUBuffer<u32>,
@@ -94,38 +96,42 @@ impl ShadingPassDescriptor {
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: intersections.as_entire_binding(),
+                    resource: nodes.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
-                    resource: instances.as_entire_binding(),
+                    resource: intersections.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 3,
-                    resource: indices.as_entire_binding(),
+                    resource: instances.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 4,
-                    resource: vertices.as_entire_binding(),
+                    resource: indices.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 5,
-                    resource: lights.as_entire_binding(),
+                    resource: vertices.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 6,
-                    resource: materials.as_entire_binding(),
+                    resource: lights.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 7,
-                    resource: wgpu::BindingResource::Sampler(probe_sampler),
+                    resource: materials.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 8,
-                    resource: wgpu::BindingResource::TextureView(probe_view),
+                    resource: wgpu::BindingResource::Sampler(probe_sampler),
                 },
                 wgpu::BindGroupEntry {
                     binding: 9,
+                    resource: wgpu::BindingResource::TextureView(probe_view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 10,
                     resource: global_uniforms.as_entire_binding(),
                 },
             ],

@@ -13,9 +13,8 @@ layout (set = 0, binding = 0, std430) readonly buffer RayBuffer {
 };
 layout(set = 0, binding = 1, rgba32f) uniform image2D uRenderTarget;
 layout (set = 0, binding = 2) uniform GlobalUniformBuffer {
-  uint frame;
-  uint seed;
-} GlobalUniforms;
+  GlobalUniforms global;
+};
 
 layout(local_size_x = 8, local_size_y = 8) in;
 void
@@ -33,7 +32,7 @@ main()
   if (coords.x < targetSize.x && coords.y < targetSize.y)
   {
     vec4 c = vec4(0.0);
-    if (GlobalUniforms.frame > 1)
+    if (global.frame > 1)
     {
       c = imageLoad(uRenderTarget, coords);
     }

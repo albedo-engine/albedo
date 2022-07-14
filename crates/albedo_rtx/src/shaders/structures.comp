@@ -1,6 +1,14 @@
 #ifndef STRUCTS_H
 #define STRUCTS_H
 
+struct GlobalUniforms
+{
+  uint frame;
+  uint seed;
+  uint bounces;
+  uint padding;
+};
+
 struct Instance
 {
   mat4 worldToModel;
@@ -8,6 +16,14 @@ struct Instance
   uint bvhRootIndex;
   uint vertexRootIndex;
   uint indexRootIndex;
+};
+
+struct BVHNode
+{
+  vec3 min;
+  uint nextNodeIndex;
+  vec3 max;
+  uint primitiveStartIndex;
 };
 
 struct Vertex
@@ -30,12 +46,14 @@ struct Light
 };
 
 /**
- * `throughput` saved in `origin.w`, `dir.w`, `radiance,w`
+ * - `throughput` saved in `origin.w`, `dir.w`, `radiance,w`
  */
 struct RayPayload {
   vec4 origin;
   vec4 dir;
   vec4 radiance;
+  uint terminated;
+  vec3 padding;
 };
 
 struct Ray {
