@@ -1,3 +1,3 @@
 mod texture_atlas;
 
-pub use texture_atlas::TextureAtlas;
+pub use texture_atlas::{TextureAtlas, TextureSlice};

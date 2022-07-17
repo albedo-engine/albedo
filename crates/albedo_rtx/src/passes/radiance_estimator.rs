@@ -23,7 +23,9 @@ impl ShadingPassDescriptor {
                 shader_bindings::buffer_entry(7, wgpu::ShaderStages::COMPUTE, true),
                 shader_bindings::sampler_entry(8, wgpu::ShaderStages::COMPUTE, true),
                 shader_bindings::texture2d_entry(9, wgpu::ShaderStages::COMPUTE),
-                shader_bindings::uniform_entry(10, wgpu::ShaderStages::COMPUTE),
+                shader_bindings::buffer_entry(10, wgpu::ShaderStages::COMPUTE, true),
+                shader_bindings::texture2d_entry(11, wgpu::ShaderStages::COMPUTE),
+                shader_bindings::uniform_entry(12, wgpu::ShaderStages::COMPUTE),
             ],
         });
 
@@ -84,6 +86,8 @@ impl ShadingPassDescriptor {
         materials: &GPUBuffer<resources::MaterialGPU>,
         probe_view: &wgpu::TextureView,
         probe_sampler: &wgpu::Sampler,
+        texture_info: &GPUBuffer<resources::TextureInfoGPU>,
+        atlas_view: &wgpu::TextureView,
         global_uniforms: &UniformBuffer<resources::GlobalUniformsGPU>,
     ) -> wgpu::BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -132,6 +136,14 @@ impl ShadingPassDescriptor {
                 },
                 wgpu::BindGroupEntry {
                     binding: 10,
+                    resource: texture_info.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 11,
+                    resource: wgpu::BindingResource::TextureView(atlas_view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 12,
                     resource: global_uniforms.as_entire_binding(),
                 },
             ],

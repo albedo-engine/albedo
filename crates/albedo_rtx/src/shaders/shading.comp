@@ -29,6 +29,14 @@ struct BRDFSpecularSample
   vec3 dir;
 };
 
+struct TextureInfo
+{
+  uint x;
+  uint y;
+  uint width;
+  uint layerAndHeight; // 24 bits for height, 8 bits for layer index.
+};
+
 struct Material
 {
   vec4  color;
@@ -77,7 +85,12 @@ layout (set = 0, binding = 7, std430) readonly buffer MaterialBuffer {
 layout( set = 0, binding = 8 ) uniform sampler ProbeSampler;
 layout( set = 0, binding = 9 ) uniform texture2D Probe;
 
-layout (set = 0, binding = 10) uniform GlobalUniformBuffer {
+layout (set = 0, binding = 10, std430) readonly buffer TextureBoundsBuffer {
+  TextureInfo textures[];
+};
+layout(set = 0, binding = 11) uniform sampler2DArray textureAtlas;
+
+layout (set = 0, binding = 12) uniform GlobalUniformBuffer {
   GlobalUniforms global;
 };
 

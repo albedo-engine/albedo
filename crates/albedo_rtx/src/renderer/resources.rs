@@ -276,17 +276,52 @@ unsafe impl bytemuck::Zeroable for IntersectionGPU {}
 
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
-pub struct BoundsGPU(pub(crate) glam::UVec4);
-impl BoundsGPU {
-    pub fn x(&self) -> u32 { self.0.x }
-    pub fn x_mut(&mut self) -> &mut u32 { &mut self.0.x }
-    pub fn y(&self) -> u32 { self.0.y }
-    pub fn y_mut(&mut self) -> &mut u32 { &mut self.0.y }
-    pub fn width(&self) -> u32 { self.0.z }
-    pub fn width_mut(&mut self) -> &mut u32 { &mut self.0.z }
-    pub fn height(&self) -> u32 { self.0.w }
-    pub fn height_mut(&mut self) -> &mut u32 { &mut self.0.w }
+pub struct TextureInfoGPU {
+    x: u32,
+    y: u32,
+    width: u32,
+    // Height should be stored in the first 24 bits, and atlas on the last 8 bits.
+    layer_and_height: u32,
 }
 
-unsafe impl bytemuck::Pod for BoundsGPU {}
-unsafe impl bytemuck::Zeroable for BoundsGPU {}
+impl TextureInfoGPU {
+    pub fn pack_value(layer: u32, value: u32) -> u32 {
+        layer << 24 | value
+    }
+
+    pub fn unpack_value(packed: u32) -> u32 {
+        packed & 0x00FFFFFF
+    }
+
+    pub fn unpack_layer(packed: u32) -> u8 {
+        ((packed & 0xFF000000) >> 24) as u8
+    }
+
+    pub fn new(layer: u8, x: u32, y: u32, width: u32, height: u32) -> Self {
+        Self {
+            x,
+            y,
+            width,
+            layer_and_height: Self::pack_value(layer as u32, height),
+        }
+    }
+
+    pub fn x(&self) -> u32 {
+        self.x
+    }
+    pub fn y(&self) -> u32 {
+        self.y
+    }
+    pub fn width(&self) -> u32 {
+        self.width
+    }
+    pub fn height(&self) -> u32 {
+        Self::unpack_value(self.layer_and_height)
+    }
+    pub fn layer(&self) -> u8 {
+        Self::unpack_layer(self.layer_and_height)
+    }
+}
+
+unsafe impl bytemuck::Pod for TextureInfoGPU {}
+unsafe impl bytemuck::Zeroable for TextureInfoGPU {}
