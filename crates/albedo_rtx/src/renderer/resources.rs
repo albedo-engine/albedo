@@ -1,3 +1,5 @@
+use std::convert::TryInto;
+
 pub static INVALID_INDEX: u32 = std::u32::MAX;
 
 #[repr(C)]
@@ -71,6 +73,7 @@ impl MaterialGPU {
             color,
             roughness,
             reflectivity,
+            albedo_texture: INVALID_INDEX,
             ..Default::default()
         }
     }
@@ -79,35 +82,26 @@ impl MaterialGPU {
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct VertexGPU {
-    pub position: glam::Vec3,
-    padding_0: f32,
-    pub normal: glam::Vec3,
-    padding_1: f32,
-    // @todo: add UV
+    position: [f32; 4],
+    normal: [f32; 4],
 }
 unsafe impl bytemuck::Pod for VertexGPU {}
 unsafe impl bytemuck::Zeroable for VertexGPU {}
 
 impl VertexGPU {
-    pub fn from_position(position: &[f32; 3]) -> Self {
+
+    const DEFAULT_UV: [f32; 2] = [0.0, 0.0];
+
+    pub fn new(position: &[f32; 3], normal: &[f32; 3], uv: Option<&[f32; 2]>) -> Self {
+        let uv = uv.unwrap_or(&Self::DEFAULT_UV);
         VertexGPU {
-            position: (*position).into(),
-            ..Default::default()
+            position: [position[0], position[1], position[2], uv[0]],
+            normal: [normal[0], normal[1], normal[2], uv[1]],
         }
     }
 
-    pub fn new(position: &[f32; 3], normal: &[f32; 3]) -> Self {
-        VertexGPU {
-            position: (*position).into(),
-            normal: (*normal).into(),
-            ..Default::default()
-        }
-    }
-}
-
-impl From<&[f32; 3]> for VertexGPU {
-    fn from(item: &[f32; 3]) -> Self {
-        VertexGPU::from_position(item)
+    pub fn position(&self) -> &[f32; 3] {
+        self.position[0..3].try_into().unwrap()
     }
 }
 

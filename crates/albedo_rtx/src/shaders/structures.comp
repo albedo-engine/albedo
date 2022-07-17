@@ -11,6 +11,7 @@ struct GlobalUniforms
 
 struct Instance
 {
+  // @todo: reduce size of this struct.
   mat4 worldToModel;
   uint materialIndex;
   uint bvhRootIndex;
@@ -28,10 +29,8 @@ struct BVHNode
 
 struct Vertex
 {
-  vec3 position;
-  float padding_0;
-  vec3 normal;
-  float padding_1;
+  vec4 position;
+  vec4 normal;
 };
 
 struct Light

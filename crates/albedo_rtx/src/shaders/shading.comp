@@ -82,17 +82,18 @@ layout (set = 0, binding = 7, std430) readonly buffer MaterialBuffer {
   Material materials[];
 };
 
-layout( set = 0, binding = 8 ) uniform sampler ProbeSampler;
-layout( set = 0, binding = 9 ) uniform texture2D Probe;
+layout( set = 0, binding = 8 ) uniform texture2D Probe;
 
-layout (set = 0, binding = 10, std430) readonly buffer TextureBoundsBuffer {
-  TextureInfo textures[];
-};
-layout(set = 0, binding = 11) uniform sampler2DArray textureAtlas;
+layout(set = 0, binding = 9) uniform usampler1D textureInfo;
+
+layout(set = 0, binding = 10) uniform sampler2DArray textureAtlas;
+
+layout( set = 0, binding = 11 ) uniform sampler samplerNearest;
 
 layout (set = 0, binding = 12) uniform GlobalUniformBuffer {
   GlobalUniforms global;
 };
+
 
 /* Utils */
 
@@ -229,7 +230,7 @@ shade(RayPayload ray, Intersection intersection)
   if (abs(MAX_FLOAT - intersection.dist) < 0.00001)
   {
     vec2 uv = cartesianToEqui(ray.dir.xyz);
-    vec3 probe = sampleProbe(ProbeSampler, Probe, uv);
+    vec3 probe = sampleProbe(samplerNearest, Probe, uv);
     ray.radiance.rgb += throughput * probe;
     throughput = vec3(0.0, 0.0, 0.0);
   }

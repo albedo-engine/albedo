@@ -16,6 +16,11 @@ pub trait Mesh: Sized {
     // @todo: make the iterator generic instead of dyn.
     fn normal(&self, index: u32) -> Option<&[f32; 3]>;
 
+    // @todo: would it be possible to allow references here in every cases?
+    // What about the case where the data canno't be decayed to a &[f32; 3]?
+    // @todo: make the iterator generic instead of dyn.
+    fn uv(&self, index: u32) -> Option<&[f32; 2]>;
+
     // @todo: instead of reading vertex / buffer etc, why not ask user to fill
     // our data stucture?
     // If data are linear, user can do a memcpy, otherwise he must memcpy with

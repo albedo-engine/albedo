@@ -52,6 +52,38 @@ pub const fn storage_texture2d_entry(
     }
 }
 
+pub const fn texture1d(
+    binding: u32,
+    visibility: wgpu::ShaderStages,
+) -> wgpu::BindGroupLayoutEntry {
+    wgpu::BindGroupLayoutEntry {
+        binding,
+        visibility,
+        ty: wgpu::BindingType::Texture {
+            multisampled: false,
+            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+            view_dimension: wgpu::TextureViewDimension::D2Array,
+        },
+        count: None,
+    }
+}
+
+pub const fn texture1D_u(
+    binding: u32,
+    visibility: wgpu::ShaderStages,
+) -> wgpu::BindGroupLayoutEntry {
+    wgpu::BindGroupLayoutEntry {
+        binding,
+        visibility,
+        ty: wgpu::BindingType::Texture {
+            multisampled: false,
+            sample_type: wgpu::TextureSampleType::Uint,
+            view_dimension: wgpu::TextureViewDimension::D1,
+        },
+        count: None,
+    }
+}
+
 pub const fn texture2d_entry(
     binding: u32,
     visibility: wgpu::ShaderStages,
@@ -60,6 +92,22 @@ pub const fn texture2d_entry(
         binding,
         visibility,
         ty: texture2d(),
+        count: None,
+    }
+}
+
+pub const fn texture2darray_entry(
+    binding: u32,
+    visibility: wgpu::ShaderStages,
+) -> wgpu::BindGroupLayoutEntry {
+    wgpu::BindGroupLayoutEntry {
+        binding,
+        visibility,
+        ty: wgpu::BindingType::Texture {
+            multisampled: false,
+            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+            view_dimension: wgpu::TextureViewDimension::D2Array,
+        },
         count: None,
     }
 }

@@ -21,10 +21,10 @@ impl ShadingPassDescriptor {
                 shader_bindings::buffer_entry(5, wgpu::ShaderStages::COMPUTE, true),
                 shader_bindings::buffer_entry(6, wgpu::ShaderStages::COMPUTE, true),
                 shader_bindings::buffer_entry(7, wgpu::ShaderStages::COMPUTE, true),
-                shader_bindings::sampler_entry(8, wgpu::ShaderStages::COMPUTE, true),
-                shader_bindings::texture2d_entry(9, wgpu::ShaderStages::COMPUTE),
-                shader_bindings::buffer_entry(10, wgpu::ShaderStages::COMPUTE, true),
-                shader_bindings::texture2d_entry(11, wgpu::ShaderStages::COMPUTE),
+                shader_bindings::texture2d_entry(8, wgpu::ShaderStages::COMPUTE),
+                shader_bindings::texture1D_u(9, wgpu::ShaderStages::COMPUTE),
+                shader_bindings::texture2darray_entry(10, wgpu::ShaderStages::COMPUTE),
+                shader_bindings::sampler_entry(11, wgpu::ShaderStages::COMPUTE, true),
                 shader_bindings::uniform_entry(12, wgpu::ShaderStages::COMPUTE),
             ],
         });
@@ -85,10 +85,10 @@ impl ShadingPassDescriptor {
         lights: &GPUBuffer<resources::LightGPU>,
         materials: &GPUBuffer<resources::MaterialGPU>,
         probe_view: &wgpu::TextureView,
-        probe_sampler: &wgpu::Sampler,
-        texture_info: &GPUBuffer<resources::TextureInfoGPU>,
+        texture_info: &wgpu::TextureView,
         atlas_view: &wgpu::TextureView,
         global_uniforms: &UniformBuffer<resources::GlobalUniformsGPU>,
+        sampler_nearest: &wgpu::Sampler,
     ) -> wgpu::BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Radiance Estimator Base Bind Group"),
@@ -128,19 +128,19 @@ impl ShadingPassDescriptor {
                 },
                 wgpu::BindGroupEntry {
                     binding: 8,
-                    resource: wgpu::BindingResource::Sampler(probe_sampler),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 9,
                     resource: wgpu::BindingResource::TextureView(probe_view),
                 },
                 wgpu::BindGroupEntry {
+                    binding: 9,
+                    resource: wgpu::BindingResource::TextureView(texture_info),
+                },
+                wgpu::BindGroupEntry {
                     binding: 10,
-                    resource: texture_info.as_entire_binding(),
+                    resource: wgpu::BindingResource::TextureView(atlas_view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 11,
-                    resource: wgpu::BindingResource::TextureView(atlas_view),
+                    resource: wgpu::BindingResource::Sampler(sampler_nearest),
                 },
                 wgpu::BindGroupEntry {
                     binding: 12,
