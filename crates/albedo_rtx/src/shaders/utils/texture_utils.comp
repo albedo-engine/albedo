@@ -1,0 +1,17 @@
+#ifndef TEXTURE_UTILS_H
+#define TEXTURE_UTILS_H
+
+vec4
+fetchTexture(sampler samp, uint textureIndex, vec2 uv)
+{
+  uint layer = 0; 
+  // @todo: optimize away.
+  vec2 atlasSize = vec2(textureSize(textureAtlas, 0).xy);
+  vec2 offset = vec2(0.0, 0.0) / atlasSize;
+  vec2 bounds = vec2(1920.0, 1080.0) / atlasSize;
+  vec2 atlasUV = offset + (uv * bounds);
+  return texture(sampler2DArray(textureAtlas, samp), vec3(atlasUV, 0.0));
+  // return vec4(uv, 0.0, 1.0);
+}
+
+#endif // TEXTURE_UTILS_H

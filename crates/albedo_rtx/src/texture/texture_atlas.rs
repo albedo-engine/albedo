@@ -3,13 +3,6 @@ use std::convert::From;
 
 use crate::renderer::resources::TextureInfoGPU;
 
-struct TextureRegion {
-    x: u32,
-    y: u32,
-    width: u32,
-    height: u32,
-}
-
 #[derive(Debug)]
 pub enum TextureError {
     InvalidFormat(String),
@@ -106,6 +99,10 @@ impl TextureAtlas {
         (self.size * self.size * Self::COMPONENTS) as usize
     }
 
+    pub fn bytes_per_atlas_row(&self) -> usize {
+        (self.size * Self::COMPONENTS) as usize
+    }
+
     fn add_texture_data(
         &mut self,
         atlas_index: usize,
@@ -121,17 +118,30 @@ impl TextureAtlas {
 
         // Copy texture data to atlas.
         let bytes_per_atlas = self.bytes_per_atlas();
-        let tex_height = texture.height;
-        let components = Self::COMPONENTS;
-        let atlas_offset = (atlas_index * bytes_per_atlas) as u32;
-        let rectangle_offset = atlas_offset + y * self.size + x;
+        let bytes_per_atlas_row = self.bytes_per_atlas_row();
+        let bytes_per_atlas_layer = (atlas_index * bytes_per_atlas) as usize;
         let bytes_per_row = (texture.width * Self::COMPONENTS) as usize;
         for i in 0..texture.height {
-            let dst_start_byte = ((rectangle_offset + i * self.size) * components) as usize;
-            let src_start_byte = (i * tex_height * components) as usize;
+            let dst_height_byte_offset = (y + i) as usize * bytes_per_atlas_row;
+            let dst_start_byte = (
+                bytes_per_atlas_layer +
+                dst_height_byte_offset +
+                (x * Self::COMPONENTS) as usize
+            );
+            let src_start_byte = i as usize * bytes_per_row;
             let src_slice = &texture.data[src_start_byte..(src_start_byte + bytes_per_row)];
             self.data[dst_start_byte..(dst_start_byte + bytes_per_row)].copy_from_slice(src_slice);
         }
+
+        // for i in 0..self.size() {
+        //     for j in 0..self.size() {
+        //         let s = (i as usize * bytes_per_atlas_row + j as usize * Self::COMPONENTS as usize);
+        //         self.data[s] = if j < 4096 { 255 } else { 0 };
+        //         self.data[s + 1] = if j > 4096 { 255 } else { 0 };
+        //         self.data[s + 2] = 0;
+        //         self.data[s + 3] = 255;
+        //     }
+        // }
 
         self.textures
             .push(TextureInfoGPU::new(atlas_index as u8, x, y, width, height));

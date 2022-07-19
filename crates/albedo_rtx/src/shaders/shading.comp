@@ -1,5 +1,6 @@
 #version 450
 
+#extension GL_EXT_samplerless_texture_functions : enable
 #extension GL_GOOGLE_include_directive : enable
 
 #include "structures.comp"
@@ -42,7 +43,8 @@ struct Material
   vec4  color;
   float roughnessFactor;
   float metallic;
-  vec2  pad_0;
+  uint  albedoTexture;
+  uint  pad_0;
 };
 
 /**
@@ -86,7 +88,7 @@ layout( set = 0, binding = 8 ) uniform texture2D Probe;
 
 layout(set = 0, binding = 9) uniform usampler1D textureInfo;
 
-layout(set = 0, binding = 10) uniform sampler2DArray textureAtlas;
+layout(set = 0, binding = 10) uniform texture2DArray textureAtlas;
 
 layout( set = 0, binding = 11 ) uniform sampler samplerNearest;
 
@@ -98,6 +100,7 @@ layout (set = 0, binding = 12) uniform GlobalUniformBuffer {
 /* Utils */
 
 #include "utils/intersection_utils.comp"
+#include "utils/texture_utils.comp"
 
 vec3
 decodeRGBE(vec4 hdr)
@@ -248,7 +251,14 @@ shade(RayPayload ray, Intersection intersection)
     Vertex vertex1 = getVertex(vertexOffset, intersection.index + 1);
     Vertex vertex2 = getVertex(vertexOffset, intersection.index + 2);
 
-    vec3 normal = interpolate(vertex0.normal, vertex1.normal, vertex2.normal, barycentric);
+    // @todo: clean up uvs. Should UVs and normal always be packed together
+    // anyway? The intersection code only need vertices.
+    vec2 uv0 = vec2(vertex0.position.w, vertex0.normal.w);
+    vec2 uv1 = vec2(vertex1.position.w, vertex1.normal.w);
+    vec2 uv2 = vec2(vertex2.position.w, vertex2.normal.w);
+
+    vec2 uv = interpolate(uv0, uv1, uv2, barycentric);
+    vec3 normal = interpolate(vertex0.normal.xyz, vertex1.normal.xyz, vertex2.normal.xyz, barycentric);
 
     // 𝐿𝑟 𝛚𝑟 ≈ 𝑁 𝑓𝑟 𝛚𝑖,𝛚𝑟 𝐿𝑖 𝛚𝑖 cos𝜃𝑖⁡
 
@@ -261,6 +271,11 @@ shade(RayPayload ray, Intersection intersection)
     Material mat = materials[intersection.materialIndex];
     float r2 = mat.roughnessFactor * mat.roughnessFactor;
     vec3 albedo = mat.color.rgb;
+    if (mat.albedoTexture != MAX_UINT)
+    {
+      vec4 albedoFromT = fetchTexture(samplerNearest, mat.albedoTexture, uv);
+      albedo = albedoFromT.rgb;
+    }
 
     #ifdef MIS
       const float nbLights = 0.0;
@@ -285,7 +300,9 @@ shade(RayPayload ray, Intersection intersection)
     dir = mix(brdf.dir, dir, pdf);
 
     vec3 directRadiance = albedo * brdf.pdf;
-    throughput *= mix(directRadiance, vec3(1.0), pdf);
+    // throughput *= mix(directRadiance, vec3(1.0), pdf);
+
+    throughput *= albedo;
 
     ray.origin.xyz += intersection.dist * ray.dir.xyz + normal * EPSILON;
     ray.dir.xyz = dir;
