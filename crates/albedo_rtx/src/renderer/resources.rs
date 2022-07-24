@@ -62,7 +62,7 @@ pub struct MaterialGPU {
     pub roughness: f32,
     pub reflectivity: f32,
     pub albedo_texture: u32,
-    pub pad_0: u32,
+    pub mra_texture: u32,
 }
 unsafe impl bytemuck::Pod for MaterialGPU {}
 unsafe impl bytemuck::Zeroable for MaterialGPU {}
@@ -74,6 +74,7 @@ impl MaterialGPU {
             roughness,
             reflectivity,
             albedo_texture: INVALID_INDEX,
+            mra_texture: INVALID_INDEX,
             ..Default::default()
         }
     }

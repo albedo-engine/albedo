@@ -4,26 +4,26 @@
 void
 fetchBounds(uint textureIndex, out vec4 bounds, out float layer)
 {
-  uvec4 data = texelFetch(textureInfo, ivec2(textureIndex, 0), 0).rgba;
-  layer = float((data.height & 0xFF000000) >> 24);
-  bounds = vec4(float(data.x), float(data.y), float(data.z), float(packed & 0x00FFFFFF));
+  uvec4 data = texelFetch(usampler1D(textureInfo, samplerNearest), int(textureIndex), 0).rgba;
+  layer = float((data.w & 0xFF000000) >> 24);
+  bounds = vec4(float(data.x), float(data.y), float(data.z), float(data.w & 0x00FFFFFF));
 }
 
 vec4
 fetchTexture(sampler samp, uint textureIndex, vec2 uv)
 {
-  uint layer = 0;
   // @todo: optimize away.
   vec2 atlasSize = vec2(textureSize(textureAtlas, 0).xy);
-  vec2 offset = vec2(0.0, 0.0) / atlasSize;
-
   float layer = 0.0;
   vec4 bounds = vec4(0.0);
   fetchBounds(textureIndex, bounds, layer);
-  bounds /= atlasSize
-
-  vec2 atlasUV = bounds.xy + (uv * bounds.zw);
-  return texture(sampler2DArray(textureAtlas, samp), vec3(atlasUV, 0.0));
+  bounds.xy /= atlasSize;
+  bounds.zw /= atlasSize;
+  return texture(
+    sampler2DArray(textureAtlas, samp),
+    // vec3(bounds.xy + (uv * bounds.zw), layer)
+    vec3(uv, 0.0)
+  );
 }
 
 #endif // TEXTURE_UTILS_H

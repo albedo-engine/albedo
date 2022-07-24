@@ -1,8 +1,10 @@
 #!/bin/bash
 
+COMPILER=~/Tools/shaderc/bin/glslc
+
 to_spirv()
 {
-  $TOOLS_DIR/vulkansdk-macos-1.2.135.0/macOS/bin/glslangValidator -V $1 -o $2
+    $COMPILER $1 -o $2
 }
 
 

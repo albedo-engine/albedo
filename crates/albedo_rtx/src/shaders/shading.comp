@@ -44,7 +44,8 @@ struct Material
   float roughnessFactor;
   float metallic;
   uint  albedoTexture;
-  uint  pad_0;
+  // @todo: for now, metal in B channel and roughness in G.
+  uint  mraTexture;
 };
 
 /**
@@ -86,7 +87,7 @@ layout (set = 0, binding = 7, std430) readonly buffer MaterialBuffer {
 
 layout( set = 0, binding = 8 ) uniform texture2D Probe;
 
-layout(set = 0, binding = 9) uniform usampler1D textureInfo;
+layout(set = 0, binding = 9) uniform utexture1D textureInfo;
 
 layout(set = 0, binding = 10) uniform texture2DArray textureAtlas;
 
@@ -95,7 +96,6 @@ layout( set = 0, binding = 11 ) uniform sampler samplerNearest;
 layout (set = 0, binding = 12) uniform GlobalUniformBuffer {
   GlobalUniforms global;
 };
-
 
 /* Utils */
 
@@ -269,12 +269,18 @@ shade(RayPayload ray, Intersection intersection)
     BRDFSpecularSample specBRDF = SpecularBRDF(ray.dir.xyz, normal);
 
     Material mat = materials[intersection.materialIndex];
-    float r2 = mat.roughnessFactor * mat.roughnessFactor;
+    float metalness = mat.metallic;
+    float roughness = mat.roughnessFactor;
     vec3 albedo = mat.color.rgb;
     if (mat.albedoTexture != MAX_UINT)
     {
-      vec4 albedoFromT = fetchTexture(samplerNearest, mat.albedoTexture, uv);
-      albedo = albedoFromT.rgb;
+      albedo *= fetchTexture(samplerNearest, mat.albedoTexture, uv).rgb;
+    }
+    if (mat.mraTexture != MAX_UINT)
+    {
+      vec4 mraFetch = fetchTexture(samplerNearest, mat.mraTexture, uv).rgba;
+      roughness *= mraFetch.g;
+      metalness *= mraFetch.b;
     }
 
     #ifdef MIS
@@ -295,14 +301,13 @@ shade(RayPayload ray, Intersection intersection)
       }
     #endif // MIS
 
-    float pdf =  rand(randState) < mat.metallic ? 1.0 : 0.0;
+    float r2 = roughness * roughness;
+    float pdf = rand(randState) < metalness ? 1.0 : 0.0;
     vec3 dir = normalize(mix(specBRDF.dir, brdf.dir, r2));
     dir = mix(brdf.dir, dir, pdf);
 
     vec3 directRadiance = albedo * brdf.pdf;
-    // throughput *= mix(directRadiance, vec3(1.0), pdf);
-
-    throughput *= albedo;
+    throughput *= mix(directRadiance, vec3(1.0), pdf);
 
     ray.origin.xyz += intersection.dist * ray.dir.xyz + normal * EPSILON;
     ray.dir.xyz = dir;
