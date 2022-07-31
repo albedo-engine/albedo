@@ -12,6 +12,7 @@ struct GlobalUniforms
 struct Instance
 {
   // @todo: reduce size of this struct.
+  mat4 modelToWorld;
   mat4 worldToModel;
   uint materialIndex;
   uint bvhRootIndex;

@@ -35,6 +35,7 @@ unsafe impl bytemuck::Zeroable for BVHNodeGPU {}
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct InstanceGPU {
+    pub model_to_world: glam::Mat4,
     pub world_to_model: glam::Mat4,
     pub material_index: u32,
     // @todo: migrate those parameter to an SSBO of offsets.
@@ -42,16 +43,6 @@ pub struct InstanceGPU {
     pub vertex_root_index: u32,
     pub index_root_index: u32,
 }
-
-impl InstanceGPU {
-    pub fn new(world_to_model: glam::Mat4) -> Self {
-        InstanceGPU {
-            world_to_model,
-            ..Default::default()
-        }
-    }
-}
-
 unsafe impl bytemuck::Pod for InstanceGPU {}
 unsafe impl bytemuck::Zeroable for InstanceGPU {}
 

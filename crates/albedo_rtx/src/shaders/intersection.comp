@@ -4,10 +4,6 @@
 
 #include "structures.comp"
 
-#define EPSILON 0.000001
-#define NEG_EPSILON -0.000001
-#define EPSILON1 1.000001
-
 #define PI_F 3.14159265359
 #define TWO_PI 6.28318530718
 #define TO_RAD_F (PI_F / 180.0)
@@ -71,56 +67,6 @@ float rand(inout uint seed)
   return float(WangHash(seed)) / 4294967296.0;
 }
 
-vec2
-cartesianToEqui(vec3 dir)
-{
-  dir = dir.xzy;
-  vec2 longlat = vec2(atan(dir.y, dir.x), acos(dir.z));
-  longlat.x += PI_F;
-  // Normalize
-  return longlat / vec2(2.0 * PI_F, PI_F);
-}
-
-vec3 interpolate(vec3 v0, vec3 v1, vec3 v2, vec3 barycentric)
-{
-  return (
-    barycentric.x * v0 +
-    barycentric.y * v1 +
-    barycentric.z * v2
-  );
-}
-
-vec2 interpolate(vec2 v0, vec2 v1, vec2 v2, vec3 barycentric)
-{
-  return (
-    barycentric.x * v0 +
-    barycentric.y * v1 +
-    barycentric.z * v2
-  );
-}
-
-// Implementation of Hammersley Points on the Hemisphere
-vec3
-randomCosineWeightedVector(inout uint seed)
-{
-  // To avoid to use a second sine and a normalization, it's possible to
-  // use directly the random number in [0.0; 1.0] and scale the generated
-  // `x` and `z` coordinates by it to obtain a normalized vector.
-  // The code below is equivalent to:
-  //   x = cos(theta), y = sin(phi), z = sin(theta);
-  //   normalize(x, y, z);
-
-  float theta = rand(seed) * TWO_PI;
-  float r = max(EPSILON, rand(seed));
-  float rLen = sqrt(max(EPSILON, 1.0 - r));
-
-  float z = sqrt(r); // weights the samples to tend the normal
-  float x = cos(theta) * rLen; // weights to preserve normalization
-  float y = sin(theta) * rLen; // weights to preserve normalization
-
-  return vec3(x, y, z);
-}
-
 layout(local_size_x = 8, local_size_y = 8) in;
 void main()
 {
@@ -142,7 +88,6 @@ void main()
     intersection.index = INVALID_UINT;
     intersection.instance = INVALID_UINT;
     intersection.emitter = INVALID_UINT;
-    intersection.dist = MAX_FLOAT;
     intersection.dist = sceneHit(ray, intersection);
     intersections[index] = intersection;
   }

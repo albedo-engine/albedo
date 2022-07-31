@@ -12,6 +12,7 @@ fetchBounds(uint textureIndex, out vec4 bounds, out float layer)
 vec4
 fetchTexture(sampler samp, uint textureIndex, vec2 uv)
 {
+  uv = mod(uv, vec2(1.0, 1.0));
   // @todo: optimize away.
   vec2 atlasSize = vec2(textureSize(textureAtlas, 0).xy);
   float layer = 0.0;
@@ -21,8 +22,7 @@ fetchTexture(sampler samp, uint textureIndex, vec2 uv)
   bounds.zw /= atlasSize;
   return texture(
     sampler2DArray(textureAtlas, samp),
-    // vec3(bounds.xy + (uv * bounds.zw), layer)
-    vec3(uv, 0.0)
+    vec3(bounds.xy + (uv * bounds.zw), layer)
   );
 }
 
