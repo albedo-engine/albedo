@@ -1,0 +1,217 @@
+#ifndef SAMPLING_H
+#define SAMPLING_H
+
+struct BSDFSample
+{
+	vec3 dir;
+  vec3 H;
+  float NdotL;
+  float NdotH;
+  float LdotH;
+  float NdotV;
+  float pdf;
+};
+
+struct MaterialState
+{
+  vec3 albedo;
+  float metallic;
+  float perceptualRoughness;
+  float roughness;
+  float roughness2;
+};
+
+// Implementation of Hammersley Points on the Hemisphere
+vec3
+randomCosineWeightedVector(inout uint seed)
+{
+  // To avoid to use a second sine and a normalization, it's possible to
+  // use directly the random number in [0.0; 1.0] and scale the generated
+  // `x` and `z` coordinates by it to obtain a normalized vector.
+  // The code below is equivalent to:
+  //   x = cos(theta), y = sin(phi), z = sin(theta);
+  //   normalize(x, y, z);
+
+  float theta = rand(seed) * TWO_PI;
+  float r = max(EPSILON, rand(seed));
+  float rLen = sqrt(max(EPSILON, 1.0 - r));
+
+  float z = sqrt(r); // weights the samples to tend the normal
+  float x = cos(theta) * rLen; // weights to preserve normalization
+  float y = sin(theta) * rLen; // weights to preserve normalization
+
+  return vec3(x, y, z);
+}
+
+/**
+ * Generalized Trowbridge Reitz, Burley.
+ */
+float GTR2(float NdotH, float a)
+{
+  // @todo: r2 should be a parameter.
+  float a2 = a * a;
+  float t = 1.0 + (a2 - 1.0) * NdotH * NdotH;
+  return a2 / max(EPSILON, PI_F * t * t);
+}
+
+/**
+ * Geometry function: Smith
+ */
+float GeometrySmith_GGX(float NDotv, float alphaG)
+{
+	float a = alphaG * alphaG;
+	float b = NDotv * NDotv;
+	return 1.0 / (NDotv + sqrt(a + b - a * b));
+}
+
+vec3 randomSampleDiffuse_Lambert(
+  const in vec3 normal,
+  const in vec3 tangent,
+  const in vec3 bitangent,
+  inout uint seed
+)
+{
+  vec3 localDir = randomCosineWeightedVector(seed);
+  // @todo: refactor in function.
+  return normalize(tangent * localDir.x + bitangent * localDir.y + localDir.z * normal);
+}
+
+vec3 randomSampleDiffuse_Lambert(const in vec3 normal, inout uint seed)
+{
+  vec3 worldUp = abs(normal.z) < 0.9999 ? vec3(0, 0, 1) : vec3(1, 0, 0);
+  vec3 tangent = normalize(cross(worldUp, normal));
+  vec3 bitangent = cross(normal, tangent);
+  return randomSampleDiffuse_Lambert(normal, tangent, bitangent, seed);
+}
+
+vec3 randomSampleSpecular_GGX(
+  const in vec3 w0,
+  const in vec3 normal,
+  const in vec3 tangent,
+  const in vec3 bitangent,
+  const float roughness,
+  inout uint seed
+)
+{
+  vec3 V = - w0;
+  float r1 = rand(seed);
+	float r2 = rand(seed);
+
+  float a = max(0.001, roughness);
+
+  float phi = r1 * 2.0 * PI_F;
+
+  float cosTheta = sqrt((1.0 - r2) / (1.0 + (a*a - 1.0) *r2));
+  float sinTheta = clamp(sqrt(1.0 - (cosTheta * cosTheta)), 0.0, 1.0);
+  float sinPhi = sin(phi);
+  float cosPhi = cos(phi);
+
+  vec3 halfVec = vec3(sinTheta*cosPhi, sinTheta*sinPhi, cosTheta);
+  // @todo: refactor in function.
+  halfVec = tangent * halfVec.x + bitangent * halfVec.y + normal * halfVec.z;
+
+  return 2.0*dot(V, halfVec)*halfVec - V;
+}
+
+float SchlickFresnel(float u)
+{
+	float m = clamp(1.0 - u, 0.0, 1.0);
+	float m2 = m * m;
+	return m2 * m2*m;
+}
+
+BSDFSample sampleBSDF_UE4(
+  const vec3 w0,
+  const vec3 normal,
+  const MaterialState mat,
+  inout uint seed
+)
+{
+  // @todo: a lot of variable could be pre-computed
+  // and passed to this function.
+
+  BSDFSample bsdf;
+
+  vec3 worldUp = abs(normal.z) < 0.9999 ? vec3(0, 0, 1) : vec3(1, 0, 0);
+  vec3 tangent = normalize(cross(worldUp, normal));
+  vec3 bitangent = cross(normal, tangent);
+
+  float diffuseRatio = 0.5 * (1.0 - mat.metallic);
+  float specularRatio = 1.0 - diffuseRatio;
+
+  /*
+   * 1. Sample BSDF direction
+   */
+
+  float probability = rand(seed);
+  if (probability < diffuseRatio)
+  {
+    bsdf.dir = randomSampleDiffuse_Lambert(normal, tangent, bitangent, seed);
+  }
+  else
+  {
+    bsdf.dir = randomSampleSpecular_GGX(w0, normal, tangent, bitangent, mat.perceptualRoughness, seed);
+  }
+
+  /*
+   * 1. Sample PDF
+   */
+
+  vec3 V = - w0;
+  vec3 L = bsdf.dir;
+
+  bsdf.H = normalize(L + V);
+  bsdf.NdotL = dot(normal, L);
+  bsdf.NdotH = dot(normal, bsdf.H);
+	bsdf.LdotH = dot(L, bsdf.H);
+	bsdf.NdotV = dot(normal, V);
+
+  float cosTheta = abs(bsdf.NdotH);
+  float pdfGTR2 = GTR2(cosTheta, mat.perceptualRoughness) * cosTheta;
+
+  // calculate diffuse and specular pdfs and mix ratio
+  // @todo: ensure no NaN can occur
+  float pdfSpec = pdfGTR2 / (4.0 * abs(bsdf.LdotH));
+  float pdfDiff = abs(bsdf.NdotL) * (1.0 / PI_F);
+
+  // weight pdfs according to ratios
+  bsdf.pdf = diffuseRatio * pdfDiff + specularRatio * pdfSpec;
+
+  return bsdf;
+}
+
+/**
+ * Evaluates a sample with the given BSDF and geometric data.
+ * This method is based on a general Cook-Torrance model.
+ *
+ * This method is inspired and modified from:
+ *  - OpenGLPathtracer: https://github.com/RobertBeckebans/OpenGL-PathTracer/blob/master/PathTracer/src/shaders/Progressive/PathTraceFrag.glsl
+ *  - Real shading in Unreal Engine 4: https://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf
+ */
+vec3 evalSample_UE4(
+  const BSDFSample bsdf,
+  const vec3 w0,
+  const vec3 normal,
+  const MaterialState mat
+)
+{
+  // @todo: a lot of variable could be pre-computed
+  // and passed to this function.
+  // This could be refactored easily with sampleBSDF_UE4
+
+	if (bsdf.NdotL <= 0.0 || bsdf.NdotV <= 0.0) return vec3(0.0);
+
+	// specular
+	float specular = 0.5;
+	vec3 specularCol = mix(vec3(1.0) * 0.08 * specular, mat.albedo, mat.metallic);
+	float Ds = GTR2(bsdf.NdotH, mat.perceptualRoughness);
+	float FH = SchlickFresnel(bsdf.LdotH);
+	vec3 Fs = mix(specularCol, vec3(1.0), FH);
+	// float roughg = (roughness*0.5 + 0.5);
+	// roughg = roughg * roughg;
+	float Gs = GeometrySmith_GGX(bsdf.NdotL, mat.roughness) * GeometrySmith_GGX(bsdf.NdotV, mat.roughness);
+
+	return (mat.albedo / PI_F) * (1.0 - mat.metallic) + Gs * Fs * Ds;
+}
+
+#endif // SAMPLING_H
