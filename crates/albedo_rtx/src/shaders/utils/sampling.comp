@@ -46,10 +46,8 @@ randomCosineWeightedVector(inout uint seed)
 /**
  * Generalized Trowbridge Reitz, Burley.
  */
-float GTR2(float NdotH, float a)
+float GTR2(float NdotH, float a2)
 {
-  // @todo: r2 should be a parameter.
-  float a2 = a * a;
   float t = 1.0 + (a2 - 1.0) * NdotH * NdotH;
   return a2 / max(EPSILON, PI_F * t * t);
 }
@@ -57,11 +55,10 @@ float GTR2(float NdotH, float a)
 /**
  * Geometry function: Smith
  */
-float GeometrySmith_GGX(float NDotv, float alphaG)
+float GeometrySmith_GGX(float NDotv, float a2)
 {
-	float a = alphaG * alphaG;
 	float b = NDotv * NDotv;
-	return 1.0 / (NDotv + sqrt(a + b - a * b));
+	return 1.0 / (NDotv + sqrt(a2 + b - a2 * b));
 }
 
 vec3 randomSampleDiffuse_Lambert(
@@ -167,16 +164,14 @@ BSDFSample sampleBSDF_UE4(
 	bsdf.NdotV = dot(normal, V);
 
   float cosTheta = abs(bsdf.NdotH);
-  float pdfGTR2 = GTR2(cosTheta, mat.perceptualRoughness) * cosTheta;
+  float pdfGTR2 = GTR2(cosTheta, mat.roughness2) * cosTheta;
 
   // calculate diffuse and specular pdfs and mix ratio
-  // @todo: ensure no NaN can occur
-  float pdfSpec = pdfGTR2 / (4.0 * abs(bsdf.LdotH));
+  float pdfSpec = pdfGTR2 / (4.0 * abs(bsdf.LdotH) + EPSILON);
   float pdfDiff = abs(bsdf.NdotL) * (1.0 / PI_F);
 
   // weight pdfs according to ratios
   bsdf.pdf = diffuseRatio * pdfDiff + specularRatio * pdfSpec;
-
   return bsdf;
 }
 
@@ -195,21 +190,15 @@ vec3 evalSample_UE4(
   const MaterialState mat
 )
 {
-  // @todo: a lot of variable could be pre-computed
-  // and passed to this function.
-  // This could be refactored easily with sampleBSDF_UE4
+	if (bsdf.NdotL <= EPSILON || bsdf.NdotV <= EPSILON)
+  {
+    return vec3(0.0);
+  }
 
-	if (bsdf.NdotL <= 0.0 || bsdf.NdotV <= 0.0) return vec3(0.0);
-
-	// specular
-	float specular = 0.5;
-	vec3 specularCol = mix(vec3(1.0) * 0.08 * specular, mat.albedo, mat.metallic);
-	float Ds = GTR2(bsdf.NdotH, mat.perceptualRoughness);
+	float Ds = GTR2(bsdf.NdotH, mat.roughness2);
 	float FH = SchlickFresnel(bsdf.LdotH);
-	vec3 Fs = mix(specularCol, vec3(1.0), FH);
-	// float roughg = (roughness*0.5 + 0.5);
-	// roughg = roughg * roughg;
-	float Gs = GeometrySmith_GGX(bsdf.NdotL, mat.roughness) * GeometrySmith_GGX(bsdf.NdotV, mat.roughness);
+	float Gs = GeometrySmith_GGX(bsdf.NdotL, mat.roughness2) * GeometrySmith_GGX(bsdf.NdotV, mat.roughness2);
+	vec3 Fs = mix(mix(vec3(0.0), mat.albedo, mat.metallic), vec3(1.0), FH);
 
 	return (mat.albedo / PI_F) * (1.0 - mat.metallic) + Gs * Fs * Ds;
 }

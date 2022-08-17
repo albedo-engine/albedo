@@ -232,7 +232,7 @@ shade(RayPayload ray, Intersection intersection)
     }
     mat.perceptualRoughness = max(EPSILON, mat.perceptualRoughness);
     mat.roughness = max(EPSILON, mat.perceptualRoughness * mat.perceptualRoughness);
-    mat.roughness2 = mat.roughness2 * mat.roughness2;
+    mat.roughness2 = mat.roughness * mat.roughness;
 
     BSDFSample bsdf = sampleBSDF_UE4(ray.dir.xyz, normal, mat, randState);
     if (bsdf.pdf > EPSILON)
@@ -242,15 +242,15 @@ shade(RayPayload ray, Intersection intersection)
     ray.dir.xyz = bsdf.dir;
   }
 
-  // {
-  //   // Russian roulette.
-  //   float p = max(throughput.r, max(throughput.g, throughput.b));
-  //   if (rand(randState) > p) {
-  //     ray.terminated = 1u;
-  //   } else {
-  //     throughput *= 1.0 / p;
-  //   }
-  // }
+  {
+    // Russian roulette.
+    float p = max(throughput.r, max(throughput.g, throughput.b));
+    if (rand(randState) > p) {
+      ray.terminated = 1u;
+    } else {
+      throughput *= 1.0 / p;
+    }
+  }
 
   setThroughput(ray, throughput);
   return ray;
