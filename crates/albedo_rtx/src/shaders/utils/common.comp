@@ -27,6 +27,12 @@ transformDirection(vec3 direction, mat4 transform)
   return normalize((transform * vec4(direction, 0.0)).xyz);
 }
 
+vec3
+project(vec3 val, const vec3 normal, const vec3 tangent, const vec3 bitangent)
+{
+  return tangent * val.x + bitangent * val.y + normal * val.z;
+}
+
 Ray
 transformRay(inout Ray ray, mat4 transform)
 {
