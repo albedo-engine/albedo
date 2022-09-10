@@ -75,6 +75,7 @@ pub fn build_acceleration_structure_gpu<'a>(bvhs: &[BVH], meshes: &[impl Mesh]) 
             vertex_buffer.push(resources::VertexGPU::new(
                 mesh.position(v).unwrap(),
                 mesh.normal(v).unwrap(),
+                mesh.uv(v)
             ));
         }
     }

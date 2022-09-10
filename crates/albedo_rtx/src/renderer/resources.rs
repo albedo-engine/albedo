@@ -1,3 +1,7 @@
+use std::convert::TryInto;
+
+pub static INVALID_INDEX: u32 = std::u32::MAX;
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct BVHNodeGPU {
@@ -31,6 +35,7 @@ unsafe impl bytemuck::Zeroable for BVHNodeGPU {}
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct InstanceGPU {
+    pub model_to_world: glam::Mat4,
     pub world_to_model: glam::Mat4,
     pub material_index: u32,
     // @todo: migrate those parameter to an SSBO of offsets.
@@ -38,26 +43,17 @@ pub struct InstanceGPU {
     pub vertex_root_index: u32,
     pub index_root_index: u32,
 }
-
-impl InstanceGPU {
-    pub fn new(world_to_model: glam::Mat4) -> Self {
-        InstanceGPU {
-            world_to_model,
-            ..Default::default()
-        }
-    }
-}
-
 unsafe impl bytemuck::Pod for InstanceGPU {}
 unsafe impl bytemuck::Zeroable for InstanceGPU {}
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct MaterialGPU {
     pub color: glam::Vec4,
     pub roughness: f32,
     pub reflectivity: f32,
-    pub pad_0: glam::Vec2,
+    pub albedo_texture: u32,
+    pub mra_texture: u32,
 }
 unsafe impl bytemuck::Pod for MaterialGPU {}
 unsafe impl bytemuck::Zeroable for MaterialGPU {}
@@ -68,7 +64,9 @@ impl MaterialGPU {
             color,
             roughness,
             reflectivity,
-            pad_0: glam::Vec2::new(0.0, 0.0),
+            albedo_texture: INVALID_INDEX,
+            mra_texture: INVALID_INDEX,
+            ..Default::default()
         }
     }
 }
@@ -76,35 +74,26 @@ impl MaterialGPU {
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct VertexGPU {
-    pub position: glam::Vec3,
-    padding_0: f32,
-    pub normal: glam::Vec3,
-    padding_1: f32,
-    // @todo: add UV
+    position: [f32; 4],
+    normal: [f32; 4],
 }
 unsafe impl bytemuck::Pod for VertexGPU {}
 unsafe impl bytemuck::Zeroable for VertexGPU {}
 
 impl VertexGPU {
-    pub fn from_position(position: &[f32; 3]) -> Self {
+
+    const DEFAULT_UV: [f32; 2] = [0.0, 0.0];
+
+    pub fn new(position: &[f32; 3], normal: &[f32; 3], uv: Option<&[f32; 2]>) -> Self {
+        let uv = uv.unwrap_or(&Self::DEFAULT_UV);
         VertexGPU {
-            position: (*position).into(),
-            ..Default::default()
+            position: [position[0], position[1], position[2], uv[0]],
+            normal: [normal[0], normal[1], normal[2], uv[1]],
         }
     }
 
-    pub fn new(position: &[f32; 3], normal: &[f32; 3]) -> Self {
-        VertexGPU {
-            position: (*position).into(),
-            normal: (*normal).into(),
-            ..Default::default()
-        }
-    }
-}
-
-impl From<&[f32; 3]> for VertexGPU {
-    fn from(item: &[f32; 3]) -> Self {
-        VertexGPU::from_position(item)
+    pub fn position(&self) -> &[f32; 3] {
+        self.position[0..3].try_into().unwrap()
     }
 }
 
@@ -270,3 +259,55 @@ pub struct IntersectionGPU {
 
 unsafe impl bytemuck::Pod for IntersectionGPU {}
 unsafe impl bytemuck::Zeroable for IntersectionGPU {}
+
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct TextureInfoGPU {
+    x: u32,
+    y: u32,
+    width: u32,
+    // Height should be stored in the first 24 bits, and atlas on the last 8 bits.
+    layer_and_height: u32,
+}
+
+impl TextureInfoGPU {
+    pub fn pack_value(layer: u32, value: u32) -> u32 {
+        layer << 24 | value
+    }
+
+    pub fn unpack_value(packed: u32) -> u32 {
+        packed & 0x00FFFFFF
+    }
+
+    pub fn unpack_layer(packed: u32) -> u8 {
+        ((packed & 0xFF000000) >> 24) as u8
+    }
+
+    pub fn new(layer: u8, x: u32, y: u32, width: u32, height: u32) -> Self {
+        Self {
+            x,
+            y,
+            width,
+            layer_and_height: Self::pack_value(layer as u32, height),
+        }
+    }
+
+    pub fn x(&self) -> u32 {
+        self.x
+    }
+    pub fn y(&self) -> u32 {
+        self.y
+    }
+    pub fn width(&self) -> u32 {
+        self.width
+    }
+    pub fn height(&self) -> u32 {
+        Self::unpack_value(self.layer_and_height)
+    }
+    pub fn layer(&self) -> u8 {
+        Self::unpack_layer(self.layer_and_height)
+    }
+}
+
+unsafe impl bytemuck::Pod for TextureInfoGPU {}
+unsafe impl bytemuck::Zeroable for TextureInfoGPU {}
