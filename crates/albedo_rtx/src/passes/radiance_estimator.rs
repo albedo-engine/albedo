@@ -35,7 +35,7 @@ impl ShadingPassDescriptor {
             push_constant_ranges: &[],
         });
 
-        let shader = device.create_shader_module(&wgpu::include_spirv!(concat!(
+        let shader = device.create_shader_module(wgpu::include_spirv!(concat!(
             "..",
             path_separator!(),
             "shaders",
@@ -62,7 +62,7 @@ impl ShadingPassDescriptor {
     pub fn set_shader(
         &mut self,
         device: &wgpu::Device,
-        shader_desc: &wgpu::ShaderModuleDescriptor,
+        shader_desc: wgpu::ShaderModuleDescriptor,
     ) {
         let shader = device.create_shader_module(shader_desc);
         self.pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {

@@ -46,7 +46,7 @@ where
     ) {
         let inner_pass = &mut self.inner_pass;
         Description::set_pass_bind_groups(inner_pass, bind_groups);
-        inner_pass.dispatch(
+        inner_pass.dispatch_workgroups(
             size.0 / workgroup_size.0 + size.0 % workgroup_size.0,
             size.1 / workgroup_size.1 + size.1 % workgroup_size.1,
             size.2 / workgroup_size.2 + size.2 % workgroup_size.2,

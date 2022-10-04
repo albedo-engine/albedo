@@ -31,7 +31,7 @@ impl BVHDebugPass {
             push_constant_ranges: &[],
         });
 
-        let shader = device.create_shader_module(&wgpu::include_spirv!(concat!(
+        let shader = device.create_shader_module(wgpu::include_spirv!(concat!(
             "..",
             path_separator!(),
             "shaders",
@@ -101,7 +101,7 @@ impl BVHDebugPass {
                 compute_pass.set_pipeline(&self.pipeline);
                 compute_pass.set_bind_group(0, base_group, &[]);
                 // @todo: how to deal with hardcoded size.
-                compute_pass.dispatch(width / 8, height / 8, 1);
+                compute_pass.dispatch_workgroups(width / 8, height / 8, 1);
             }
             _ => (),
         }

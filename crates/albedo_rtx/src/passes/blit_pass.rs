@@ -36,7 +36,7 @@ impl BlitPass {
             ],
         });
 
-        let vx_module = device.create_shader_module(&wgpu::include_spirv!(concat!(
+        let vx_module = device.create_shader_module(wgpu::include_spirv!(concat!(
             "..",
             path_separator!(),
             "shaders",
@@ -45,7 +45,7 @@ impl BlitPass {
             path_separator!(),
             "blitting.vert.spv"
         )));
-        let fg_module = device.create_shader_module(&wgpu::include_spirv!(concat!(
+        let fg_module = device.create_shader_module(wgpu::include_spirv!(concat!(
             "..",
             path_separator!(),
             "shaders",
@@ -72,7 +72,7 @@ impl BlitPass {
             fragment: Some(wgpu::FragmentState {
                 module: &fg_module,
                 entry_point: "main",
-                targets: &[swap_chain_format.into()],
+                targets: &[Some(swap_chain_format.into())],
             }),
             primitive: wgpu::PrimitiveState {
                 cull_mode: None,
@@ -124,7 +124,7 @@ impl BlitPass {
     ) {
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
-            color_attachments: &[wgpu::RenderPassColorAttachment {
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: view,
                 resolve_target: None,
                 ops: wgpu::Operations {
@@ -136,7 +136,7 @@ impl BlitPass {
                     }),
                     store: true,
                 },
-            }],
+            })],
             depth_stencil_attachment: None,
         });
         pass.set_pipeline(&self.pipeline);

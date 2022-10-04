@@ -24,7 +24,7 @@ impl RayGeneratorPassDescriptor {
             push_constant_ranges: &[],
         });
 
-        let shader = device.create_shader_module(&wgpu::include_spirv!(concat!(
+        let shader = device.create_shader_module(wgpu::include_spirv!(concat!(
             "..",
             path_separator!(),
             "shaders",
