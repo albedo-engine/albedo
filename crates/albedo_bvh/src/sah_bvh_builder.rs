@@ -1,7 +1,7 @@
 use albedo_math::{clamp, AABB};
 use glam::Vec3;
 
-use crate::accel::{BVHBuilder, BVHNode, BVH};
+use crate::{BVHBuilder, BVHNode, BVH};
 use crate::mesh::Mesh;
 
 #[derive(Default, Copy, Clone)]

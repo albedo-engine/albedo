@@ -1,6 +1,35 @@
-use crate::mesh::Mesh;
-use crate::renderer::resources;
+use crate::Mesh;
 use albedo_math::AABB;
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct BVHNodeGPU {
+    pub min: [f32; 3],
+    pub next_node_index: u32,
+    pub max: [f32; 3],
+    pub primitive_index: u32,
+}
+
+impl BVHNodeGPU {
+    pub fn min(&self) -> &[f32; 3] {
+        &self.min
+    }
+
+    pub fn next(&self) -> u32 {
+        self.next_node_index
+    }
+
+    pub fn primitive(&self) -> u32 {
+        self.primitive_index
+    }
+
+    pub fn max(&self) -> &[f32; 3] {
+        &self.max
+    }
+}
+
+unsafe impl bytemuck::Pod for BVHNodeGPU {}
+unsafe impl bytemuck::Zeroable for BVHNodeGPU {}
 
 // @todo: alias std::u32::MAX with "InvalidValue" for semantic.
 // @todo: make generic
@@ -73,11 +102,11 @@ impl BVHNode {
 }
 
 pub struct FlatBVH {
-    nodes: Vec<resources::BVHNodeGPU>,
+    nodes: Vec<BVHNodeGPU>,
 }
 
 impl FlatBVH {
-    pub fn nodes(&self) -> &Vec<resources::BVHNodeGPU> {
+    pub fn nodes(&self) -> &Vec<BVHNodeGPU> {
         &self.nodes
     }
 }
@@ -138,13 +167,13 @@ pub trait BVHBuilder {
 }
 
 fn flatten_bvh_rec(
-    out: &mut Vec<resources::BVHNodeGPU>,
+    out: &mut Vec<BVHNodeGPU>,
     nodes: &Vec<BVHNode>,
     input_index: u32,
     miss_index: u32,
 ) {
     let node = &nodes[input_index as usize];
-    out.push(resources::BVHNodeGPU {
+    out.push(BVHNodeGPU {
         min: node.aabb().min.into(),
         max: node.aabb().max.into(),
         next_node_index: miss_index,

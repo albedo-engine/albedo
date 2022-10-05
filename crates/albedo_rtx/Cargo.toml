@@ -14,4 +14,5 @@ glam = "0.20.2"
 guillotiere = "0.6.2"
 wgpu = { version = "0.13.0", features = ["spirv"] }
 albedo_backend = { path = "../albedo_backend", version = "0.0.1-beta.0" }
+albedo_bvh = { path = "../albedo_bvh", version = "0.0.1-beta.0" }
 albedo_math = { path = "../albedo_math", version = "0.0.1-beta.0" }

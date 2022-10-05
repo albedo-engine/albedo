@@ -1,0 +1,14 @@
+[package]
+name = "albedo_bvh"
+version = "0.0.1-beta.0"
+edition = "2018"
+authors = ["David Peicho <david.peicho@gmail.com>"]
+description = "Provides Bounding Volume Hierachy utilities"
+repository = "https://github.com/albedo-engine/albedo"
+license = "MIT"
+keywords = ["bvh", "graphics", "intersection", "triangle" ]
+
+[dependencies]
+bytemuck = "1.4.1"
+glam = "0.20.2"
+albedo_math = { path = "../albedo_math", version = "0.0.1-beta.0" }

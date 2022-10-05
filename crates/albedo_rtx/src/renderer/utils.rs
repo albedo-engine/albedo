@@ -29,6 +29,7 @@ pub struct GPUResources {
     pub index_buffer: Vec<u32>,
 }
 
+// @todo: move to bvh crate.
 // @todo: passing BVH and meshes separately makes it possible to feed a BVH that
 // doesn't go with the associated mesh...
 // However, the nature of the BVH makes it disociated from its mesh.
