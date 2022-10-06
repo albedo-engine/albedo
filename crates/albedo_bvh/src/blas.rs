@@ -3,30 +3,22 @@ use crate::mesh::Mesh;
 use crate::renderer::resources;
 
 pub struct Offsets {
-    node: u32,
-    vertex: u32,
-    index: u32,
+    pub node: u32,
+    pub vertex: u32,
+    pub index: u32,
 }
 
-impl Offsets {
-    pub fn node(&self) -> u32 {
-        self.node
-    }
-
-    pub fn vertex(&self) -> u32 {
-        self.vertex
-    }
-
-    pub fn index(&self) -> u32 {
-        self.index
-    }
+pub struct BLAS {
+    offset_table: Vec<Offsets>,
+    nodes_buffer: Vec<resources::BVHNodeGPU>,
+    vertex_buffer: Vec<resources::VertexGPU>,
+    index_buffer: Vec<u32>,
 }
 
-pub struct GPUResources {
-    pub offset_table: Vec<Offsets>,
-    pub nodes_buffer: Vec<resources::BVHNodeGPU>,
-    pub vertex_buffer: Vec<resources::VertexGPU>,
-    pub index_buffer: Vec<u32>,
+impl BLAS {
+
+    fn new(meshes: &[impl Mesh], builder: )
+
 }
 
 // @todo: move to bvh crate.

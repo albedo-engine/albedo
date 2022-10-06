@@ -60,7 +60,7 @@ impl BVHDebugPass {
         device: &wgpu::Device,
         out_rays: &GPUBuffer<resources::RayGPU>,
         instances: &GPUBuffer<resources::InstanceGPU>,
-        nodes: &GPUBuffer<resources::BVHNodeGPU>,
+        nodes: &wgpu::Buffer,
         indices: &GPUBuffer<u32>,
         vertices: &GPUBuffer<resources::VertexGPU>,
     ) {

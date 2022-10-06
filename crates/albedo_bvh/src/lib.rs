@@ -1,7 +1,7 @@
 mod bvh;
+mod builders;
 mod mesh;
-mod sah_bvh_builder;
 
 pub use mesh::Mesh;
+pub use builders::{Builder, SAHBuilder};
 pub use bvh::{BVHBuilder, BVHNode, BVHNodeGPU, BVH};
-pub use sah_bvh_builder::SAHBuilder;
