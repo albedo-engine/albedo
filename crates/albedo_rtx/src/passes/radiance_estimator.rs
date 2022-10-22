@@ -77,7 +77,7 @@ impl ShadingPassDescriptor {
         &self,
         device: &wgpu::Device,
         out_rays: &GPUBuffer<resources::RayGPU>,
-        nodes: &GPUBuffer<resources::BVHNodeGPU>,
+        nodes: &wgpu::Buffer,
         intersections: &GPUBuffer<resources::IntersectionGPU>,
         instances: &GPUBuffer<resources::InstanceGPU>,
         indices: &GPUBuffer<u32>,

@@ -1,8 +1,9 @@
 use albedo_math::{clamp, AABB};
 use glam::Vec3;
 
-use crate::{BVHBuilder, BVHNode, BVH};
-use crate::mesh::Mesh;
+use crate::builders::{BVHBuilder};
+use crate::{Node, BVH};
+use crate::{Mesh, Vertex};
 
 #[derive(Default, Copy, Clone)]
 struct SAHBin {
@@ -24,7 +25,7 @@ impl SAHBuilder {
 }
 
 impl BVHBuilder for SAHBuilder {
-    fn build(&mut self, mesh: &impl Mesh) -> Result<BVH, &'static str> {
+    fn build<V: Vertex>(&mut self, mesh: &impl Mesh<V>) -> Result<BVH, &'static str> {
         // @todo: support for quads.
         // @todo: support for u8 and u32.
         let nb_triangles = mesh.index_count() / 3;
@@ -50,7 +51,7 @@ impl BVHBuilder for SAHBuilder {
             aabb.expand_mut(&Vec3::from(*v0_pos));
             aabb.expand_mut(&Vec3::from(*v1_pos));
             aabb.expand_mut(&Vec3::from(*v2_pos));
-            nodes.push(BVHNode::make_leaf(aabb, primitive_start));
+            nodes.push(Node::make_leaf(aabb, primitive_start));
         }
 
         let root = rec_build(&mut nodes, &mut self._bins, 0, nb_triangles as usize);
@@ -59,7 +60,7 @@ impl BVHBuilder for SAHBuilder {
 }
 
 // @todo: replace usize by u32
-fn rec_build(nodes: &mut Vec<BVHNode>, bins: &mut [SAHBin], start: usize, end: usize) -> usize {
+fn rec_build(nodes: &mut Vec<Node>, bins: &mut [SAHBin], start: usize, end: usize) -> usize {
     if end - start <= 1 {
         return start;
     }
@@ -124,7 +125,7 @@ fn rec_build(nodes: &mut Vec<BVHNode>, bins: &mut [SAHBin], start: usize, end: u
         right_child_index = tmp;
     }
 
-    nodes.push(BVHNode::Node {
+    nodes.push(Node::Node {
         aabb,
         left_child: left_child_index as u32,
         right_child: right_child_index as u32,

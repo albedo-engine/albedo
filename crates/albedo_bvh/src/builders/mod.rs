@@ -1,11 +1,9 @@
 mod sah_bvh_builder;
 
 pub use sah_bvh_builder::SAHBuilder;
-pub use crate::{BVH, Mesh};
+pub use crate::{BVH, Mesh, Vertex};
 
-
-trait Builder {
-
-    fn build(mesh: &impl Mesh) -> BVH; 
-
+pub trait BVHBuilder {
+    // @todo: create custom Error type.
+    fn build<V: Vertex>(&mut self, mesh: &impl Mesh<V>) -> Result<BVH, &'static str>;
 }

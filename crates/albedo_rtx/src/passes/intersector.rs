@@ -57,7 +57,7 @@ impl IntersectorPassDescriptor {
         device: &wgpu::Device,
         out_intersections: &GPUBuffer<resources::IntersectionGPU>,
         instances: &GPUBuffer<resources::InstanceGPU>,
-        nodes: &GPUBuffer<resources::BVHNodeGPU>,
+        nodes: &wgpu::Buffer,
         indices: &GPUBuffer<u32>,
         vertices: &GPUBuffer<resources::VertexGPU>,
         lights: &GPUBuffer<resources::LightGPU>,

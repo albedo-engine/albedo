@@ -1,16 +1,17 @@
-use crate::Mesh;
 use albedo_math::AABB;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct BVHNodeGPU {
+pub struct FlatNode {
     pub min: [f32; 3],
     pub next_node_index: u32,
     pub max: [f32; 3],
     pub primitive_index: u32,
 }
+unsafe impl bytemuck::Pod for FlatNode {}
+unsafe impl bytemuck::Zeroable for FlatNode {}
 
-impl BVHNodeGPU {
+impl FlatNode {
     pub fn min(&self) -> &[f32; 3] {
         &self.min
     }
@@ -28,12 +29,9 @@ impl BVHNodeGPU {
     }
 }
 
-unsafe impl bytemuck::Pod for BVHNodeGPU {}
-unsafe impl bytemuck::Zeroable for BVHNodeGPU {}
-
 // @todo: alias std::u32::MAX with "InvalidValue" for semantic.
 // @todo: make generic
-pub enum BVHNode {
+pub enum Node {
     Leaf {
         aabb: AABB,
         primitive_index: u32,
@@ -46,16 +44,16 @@ pub enum BVHNode {
     },
 }
 
-impl BVHNode {
-    pub fn make_leaf(aabb: AABB, primitive_index: u32) -> BVHNode {
-        BVHNode::Leaf {
+impl Node {
+    pub fn make_leaf(aabb: AABB, primitive_index: u32) -> Node {
+        Node::Leaf {
             aabb,
             primitive_index,
         }
     }
 
-    pub fn make_node(aabb: AABB) -> BVHNode {
-        BVHNode::Node {
+    pub fn make_node(aabb: AABB) -> Node {
+        Node::Node {
             aabb,
             left_child: u32::MAX,
             right_child: u32::MAX,
@@ -65,55 +63,55 @@ impl BVHNode {
 
     pub fn aabb<'a>(&'a self) -> &'a AABB {
         match *self {
-            BVHNode::Leaf { ref aabb, .. } => &aabb,
-            BVHNode::Node { ref aabb, .. } => &aabb,
+            Node::Leaf { ref aabb, .. } => &aabb,
+            Node::Node { ref aabb, .. } => &aabb,
         }
     }
 
     pub fn primitive_index(&self) -> u32 {
         match *self {
-            BVHNode::Leaf {
+            Node::Leaf {
                 primitive_index, ..
             } => primitive_index,
-            BVHNode::Node { .. } => std::u32::MAX,
+            Node::Node { .. } => std::u32::MAX,
         }
     }
 
     pub fn forest_size(&self) -> u32 {
         match *self {
-            BVHNode::Leaf { .. } => 0,
-            BVHNode::Node { forest_size, .. } => forest_size,
+            Node::Leaf { .. } => 0,
+            Node::Node { forest_size, .. } => forest_size,
         }
     }
 
     pub fn left_child(&self) -> Option<u32> {
         match *self {
-            BVHNode::Leaf { .. } => None,
-            BVHNode::Node { left_child, .. } => Some(left_child),
+            Node::Leaf { .. } => None,
+            Node::Node { left_child, .. } => Some(left_child),
         }
     }
 
     pub fn right_child(&self) -> Option<u32> {
         match *self {
-            BVHNode::Leaf { .. } => None,
-            BVHNode::Node { right_child, .. } => Some(right_child),
+            Node::Leaf { .. } => None,
+            Node::Node { right_child, .. } => Some(right_child),
         }
     }
 }
 
 pub struct FlatBVH {
-    nodes: Vec<BVHNodeGPU>,
+    nodes: Vec<FlatNode>,
 }
 
 impl FlatBVH {
-    pub fn nodes(&self) -> &Vec<BVHNodeGPU> {
+    pub fn nodes(&self) -> &Vec<FlatNode> {
         &self.nodes
     }
 }
 
 pub struct BVH {
     // @todo: release from CPU if not needed after build.
-    pub nodes: Vec<BVHNode>,
+    pub nodes: Vec<Node>,
     root: u32,
     primitives_count: u32,
     pub(crate) flat: FlatBVH,
@@ -125,7 +123,7 @@ impl BVH {
         nb_triangles * 2 - 1
     }
 
-    pub(crate) fn new(nodes: Vec<BVHNode>, primitives_count: u32, root: u32) -> BVH {
+    pub(crate) fn new(nodes: Vec<Node>, primitives_count: u32, root: u32) -> BVH {
         let count = nodes.len();
         BVH {
             nodes,
@@ -161,19 +159,14 @@ impl BVH {
     }
 }
 
-pub trait BVHBuilder {
-    // @todo: create custom Error type.
-    fn build(&mut self, mesh: &impl Mesh) -> Result<BVH, &'static str>;
-}
-
 fn flatten_bvh_rec(
-    out: &mut Vec<BVHNodeGPU>,
-    nodes: &Vec<BVHNode>,
+    out: &mut Vec<FlatNode>,
+    nodes: &Vec<Node>,
     input_index: u32,
     miss_index: u32,
 ) {
     let node = &nodes[input_index as usize];
-    out.push(BVHNodeGPU {
+    out.push(FlatNode {
         min: node.aabb().min.into(),
         max: node.aabb().max.into(),
         next_node_index: miss_index,
@@ -184,7 +177,7 @@ fn flatten_bvh_rec(
     let curr_count = out.len() as u32;
 
     match node {
-        BVHNode::Node {
+        Node::Node {
             left_child,
             right_child,
             ..
@@ -206,7 +199,7 @@ fn flatten_bvh_rec(
     }
 }
 
-fn depth_omp(nodes: &[BVHNode], input: usize, depth: usize) -> usize {
+fn depth_omp(nodes: &[Node], input: usize, depth: usize) -> usize {
     let node = &nodes[input];
     let left_depth = if let Some(x) = node.left_child() {
         depth_omp(nodes, x as usize, depth + 1)

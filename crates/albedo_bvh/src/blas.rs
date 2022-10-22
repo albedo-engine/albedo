@@ -1,82 +1,79 @@
-use crate::accel::BVH;
-use crate::mesh::Mesh;
-use crate::renderer::resources;
+use crate::{FlatNode, BVH, Mesh, Vertex};
+use crate::builders::{BVHBuilder};
 
-pub struct Offsets {
+pub struct BLASEntryDescriptor {
     pub node: u32,
     pub vertex: u32,
     pub index: u32,
 }
 
-pub struct BLAS {
-    offset_table: Vec<Offsets>,
-    nodes_buffer: Vec<resources::BVHNodeGPU>,
-    vertex_buffer: Vec<resources::VertexGPU>,
-    index_buffer: Vec<u32>,
+pub struct BLASArray<Vertex: Sized> {
+    pub entries: Vec<BLASEntryDescriptor>,
+    pub nodes: Vec<FlatNode>,
+    pub vertices: Vec<Vertex>,
+    pub indices: Vec<u32>,
 }
 
-impl BLAS {
+impl<V: Vertex> BLASArray<V> {
 
-    fn new(meshes: &[impl Mesh], builder: )
+    pub fn new<Builder: BVHBuilder>(meshes: &[impl Mesh<V>], builder: &mut Builder) -> Result<BLASArray<V>, &'static str> {
+        let mut node_count = 0;
+        let mut vertex_count = 0;
+        let mut index_count = 0;
 
-}
+        let bvhs: Vec<BVH> = meshes
+            .iter()
+            .map(|mesh| -> Result<BVH, &'static str> {
+                // @todo: allow user to choose builder.
+                let mut bvh = builder.build(mesh)?;
+                bvh.flatten();
+                Ok(bvh)
+            })
+            .collect::<Result<Vec<BVH>, &'static str>>()?;
 
-// @todo: move to bvh crate.
-// @todo: passing BVH and meshes separately makes it possible to feed a BVH that
-// doesn't go with the associated mesh...
-// However, the nature of the BVH makes it disociated from its mesh.
-pub fn build_acceleration_structure_gpu<'a>(bvhs: &[BVH], meshes: &[impl Mesh]) -> GPUResources {
-    let mut node_count = 0;
-    let mut vertex_count = 0;
-    let mut index_count = 0;
-
-    assert!(meshes.len() >= bvhs.len());
-
-    let mut offset_table: Vec<Offsets> = Vec::with_capacity(bvhs.len());
-    for i in 0..bvhs.len() {
-        let bvh = &bvhs[i];
-        let mesh = &meshes[i];
-        offset_table.push(Offsets {
-            node: node_count,
-            vertex: vertex_count,
-            index: index_count,
-        });
-        // @todo: check for u32 overflow.
-        node_count += bvh.nodes.len() as u32;
-        index_count += mesh.index_count();
-        vertex_count += mesh.vertex_count();
-    }
-
-    // @todo: parallel for.
-    let mut nodes_buffer: Vec<resources::BVHNodeGPU> = Vec::with_capacity(node_count as usize);
-    let mut vertex_buffer: Vec<resources::VertexGPU> = Vec::with_capacity(vertex_count as usize);
-    let mut index_buffer: Vec<u32> = Vec::with_capacity(index_count as usize);
-
-    for i in 0..bvhs.len() {
-        let bvh = &bvhs[i];
-        let mesh = &meshes[i];
-
-        nodes_buffer.extend(bvh.flat.nodes());
-
-        // @todo: optimized: replace by memcpy when possible.
-        for ii in 0..mesh.index_count() {
-            index_buffer.push(*mesh.index(ii).unwrap());
+        let mut entries: Vec<BLASEntryDescriptor> = Vec::with_capacity(bvhs.len());
+        for i in 0..bvhs.len() {
+            let bvh = &bvhs[i];
+            let mesh = &meshes[i];
+            entries.push(BLASEntryDescriptor {
+                node: node_count,
+                vertex: vertex_count,
+                index: index_count,
+            });
+            // @todo: check for u32 overflow.
+            node_count += bvh.nodes.len() as u32;
+            index_count += mesh.index_count();
+            vertex_count += mesh.vertex_count();
         }
-        // @todo: optimized: replace by memcpy when possible.
-        for v in 0..mesh.vertex_count() {
-            // @todo: this assumes normal are always available.
-            vertex_buffer.push(resources::VertexGPU::new(
-                mesh.position(v).unwrap(),
-                mesh.normal(v).unwrap(),
-                mesh.uv(v)
-            ));
+
+        // @todo: parallel for.
+        let mut nodes: Vec<FlatNode> = Vec::with_capacity(node_count as usize);
+        let mut vertices: Vec<V> = Vec::with_capacity(vertex_count as usize);
+        let mut indices: Vec<u32> = Vec::with_capacity(index_count as usize);
+
+        for i in 0..bvhs.len() {
+            let bvh = &bvhs[i];
+            let mesh = &meshes[i];
+
+            nodes.extend(bvh.flat.nodes());
+
+            // @todo: optimized: replace by memcpy when possible.
+            for ii in 0..mesh.index_count() {
+                indices.push(*mesh.index(ii).unwrap());
+            }
+            // @todo: optimized: replace by memcpy when possible.
+            for v in 0..mesh.vertex_count() {
+                // @todo: this assumes normal are always available.
+                vertices.push(mesh.vertex(v));
+            }
         }
+
+        Ok(BLASArray {
+            entries,
+            nodes,
+            vertices,
+            indices,
+        })
     }
 
-    GPUResources {
-        offset_table,
-        nodes_buffer,
-        vertex_buffer,
-        index_buffer,
-    }
 }
