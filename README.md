@@ -1,6 +1,12 @@
-<h1>Albedo</h1>
+<h1 align="center">🌘 Albedo 🌒</h1>
 
+<p align="center">
 Rust framework dedicated to real-time visualization.
+</p>
+
+<p align="center">
+  <img src="logo.png" style="width: 424px; margin: auto;"></img>
+</p>
 
 ## Disclaimer
 ---
