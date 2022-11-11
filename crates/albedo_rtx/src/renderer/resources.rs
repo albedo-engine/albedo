@@ -3,36 +3,6 @@ use std::convert::TryInto;
 pub static INVALID_INDEX: u32 = std::u32::MAX;
 
 #[repr(C)]
-#[derive(Clone, Copy)]
-pub struct BVHNodeGPU {
-    pub min: [f32; 3],
-    pub next_node_index: u32,
-    pub max: [f32; 3],
-    pub primitive_index: u32,
-}
-
-impl BVHNodeGPU {
-    pub fn min(&self) -> &[f32; 3] {
-        &self.min
-    }
-
-    pub fn next(&self) -> u32 {
-        self.next_node_index
-    }
-
-    pub fn primitive(&self) -> u32 {
-        self.primitive_index
-    }
-
-    pub fn max(&self) -> &[f32; 3] {
-        &self.max
-    }
-}
-
-unsafe impl bytemuck::Pod for BVHNodeGPU {}
-unsafe impl bytemuck::Zeroable for BVHNodeGPU {}
-
-#[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct InstanceGPU {
     pub model_to_world: glam::Mat4,

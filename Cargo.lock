@@ -35,6 +35,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "albedo_bvh"
+version = "0.0.1-beta.0"
+dependencies = [
+ "albedo_math",
+ "bytemuck",
+ "glam",
+]
+
+[[package]]
 name = "albedo_math"
 version = "0.0.1-beta.0"
 dependencies = [
@@ -46,6 +55,7 @@ name = "albedo_rtx"
 version = "0.0.1-beta.0"
 dependencies = [
  "albedo_backend",
+ "albedo_bvh",
  "albedo_math",
  "bytemuck",
  "glam",
