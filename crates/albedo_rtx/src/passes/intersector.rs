@@ -59,7 +59,7 @@ impl IntersectorPassDescriptor {
         instances: &GPUBuffer<resources::InstanceGPU>,
         nodes: &wgpu::Buffer,
         indices: &GPUBuffer<u32>,
-        vertices: &GPUBuffer<resources::VertexGPU>,
+        vertices: &wgpu::Buffer,
         lights: &GPUBuffer<resources::LightGPU>,
         rays: &GPUBuffer<resources::RayGPU>,
     ) -> wgpu::BindGroup {

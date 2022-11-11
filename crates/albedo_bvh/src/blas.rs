@@ -7,16 +7,16 @@ pub struct BLASEntryDescriptor {
     pub index: u32,
 }
 
-pub struct BLASArray<Vertex: Sized> {
+pub struct BLASArray<Vert: Vertex> {
     pub entries: Vec<BLASEntryDescriptor>,
     pub nodes: Vec<FlatNode>,
-    pub vertices: Vec<Vertex>,
+    pub vertices: Vec<Vert>,
     pub indices: Vec<u32>,
 }
 
-impl<V: Vertex> BLASArray<V> {
+impl<Vert: Vertex> BLASArray<Vert> {
 
-    pub fn new<Builder: BVHBuilder>(meshes: &[impl Mesh<V>], builder: &mut Builder) -> Result<BLASArray<V>, &'static str> {
+    pub fn new<Builder: BVHBuilder>(meshes: &[impl Mesh<Vert>], builder: &mut Builder) -> Result<BLASArray<Vert>, &'static str> {
         let mut node_count = 0;
         let mut vertex_count = 0;
         let mut index_count = 0;
@@ -48,7 +48,7 @@ impl<V: Vertex> BLASArray<V> {
 
         // @todo: parallel for.
         let mut nodes: Vec<FlatNode> = Vec::with_capacity(node_count as usize);
-        let mut vertices: Vec<V> = Vec::with_capacity(vertex_count as usize);
+        let mut vertices: Vec<Vert> = Vec::with_capacity(vertex_count as usize);
         let mut indices: Vec<u32> = Vec::with_capacity(index_count as usize);
 
         for i in 0..bvhs.len() {

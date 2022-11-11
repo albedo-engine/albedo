@@ -81,7 +81,7 @@ impl ShadingPassDescriptor {
         intersections: &GPUBuffer<resources::IntersectionGPU>,
         instances: &GPUBuffer<resources::InstanceGPU>,
         indices: &GPUBuffer<u32>,
-        vertices: &GPUBuffer<resources::VertexGPU>,
+        vertices: &wgpu::Buffer,
         lights: &GPUBuffer<resources::LightGPU>,
         materials: &GPUBuffer<resources::MaterialGPU>,
         probe_view: &wgpu::TextureView,

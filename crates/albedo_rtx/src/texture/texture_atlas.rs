@@ -133,16 +133,6 @@ impl TextureAtlas {
             self.data[dst_start_byte..(dst_start_byte + bytes_per_row)].copy_from_slice(src_slice);
         }
 
-        // for i in 0..self.size() {
-        //     for j in 0..self.size() {
-        //         let s = (i as usize * bytes_per_atlas_row + j as usize * Self::COMPONENTS as usize);
-        //         self.data[s] = if j < 4096 { 255 } else { 0 };
-        //         self.data[s + 1] = if j > 4096 { 255 } else { 0 };
-        //         self.data[s + 2] = 0;
-        //         self.data[s + 3] = 255;
-        //     }
-        // }
-
         self.textures
             .push(TextureInfoGPU::new(atlas_index as u8, x, y, width, height));
         self.textures.len() - 1

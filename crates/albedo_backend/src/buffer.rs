@@ -77,6 +77,10 @@ impl<T: bytemuck::Pod> GPUBuffer<T> {
     pub fn count(&self) -> usize {
         self.count
     }
+
+    pub fn inner(&self) -> &wgpu::Buffer {
+        &self.gpu_buffer
+    }
 }
 
 // @todo: refactor code with GPUBuffer.
@@ -106,5 +110,13 @@ impl<T: bytemuck::Pod> UniformBuffer<T> {
 
     pub fn as_entire_binding(&self) -> wgpu::BindingResource {
         self.gpu_buffer.as_entire_binding()
+    }
+}
+
+// Traits //
+
+impl<'a, T: bytemuck::Pod> From<&'a GPUBuffer<T>> for &'a wgpu::Buffer {
+    fn from(buffer: &'a GPUBuffer<T>) -> Self {
+        buffer.inner()
     }
 }

@@ -111,8 +111,6 @@ fn rec_build(nodes: &mut Vec<Node>, bins: &mut [SAHBin], start: usize, end: usiz
         middle = (start + end) / 2;
     }
 
-    // println!("Start  = {}, Middle = {}, End = {}", start, middle, end);
-
     let mut left_child_index = rec_build(nodes, bins, start, middle) as usize;
     let mut right_child_index = rec_build(nodes, bins, middle, end) as usize;
     let left_surface_area = nodes[left_child_index].aabb().surface_area();
