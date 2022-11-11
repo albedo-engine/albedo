@@ -1,4 +1,4 @@
-# Albedo
+<h1>Albedo</h1>
 
 Rust framework dedicated to real-time visualization.
 
