@@ -1,7 +1,7 @@
-use albedo_backend::{shader_bindings, ComputePassDescriptor, GPUBuffer, UniformBuffer};
+use albedo_backend::{shader_bindings, ComputePassDescriptor, GPUBuffer};
 
 use crate::macros::path_separator;
-use crate::renderer::resources;
+use crate::uniforms;
 
 pub struct IntersectorPassDescriptor {
     bind_group_layout: wgpu::BindGroupLayout,
@@ -55,13 +55,13 @@ impl IntersectorPassDescriptor {
     pub fn create_frame_bind_groups(
         &self,
         device: &wgpu::Device,
-        out_intersections: &GPUBuffer<resources::IntersectionGPU>,
-        instances: &GPUBuffer<resources::InstanceGPU>,
+        out_intersections: &GPUBuffer<uniforms::Intersection>,
+        instances: &GPUBuffer<uniforms::Instance>,
         nodes: &wgpu::Buffer,
         indices: &GPUBuffer<u32>,
         vertices: &wgpu::Buffer,
-        lights: &GPUBuffer<resources::LightGPU>,
-        rays: &GPUBuffer<resources::RayGPU>,
+        lights: &GPUBuffer<uniforms::Light>,
+        rays: &GPUBuffer<uniforms::Ray>,
     ) -> wgpu::BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Intersector Bind Group"),

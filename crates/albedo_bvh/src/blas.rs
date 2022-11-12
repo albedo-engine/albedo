@@ -1,16 +1,33 @@
 use crate::{FlatNode, BVH, Mesh, Vertex};
 use crate::builders::{BVHBuilder};
 
+/// Node, vertex, and index offset of an entry
+///
+/// This is used to retrieve a flattened BVH into a buffer
 pub struct BLASEntryDescriptor {
     pub node: u32,
     pub vertex: u32,
     pub index: u32,
 }
 
+/// Data-oriented storage for a list of BVH.
+///
+/// Data are stored in separate buffers:
+///
+/// `[vertex_0, vertex_1, vertex_2, ..., vertex_n]`
+/// `[index_0, index_1, index_2, ..., index_j]`
+/// `[entry_0, entry_1, entry_2, ..., entry_k]`
+///
+/// Entries are used to find the start index of each
+/// BVH.
 pub struct BLASArray<Vert: Vertex> {
+    /// Node, vertex, and index offset for each entry
     pub entries: Vec<BLASEntryDescriptor>,
+    /// List of nodes of all entries
     pub nodes: Vec<FlatNode>,
+    /// List of vertices of all entries
     pub vertices: Vec<Vert>,
+    /// List of indices of all entries
     pub indices: Vec<u32>,
 }
 

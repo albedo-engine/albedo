@@ -1,5 +1,5 @@
 use crate::macros::path_separator;
-use crate::renderer::resources;
+use crate::uniforms::{PerDrawUniforms, Ray};
 use albedo_backend::{shader_bindings, ComputePassDescriptor, GPUBuffer, UniformBuffer};
 
 pub struct AccumulationPassDescriptor {
@@ -55,9 +55,9 @@ impl AccumulationPassDescriptor {
     pub fn create_frame_bind_groups(
         &self,
         device: &wgpu::Device,
-        in_rays: &GPUBuffer<resources::RayGPU>,
+        in_rays: &GPUBuffer<Ray>,
         view: &wgpu::TextureView,
-        global_uniforms: &UniformBuffer<resources::GlobalUniformsGPU>,
+        global_uniforms: &UniformBuffer<PerDrawUniforms>,
     ) -> wgpu::BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Accumulation Bind Group"),

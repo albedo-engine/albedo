@@ -1,5 +1,5 @@
 use crate::macros::path_separator;
-use crate::renderer::resources;
+use crate::uniforms;
 use albedo_backend::{shader_bindings, ComputePassDescriptor, GPUBuffer, UniformBuffer};
 
 pub struct ShadingPassDescriptor {
@@ -59,11 +59,7 @@ impl ShadingPassDescriptor {
         }
     }
 
-    pub fn set_shader(
-        &mut self,
-        device: &wgpu::Device,
-        shader_desc: wgpu::ShaderModuleDescriptor,
-    ) {
+    pub fn set_shader(&mut self, device: &wgpu::Device, shader_desc: wgpu::ShaderModuleDescriptor) {
         let shader = device.create_shader_module(shader_desc);
         self.pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Radiance Estimator Pipeline"),
@@ -76,18 +72,18 @@ impl ShadingPassDescriptor {
     pub fn create_frame_bind_groups(
         &self,
         device: &wgpu::Device,
-        out_rays: &GPUBuffer<resources::RayGPU>,
+        out_rays: &GPUBuffer<uniforms::Ray>,
         nodes: &wgpu::Buffer,
-        intersections: &GPUBuffer<resources::IntersectionGPU>,
-        instances: &GPUBuffer<resources::InstanceGPU>,
+        intersections: &GPUBuffer<uniforms::Intersection>,
+        instances: &GPUBuffer<uniforms::Instance>,
         indices: &GPUBuffer<u32>,
         vertices: &wgpu::Buffer,
-        lights: &GPUBuffer<resources::LightGPU>,
-        materials: &GPUBuffer<resources::MaterialGPU>,
+        lights: &GPUBuffer<uniforms::Light>,
+        materials: &GPUBuffer<uniforms::Material>,
         probe_view: &wgpu::TextureView,
         texture_info: &wgpu::TextureView,
         atlas_view: &wgpu::TextureView,
-        global_uniforms: &UniformBuffer<resources::GlobalUniformsGPU>,
+        global_uniforms: &UniformBuffer<uniforms::PerDrawUniforms>,
         sampler_nearest: &wgpu::Sampler,
     ) -> wgpu::BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {

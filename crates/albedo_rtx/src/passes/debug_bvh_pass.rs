@@ -1,6 +1,6 @@
 use crate::macros::path_separator;
-use crate::renderer::resources;
-use albedo_backend::{shader_bindings, GPUBuffer, UniformBuffer};
+use crate::uniforms;
+use albedo_backend::{shader_bindings, GPUBuffer};
 
 pub struct BVHDebugPass {
     bind_group_layouts: [wgpu::BindGroupLayout; 1],
@@ -58,11 +58,11 @@ impl BVHDebugPass {
     pub fn bind_buffers(
         &mut self,
         device: &wgpu::Device,
-        out_rays: &GPUBuffer<resources::RayGPU>,
-        instances: &GPUBuffer<resources::InstanceGPU>,
+        out_rays: &GPUBuffer<uniforms::Ray>,
+        instances: &GPUBuffer<uniforms::Instance>,
         nodes: &wgpu::Buffer,
         indices: &GPUBuffer<u32>,
-        vertices: &GPUBuffer<resources::VertexGPU>,
+        vertices: &GPUBuffer<uniforms::Vertex>,
     ) {
         self.base_bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Debug BVH Base Bind Group"),

@@ -1,7 +1,7 @@
 use guillotiere::{size2, AtlasAllocator};
 use std::convert::From;
 
-use crate::renderer::resources::TextureInfoGPU;
+use crate::uniforms;
 
 #[derive(Debug)]
 pub enum TextureError {
@@ -35,7 +35,7 @@ pub struct TextureAtlas {
     atlas: Vec<AtlasAllocator>,
     size: u32,
     data: Vec<u8>,
-    textures: Vec<TextureInfoGPU>,
+    textures: Vec<uniforms::TextureInfo>,
 }
 
 impl TextureAtlas {
@@ -66,7 +66,7 @@ impl TextureAtlas {
         self.data.as_slice()
     }
 
-    pub fn textures(&self) -> &Vec<TextureInfoGPU> {
+    pub fn textures(&self) -> &Vec<uniforms::TextureInfo> {
         &self.textures
     }
 
@@ -123,18 +123,20 @@ impl TextureAtlas {
         let bytes_per_row = (texture.width * Self::COMPONENTS) as usize;
         for i in 0..texture.height {
             let dst_height_byte_offset = (y + i) as usize * bytes_per_atlas_row;
-            let dst_start_byte = (
-                bytes_per_atlas_layer +
-                dst_height_byte_offset +
-                (x * Self::COMPONENTS) as usize
-            );
+            let dst_start_byte =
+                (bytes_per_atlas_layer + dst_height_byte_offset + (x * Self::COMPONENTS) as usize);
             let src_start_byte = i as usize * bytes_per_row;
             let src_slice = &texture.data[src_start_byte..(src_start_byte + bytes_per_row)];
             self.data[dst_start_byte..(dst_start_byte + bytes_per_row)].copy_from_slice(src_slice);
         }
 
-        self.textures
-            .push(TextureInfoGPU::new(atlas_index as u8, x, y, width, height));
+        self.textures.push(uniforms::TextureInfo::new(
+            atlas_index as u8,
+            x,
+            y,
+            width,
+            height,
+        ));
         self.textures.len() - 1
     }
 }
