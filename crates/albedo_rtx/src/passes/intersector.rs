@@ -17,7 +17,7 @@ impl IntersectorPass {
     const RAY_BINDING: u32 = 5;
     const INTERSECTION_BINDING: u32 = 6;
 
-    pub fn new(device: &wgpu::Device) -> Self {
+    pub fn new(device: &wgpu::Device, source: Option<crate::passes::ShaderSource<()>>) -> Self {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("GPUIntersector Layout"),
             entries: &[
@@ -61,15 +61,18 @@ impl IntersectorPass {
             push_constant_ranges: &[],
         });
 
-        let shader = device.create_shader_module(wgpu::include_spirv!(concat!(
-            "..",
-            path_separator!(),
-            "shaders",
-            path_separator!(),
-            "spirv",
-            path_separator!(),
-            "intersection.comp.spv"
-        )));
+        let shader = match source {
+            None => device.create_shader_module(wgpu::include_spirv!(concat!(
+                "..",
+                path_separator!(),
+                "shaders",
+                path_separator!(),
+                "spirv",
+                path_separator!(),
+                "intersection.comp.spv"
+            ))),
+            Some(v) => device.create_shader_module(v.descriptor),
+        };
 
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Intersector Pipeline"),
