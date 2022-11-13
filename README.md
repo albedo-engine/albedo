@@ -30,6 +30,10 @@ was designed.
 
 ### GPU Raytracing
 
+<p align="center">
+  <img src="https://github.com/DavidPeicho/albedo/blob/main/screenshots/damaged-helmet.gif" style="margin: auto;"></img>
+</p>
+
 The [albedo_rtx](./crates/albedo_rtx) exposes GPU software Raytracing. You can use this crate to perform Ray-Triangle intersections.
 
 The [Albedo Pathtracer application](https://github.com/DavidPeicho/albedo) is one example of what you can achieve with the [albedo_rtx](./crates/albedo_rtx) crate:
