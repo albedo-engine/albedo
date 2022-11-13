@@ -8,7 +8,7 @@ mod ray;
 pub use accumulation::AccumulationPassDescriptor;
 pub use blit_pass::BlitPass;
 pub use debug_bvh_pass::BVHDebugPass;
-pub use intersector::IntersectorPassDescriptor;
+pub use intersector::IntersectorPass;
 pub use radiance_estimator::ShadingPassDescriptor;
 pub use ray::RayPass;
 

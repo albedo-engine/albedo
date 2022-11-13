@@ -1,4 +1,4 @@
-use albedo_backend::{shader_bindings, GPUBuffer, UniformBuffer};
+use albedo_backend::{GPUBuffer, UniformBuffer};
 
 use crate::macros::path_separator;
 use crate::uniforms;
@@ -8,6 +8,10 @@ pub struct RayPass {
     pipeline: wgpu::ComputePipeline,
 }
 
+/// Ray generation passs.
+///
+/// This pass fills a buffer of [`uniforms::Ray`] structures based
+/// on the camera information.
 impl RayPass {
     const RAY_BINDING: u32 = 0;
     const CAMERA_BINDING: u32 = 1;
@@ -16,8 +20,26 @@ impl RayPass {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Ray Generator Layout"),
             entries: &[
-                shader_bindings::buffer_entry(0, wgpu::ShaderStages::COMPUTE, false),
-                shader_bindings::uniform_entry(1, wgpu::ShaderStages::COMPUTE),
+                wgpu::BindGroupLayoutEntry {
+                    binding: Self::RAY_BINDING,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: Self::CAMERA_BINDING,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
             ],
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {

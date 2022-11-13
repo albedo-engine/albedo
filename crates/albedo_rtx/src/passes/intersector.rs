@@ -1,25 +1,57 @@
-use albedo_backend::{shader_bindings, ComputePassDescriptor, GPUBuffer};
+use albedo_backend::{shader_bindings, GPUBuffer};
 
 use crate::macros::path_separator;
 use crate::uniforms;
 
-pub struct IntersectorPassDescriptor {
+pub struct IntersectorPass {
     bind_group_layout: wgpu::BindGroupLayout,
     pipeline: wgpu::ComputePipeline,
 }
 
-impl IntersectorPassDescriptor {
-    pub fn new(device: &wgpu::Device) -> IntersectorPassDescriptor {
+impl IntersectorPass {
+    const INSTANCE_BINDING: u32 = 0;
+    const NODE_BINDING: u32 = 1;
+    const INDEX_BINDING: u32 = 2;
+    const VERTEX_BINDING: u32 = 3;
+    const LIGHT_BINDING: u32 = 4;
+    const RAY_BINDING: u32 = 5;
+    const INTERSECTION_BINDING: u32 = 6;
+
+    pub fn new(device: &wgpu::Device) -> Self {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("GPUIntersector Layout"),
             entries: &[
-                shader_bindings::buffer_entry(0, wgpu::ShaderStages::COMPUTE, true),
-                shader_bindings::buffer_entry(1, wgpu::ShaderStages::COMPUTE, true),
-                shader_bindings::buffer_entry(2, wgpu::ShaderStages::COMPUTE, true),
-                shader_bindings::buffer_entry(3, wgpu::ShaderStages::COMPUTE, true),
-                shader_bindings::buffer_entry(4, wgpu::ShaderStages::COMPUTE, true),
-                shader_bindings::buffer_entry(5, wgpu::ShaderStages::COMPUTE, true),
-                shader_bindings::buffer_entry(6, wgpu::ShaderStages::COMPUTE, false),
+                shader_bindings::buffer_entry(
+                    Self::INSTANCE_BINDING,
+                    wgpu::ShaderStages::COMPUTE,
+                    true,
+                ),
+                shader_bindings::buffer_entry(
+                    Self::NODE_BINDING,
+                    wgpu::ShaderStages::COMPUTE,
+                    true,
+                ),
+                shader_bindings::buffer_entry(
+                    Self::INDEX_BINDING,
+                    wgpu::ShaderStages::COMPUTE,
+                    true,
+                ),
+                shader_bindings::buffer_entry(
+                    Self::VERTEX_BINDING,
+                    wgpu::ShaderStages::COMPUTE,
+                    true,
+                ),
+                shader_bindings::buffer_entry(
+                    Self::LIGHT_BINDING,
+                    wgpu::ShaderStages::COMPUTE,
+                    true,
+                ),
+                shader_bindings::buffer_entry(Self::RAY_BINDING, wgpu::ShaderStages::COMPUTE, true),
+                shader_bindings::buffer_entry(
+                    Self::INTERSECTION_BINDING,
+                    wgpu::ShaderStages::COMPUTE,
+                    false,
+                ),
             ],
         });
 
@@ -46,7 +78,7 @@ impl IntersectorPassDescriptor {
             module: &shader,
         });
 
-        IntersectorPassDescriptor {
+        IntersectorPass {
             bind_group_layout,
             pipeline,
         }
@@ -68,58 +100,48 @@ impl IntersectorPassDescriptor {
             layout: &self.bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
-                    binding: 0,
+                    binding: Self::INSTANCE_BINDING,
                     resource: instances.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
-                    binding: 1,
+                    binding: Self::NODE_BINDING,
                     resource: nodes.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
-                    binding: 2,
+                    binding: Self::INDEX_BINDING,
                     resource: indices.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
-                    binding: 3,
+                    binding: Self::VERTEX_BINDING,
                     resource: vertices.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
-                    binding: 4,
+                    binding: Self::LIGHT_BINDING,
                     resource: lights.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
-                    binding: 5,
+                    binding: Self::RAY_BINDING,
                     resource: rays.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
-                    binding: 6,
+                    binding: Self::INTERSECTION_BINDING,
                     resource: out_intersections.as_entire_binding(),
                 },
             ],
         })
     }
-}
 
-impl ComputePassDescriptor for IntersectorPassDescriptor {
-    type FrameBindGroups = wgpu::BindGroup;
-    type PassBindGroups = ();
-
-    fn get_name() -> &'static str {
-        "Intersection Pass"
-    }
-
-    fn get_pipeline(&self) -> &wgpu::ComputePipeline {
-        &self.pipeline
-    }
-
-    fn set_pass_bind_groups(_: &mut wgpu::ComputePass, _: &Self::PassBindGroups) {}
-
-    fn set_frame_bind_groups<'a, 'b>(
-        pass: &mut wgpu::ComputePass<'a>,
-        groups: &'b Self::FrameBindGroups,
-    ) where
-        'b: 'a,
-    {
-        pass.set_bind_group(0, groups, &[]);
+    pub fn dispatch(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        frame_bind_groups: &wgpu::BindGroup,
+        dispatch_size: (u32, u32, u32),
+    ) {
+        let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+            label: Some("Intersector Pass"),
+        });
+        pass.set_pipeline(&self.pipeline);
+        pass.set_bind_group(0, frame_bind_groups, &[]);
+        pass.dispatch_workgroups(dispatch_size.0, dispatch_size.1, dispatch_size.2);
     }
 }
