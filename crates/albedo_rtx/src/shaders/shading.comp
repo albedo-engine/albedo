@@ -238,13 +238,6 @@ shade(RayPayload ray, Intersection intersection)
     if (bsdf.pdf > EPSILON)
 				throughput *= evalSample_UE4(bsdf, normal, mat) * abs(bsdf.NdotL) / bsdf.pdf;
 
-    // DEBUG
-    // throughput *= texture(
-    //   sampler2DArray(textureAtlas, samplerNearest),
-    //   vec3(0.2, 0.2, 0.0)
-    // ).rgb;
-    // END DEBUG
-
     ray.origin.xyz += intersection.dist * ray.dir.xyz + normal * EPSILON;
     ray.dir.xyz = bsdf.dir;
   }

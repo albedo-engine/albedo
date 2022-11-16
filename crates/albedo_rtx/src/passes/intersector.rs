@@ -1,4 +1,4 @@
-use albedo_backend::{shader_bindings, GPUBuffer};
+use albedo_backend::GPUBuffer;
 
 use crate::macros::path_separator;
 use crate::uniforms;
@@ -19,39 +19,78 @@ impl IntersectorPass {
 
     pub fn new(device: &wgpu::Device, source: Option<crate::passes::ShaderSource<()>>) -> Self {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("GPUIntersector Layout"),
+            label: Some("Intersector Bind Group Layout"),
             entries: &[
-                shader_bindings::buffer_entry(
-                    Self::INSTANCE_BINDING,
-                    wgpu::ShaderStages::COMPUTE,
-                    true,
-                ),
-                shader_bindings::buffer_entry(
-                    Self::NODE_BINDING,
-                    wgpu::ShaderStages::COMPUTE,
-                    true,
-                ),
-                shader_bindings::buffer_entry(
-                    Self::INDEX_BINDING,
-                    wgpu::ShaderStages::COMPUTE,
-                    true,
-                ),
-                shader_bindings::buffer_entry(
-                    Self::VERTEX_BINDING,
-                    wgpu::ShaderStages::COMPUTE,
-                    true,
-                ),
-                shader_bindings::buffer_entry(
-                    Self::LIGHT_BINDING,
-                    wgpu::ShaderStages::COMPUTE,
-                    true,
-                ),
-                shader_bindings::buffer_entry(Self::RAY_BINDING, wgpu::ShaderStages::COMPUTE, true),
-                shader_bindings::buffer_entry(
-                    Self::INTERSECTION_BINDING,
-                    wgpu::ShaderStages::COMPUTE,
-                    false,
-                ),
+                wgpu::BindGroupLayoutEntry {
+                    binding: Self::INSTANCE_BINDING,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: Self::NODE_BINDING,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: Self::INDEX_BINDING,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: Self::VERTEX_BINDING,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: Self::LIGHT_BINDING,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: Self::RAY_BINDING,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: Self::INTERSECTION_BINDING,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
             ],
         });
 
