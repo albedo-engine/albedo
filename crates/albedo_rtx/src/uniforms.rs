@@ -4,7 +4,7 @@ pub static INVALID_INDEX: u32 = std::u32::MAX;
 
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
-pub struct InstanceGPU {
+pub struct Instance {
     pub model_to_world: glam::Mat4,
     pub world_to_model: glam::Mat4,
     pub material_index: u32,
@@ -13,24 +13,24 @@ pub struct InstanceGPU {
     pub vertex_root_index: u32,
     pub index_root_index: u32,
 }
-unsafe impl bytemuck::Pod for InstanceGPU {}
-unsafe impl bytemuck::Zeroable for InstanceGPU {}
+unsafe impl bytemuck::Pod for Instance {}
+unsafe impl bytemuck::Zeroable for Instance {}
 
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
-pub struct MaterialGPU {
+pub struct Material {
     pub color: glam::Vec4,
     pub roughness: f32,
     pub reflectivity: f32,
     pub albedo_texture: u32,
     pub mra_texture: u32,
 }
-unsafe impl bytemuck::Pod for MaterialGPU {}
-unsafe impl bytemuck::Zeroable for MaterialGPU {}
+unsafe impl bytemuck::Pod for Material {}
+unsafe impl bytemuck::Zeroable for Material {}
 
-impl MaterialGPU {
-    pub fn new(color: glam::Vec4, roughness: f32, reflectivity: f32) -> MaterialGPU {
-        MaterialGPU {
+impl Material {
+    pub fn new(color: glam::Vec4, roughness: f32, reflectivity: f32) -> Material {
+        Material {
             color,
             roughness,
             reflectivity,
@@ -43,20 +43,19 @@ impl MaterialGPU {
 
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
-pub struct VertexGPU {
+pub struct Vertex {
     position: [f32; 4],
     normal: [f32; 4],
 }
-unsafe impl bytemuck::Pod for VertexGPU {}
-unsafe impl bytemuck::Zeroable for VertexGPU {}
+unsafe impl bytemuck::Pod for Vertex {}
+unsafe impl bytemuck::Zeroable for Vertex {}
 
-impl VertexGPU {
-
+impl Vertex {
     const DEFAULT_UV: [f32; 2] = [0.0, 0.0];
 
     pub fn new(position: &[f32; 3], normal: &[f32; 3], uv: Option<&[f32; 2]>) -> Self {
         let uv = uv.unwrap_or(&Self::DEFAULT_UV);
-        VertexGPU {
+        Vertex {
             position: [position[0], position[1], position[2], uv[0]],
             normal: [normal[0], normal[1], normal[2], uv[1]],
         }
@@ -69,7 +68,7 @@ impl VertexGPU {
 
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
-pub struct LightGPU {
+pub struct Light {
     pub normal: glam::Vec4,
     pub tangent: glam::Vec4,
     pub bitangent: glam::Vec4,
@@ -79,14 +78,14 @@ pub struct LightGPU {
     padding_2: u32,
 }
 
-unsafe impl bytemuck::Pod for LightGPU {}
-unsafe impl bytemuck::Zeroable for LightGPU {}
+unsafe impl bytemuck::Pod for Light {}
+unsafe impl bytemuck::Zeroable for Light {}
 
-impl LightGPU {
+impl Light {
     pub fn new() -> Self {
         // `origin` is packed in `normal`, `tangent`, and `bitangent`.
         // By default, camera set at the origin.
-        LightGPU {
+        Light {
             normal: glam::Vec4::new(0.0, 0.0, 1.0, 0.0),
             tangent: glam::Vec4::new(1.0, 0.0, 0.0, 0.0),
             bitangent: glam::Vec4::new(0.0, -1.0, 0.0, 0.0),
@@ -96,7 +95,7 @@ impl LightGPU {
     }
 
     pub fn from_origin(origin: glam::Vec3) -> Self {
-        LightGPU {
+        Light {
             normal: glam::Vec4::new(0.0, 0.0, 1.0, origin.x),
             tangent: glam::Vec4::new(1.0, 0.0, 0.0, origin.y),
             bitangent: glam::Vec4::new(0.0, -1.0, 0.0, origin.z),
@@ -106,7 +105,7 @@ impl LightGPU {
     }
 
     pub fn from_matrix(local_to_world: glam::Mat4) -> Self {
-        let mut light = LightGPU::new();
+        let mut light = Light::new();
         light.set_from_matrix(local_to_world, 1.0, 1.0);
         light
     }
@@ -128,27 +127,27 @@ impl LightGPU {
 
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
-pub struct GlobalUniformsGPU {
+pub struct PerDrawUniforms {
     pub frame_count: u32,
     pub seed: u32,
     pub bounces: u32,
     pub padding: u32,
 }
 
-impl GlobalUniformsGPU {
+impl PerDrawUniforms {
     pub fn new() -> Self {
-        GlobalUniformsGPU {
+        PerDrawUniforms {
             ..Default::default()
         }
     }
 }
 
-unsafe impl bytemuck::Pod for GlobalUniformsGPU {}
-unsafe impl bytemuck::Zeroable for GlobalUniformsGPU {}
+unsafe impl bytemuck::Pod for PerDrawUniforms {}
+unsafe impl bytemuck::Zeroable for PerDrawUniforms {}
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct CameraGPU {
+pub struct Camera {
     pub origin: glam::Vec3,
     pub v_fov: f32,
     pub up: glam::Vec3,
@@ -159,9 +158,9 @@ pub struct CameraGPU {
     pub padding_2: [u32; 2],
 }
 
-impl Default for CameraGPU {
-    fn default() -> CameraGPU {
-        CameraGPU {
+impl Default for Camera {
+    fn default() -> Camera {
+        Camera {
             origin: glam::Vec3::new(0.0, 0.0, 2.0),
             v_fov: 0.78,
             up: glam::Vec3::new(0.0, 1.0, 0.0),
@@ -174,24 +173,24 @@ impl Default for CameraGPU {
     }
 }
 
-unsafe impl bytemuck::Pod for CameraGPU {}
-unsafe impl bytemuck::Zeroable for CameraGPU {}
+unsafe impl bytemuck::Pod for Camera {}
+unsafe impl bytemuck::Zeroable for Camera {}
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct RayGPU {
+pub struct Ray {
     origin: glam::Vec4,
     dir: glam::Vec4,
     radiance: glam::Vec4,
     terminated: u32,
     padding: [u32; 3],
 }
-unsafe impl bytemuck::Pod for RayGPU {}
-unsafe impl bytemuck::Zeroable for RayGPU {}
+unsafe impl bytemuck::Pod for Ray {}
+unsafe impl bytemuck::Zeroable for Ray {}
 
-impl RayGPU {
+impl Ray {
     pub fn new() -> Self {
-        RayGPU {
+        Ray {
             origin: glam::Vec4::new(0.0, 0.0, 0.0, 1.0),
             dir: glam::Vec4::new(0.0, 0.0, 0.0, 1.0),
             radiance: glam::Vec4::new(0.0, 0.0, 0.0, 1.0),
@@ -201,7 +200,7 @@ impl RayGPU {
     }
 
     pub fn from_origin_dir(origin: &glam::Vec3, direction: glam::Vec3) -> Self {
-        RayGPU {
+        Ray {
             origin: glam::Vec4::new(origin.x, origin.y, origin.z, 1.0),
             dir: glam::Vec4::new(direction.x, direction.y, direction.z, 1.0),
             radiance: glam::Vec4::new(0.0, 0.0, 0.0, 1.0),
@@ -217,7 +216,7 @@ impl RayGPU {
 
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
-pub struct IntersectionGPU {
+pub struct Intersection {
     uv: glam::Vec2,
     index: u32,
     instance: u32,
@@ -227,12 +226,12 @@ pub struct IntersectionGPU {
     padding_0: f32,
 }
 
-unsafe impl bytemuck::Pod for IntersectionGPU {}
-unsafe impl bytemuck::Zeroable for IntersectionGPU {}
+unsafe impl bytemuck::Pod for Intersection {}
+unsafe impl bytemuck::Zeroable for Intersection {}
 
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
-pub struct TextureInfoGPU {
+pub struct TextureInfo {
     x: u32,
     y: u32,
     width: u32,
@@ -240,7 +239,7 @@ pub struct TextureInfoGPU {
     layer_and_height: u32,
 }
 
-impl TextureInfoGPU {
+impl TextureInfo {
     pub fn pack_value(layer: u32, value: u32) -> u32 {
         layer << 24 | value
     }
@@ -279,5 +278,5 @@ impl TextureInfoGPU {
     }
 }
 
-unsafe impl bytemuck::Pod for TextureInfoGPU {}
-unsafe impl bytemuck::Zeroable for TextureInfoGPU {}
+unsafe impl bytemuck::Pod for TextureInfo {}
+unsafe impl bytemuck::Zeroable for TextureInfo {}

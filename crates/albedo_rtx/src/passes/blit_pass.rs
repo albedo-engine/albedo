@@ -2,9 +2,7 @@ use albedo_backend::UniformBuffer;
 use wgpu::BindGroup;
 
 use crate::macros::path_separator;
-use crate::renderer::resources;
-
-use albedo_backend::shader_bindings;
+use crate::uniforms;
 
 pub struct BlitPass {
     bind_group_layout: wgpu::BindGroupLayout,
@@ -12,18 +10,22 @@ pub struct BlitPass {
 }
 
 impl BlitPass {
+    const TEXTURE_SAMPLER_BINDING: u32 = 0;
+    const TEXTURE_BINDING: u32 = 1;
+    const PER_DRAW_STRUCT_BINDING: u32 = 2;
+
     pub fn new(device: &wgpu::Device, swap_chain_format: wgpu::TextureFormat) -> Self {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: None,
             entries: &[
                 wgpu::BindGroupLayoutEntry {
-                    binding: 0,
+                    binding: Self::TEXTURE_SAMPLER_BINDING,
                     visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: shader_bindings::sampler(wgpu::SamplerBindingType::Filtering),
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry {
-                    binding: 1,
+                    binding: Self::TEXTURE_BINDING,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Texture {
                         multisampled: false,
@@ -32,7 +34,16 @@ impl BlitPass {
                     },
                     count: None,
                 },
-                shader_bindings::uniform_entry(2, wgpu::ShaderStages::FRAGMENT),
+                wgpu::BindGroupLayoutEntry {
+                    binding: Self::PER_DRAW_STRUCT_BINDING,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
             ],
         });
 
@@ -94,7 +105,7 @@ impl BlitPass {
         device: &wgpu::Device,
         view: &wgpu::TextureView,
         sampler: &wgpu::Sampler,
-        global_uniforms: &UniformBuffer<resources::GlobalUniformsGPU>,
+        global_uniforms: &UniformBuffer<uniforms::PerDrawUniforms>,
     ) -> BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Blit Bind Group"),
