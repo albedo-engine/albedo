@@ -12,7 +12,7 @@ impl AccumulationPass {
     const TEXTURE_BINDING: u32 = 1;
     const PER_DRAW_STRUCT_BINDING: u32 = 2;
 
-    pub fn new(device: &wgpu::Device, source: Option<crate::passes::ShaderSource<()>>) -> Self {
+    pub fn new(device: &wgpu::Device, source: Option<wgpu::ShaderModuleDescriptor>) -> Self {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Ray Generator Layout"),
             entries: &[
@@ -65,7 +65,7 @@ impl AccumulationPass {
                 path_separator!(),
                 "accumulation.comp.spv"
             ))),
-            Some(v) => device.create_shader_module(v.descriptor),
+            Some(v) => device.create_shader_module(v),
         };
 
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {

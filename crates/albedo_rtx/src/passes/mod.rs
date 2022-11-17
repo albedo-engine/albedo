@@ -9,8 +9,3 @@ pub use blit_pass::BlitPass;
 pub use intersector::IntersectorPass;
 pub use radiance_estimator::ShadingPass;
 pub use ray::RayPass;
-
-pub struct ShaderSource<'a, Flags> {
-    descriptor: wgpu::ShaderModuleDescriptor<'a>,
-    flags: Flags,
-}

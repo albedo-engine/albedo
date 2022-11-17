@@ -5,6 +5,7 @@ use crate::uniforms;
 
 pub struct RayPass {
     bind_group_layout: wgpu::BindGroupLayout,
+    pipeline_layout: wgpu::PipelineLayout,
     pipeline: wgpu::ComputePipeline,
 }
 
@@ -16,7 +17,7 @@ impl RayPass {
     const RAY_BINDING: u32 = 0;
     const CAMERA_BINDING: u32 = 1;
 
-    pub fn new(device: &wgpu::Device, source: Option<crate::passes::ShaderSource<()>>) -> Self {
+    pub fn new(device: &wgpu::Device, source: Option<wgpu::ShaderModuleDescriptor>) -> Self {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Ray Generator Layout"),
             entries: &[
@@ -57,7 +58,7 @@ impl RayPass {
                 path_separator!(),
                 "ray_generation.comp.spv"
             ))),
-            Some(v) => device.create_shader_module(v.descriptor),
+            Some(v) => device.create_shader_module(v),
         };
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Ray Generator Pipeline"),
@@ -67,8 +68,19 @@ impl RayPass {
         });
         Self {
             bind_group_layout,
+            pipeline_layout,
             pipeline,
         }
+    }
+
+    pub fn set_shader(&mut self, device: &wgpu::Device, shader: wgpu::ShaderModuleDescriptor) {
+        let shader = device.create_shader_module(shader);
+        self.pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("Ray Generator Pipeline"),
+            layout: Some(&self.pipeline_layout),
+            entry_point: "main",
+            module: &shader,
+        });
     }
 
     pub fn create_frame_bind_groups(
