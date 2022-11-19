@@ -1,6 +1,6 @@
 use crate::macros::path_separator;
 use crate::uniforms;
-use albedo_backend::{ComputePassDescriptor, GPUBuffer, UniformBuffer};
+use albedo_backend::{GPUBuffer, UniformBuffer};
 
 pub struct ShadingPass {
     bind_group_layout: wgpu::BindGroupLayout,
