@@ -11,4 +11,4 @@ resolver = "2"
 
 [dependencies]
 bytemuck = "1.4.1"
-wgpu = "0.13.0"
+wgpu = "0.14.0"
