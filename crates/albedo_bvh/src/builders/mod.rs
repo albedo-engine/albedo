@@ -1,7 +1,7 @@
 mod sah_bvh_builder;
 
+pub use crate::{Mesh, Vertex, BVH};
 pub use sah_bvh_builder::SAHBuilder;
-pub use crate::{BVH, Mesh, Vertex};
 
 pub trait BVHBuilder {
     // @todo: create custom Error type.

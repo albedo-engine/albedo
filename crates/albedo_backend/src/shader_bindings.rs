@@ -52,10 +52,7 @@ pub const fn storage_texture2d_entry(
     }
 }
 
-pub const fn texture1d(
-    binding: u32,
-    visibility: wgpu::ShaderStages,
-) -> wgpu::BindGroupLayoutEntry {
+pub const fn texture1d(binding: u32, visibility: wgpu::ShaderStages) -> wgpu::BindGroupLayoutEntry {
     wgpu::BindGroupLayoutEntry {
         binding,
         visibility,

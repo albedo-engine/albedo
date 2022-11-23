@@ -1,5 +1,5 @@
-use crate::{FlatNode, BVH, Mesh, Vertex};
-use crate::builders::{BVHBuilder};
+use crate::builders::BVHBuilder;
+use crate::{FlatNode, Mesh, Vertex, BVH};
 
 /// Node, vertex, and index offset of an entry
 ///
@@ -32,8 +32,10 @@ pub struct BLASArray<Vert: Vertex> {
 }
 
 impl<Vert: Vertex> BLASArray<Vert> {
-
-    pub fn new<Builder: BVHBuilder>(meshes: &[impl Mesh<Vert>], builder: &mut Builder) -> Result<BLASArray<Vert>, &'static str> {
+    pub fn new<Builder: BVHBuilder>(
+        meshes: &[impl Mesh<Vert>],
+        builder: &mut Builder,
+    ) -> Result<BLASArray<Vert>, &'static str> {
         let mut node_count = 0;
         let mut vertex_count = 0;
         let mut index_count = 0;
@@ -92,5 +94,4 @@ impl<Vert: Vertex> BLASArray<Vert> {
             indices,
         })
     }
-
 }

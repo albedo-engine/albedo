@@ -1,9 +1,9 @@
 use albedo_math::{clamp, AABB};
 use glam::Vec3;
 
-use crate::builders::{BVHBuilder};
-use crate::{Node, BVH};
+use crate::builders::BVHBuilder;
 use crate::{Mesh, Vertex};
+use crate::{Node, BVH};
 
 #[derive(Default, Copy, Clone)]
 struct SAHBin {

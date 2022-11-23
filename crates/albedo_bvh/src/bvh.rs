@@ -159,12 +159,7 @@ impl BVH {
     }
 }
 
-fn flatten_bvh_rec(
-    out: &mut Vec<FlatNode>,
-    nodes: &Vec<Node>,
-    input_index: u32,
-    miss_index: u32,
-) {
+fn flatten_bvh_rec(out: &mut Vec<FlatNode>, nodes: &Vec<Node>, input_index: u32, miss_index: u32) {
     let node = &nodes[input_index as usize];
     out.push(FlatNode {
         min: node.aabb().min.into(),
