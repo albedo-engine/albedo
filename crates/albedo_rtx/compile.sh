@@ -1,6 +1,6 @@
 #!/bin/bash
 
-COMPILER=~/Tools/shaderc/bin/glslc
+COMPILER=/Users/davidpeicho/Tools/glslc/bin/glslc
 
 to_spirv()
 {

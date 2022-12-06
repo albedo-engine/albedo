@@ -1,5 +1,7 @@
 use albedo_math::AABB;
 
+use crate::INVALID_INDEX;
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct FlatNode {
@@ -26,6 +28,17 @@ impl FlatNode {
 
     pub fn max(&self) -> &[f32; 3] {
         &self.max
+    }
+}
+
+impl Default for FlatNode {
+    fn default() -> Self {
+        Self {
+            min: [std::f32::MAX, std::f32::MAX, std::f32::MAX],
+            next_node_index: INVALID_INDEX,
+            max: [std::f32::MIN, std::f32::MIN, std::f32::MIN],
+            primitive_index: INVALID_INDEX,
+        }
     }
 }
 
@@ -73,7 +86,7 @@ impl Node {
             Node::Leaf {
                 primitive_index, ..
             } => primitive_index,
-            Node::Node { .. } => std::u32::MAX,
+            Node::Node { .. } => INVALID_INDEX,
         }
     }
 
@@ -142,7 +155,7 @@ impl BVH {
             &mut self.flat.nodes,
             &self.nodes,
             self.root as u32,
-            std::u32::MAX,
+            INVALID_INDEX,
         );
     }
 
@@ -177,16 +190,16 @@ fn flatten_bvh_rec(out: &mut Vec<FlatNode>, nodes: &Vec<Node>, input_index: u32,
             right_child,
             ..
         } => {
-            if *left_child != std::u32::MAX {
+            if *left_child != INVALID_INDEX {
                 let left_node = &nodes[*left_child as usize];
-                if *right_child != std::u32::MAX {
+                if *right_child != INVALID_INDEX {
                     let miss_idx = left_node.forest_size() + curr_count + 1;
                     flatten_bvh_rec(out, nodes, *left_child, miss_idx);
                 } else {
                     flatten_bvh_rec(out, nodes, *left_child, miss_index);
                 }
             }
-            if *right_child != std::u32::MAX {
+            if *right_child != INVALID_INDEX {
                 flatten_bvh_rec(out, nodes, *right_child as u32, miss_index);
             }
         }

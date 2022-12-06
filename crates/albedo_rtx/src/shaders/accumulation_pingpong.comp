@@ -11,10 +11,12 @@
 layout (set = 0, binding = 0, std430) readonly buffer RayBuffer {
   RayPayload rays[];
 };
-layout (set = 0, binding = 1) uniform GlobalUniformBuffer {
+layout(set = 0, binding = 1) uniform GlobalUniformBuffer {
   GlobalUniforms global;
 };
-layout(set = 0, binding = 2, rgba32f) uniform image2D uRenderTarget;
+layout(set = 0, binding = 2, rgba32f) uniform image2D uWriteTarget;
+layout(set = 0, binding = 3) uniform texture2D uRenderTarget;
+layout(set = 0, binding = 4) uniform sampler uSampler;
 
 layout(local_size_x = 8, local_size_y = 8) in;
 void
@@ -27,15 +29,15 @@ main()
 
   RayPayload ray = rays[index];
 
-  ivec2 targetSize = imageSize(uRenderTarget);
+  ivec2 targetSize = imageSize(uWriteTarget);
   ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
   if (coords.x < targetSize.x && coords.y < targetSize.y)
   {
     vec4 c = vec4(0.0);
     if (global.frame > 1)
     {
-      c = imageLoad(uRenderTarget, coords);
+      // c = texelFetch(sampler2D(uRenderTarget, uSampler), coords. 0);
     }
-    imageStore(uRenderTarget, coords, c + vec4(ray.radiance.rgb, 1.0));
+    imageStore(uWriteTarget, coords, c + vec4(ray.radiance.rgb, 1.0));
   }
 }

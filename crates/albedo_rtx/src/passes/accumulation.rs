@@ -9,8 +9,10 @@ pub struct AccumulationPass {
 
 impl AccumulationPass {
     const RAY_BINDING: u32 = 0;
-    const TEXTURE_BINDING: u32 = 1;
-    const PER_DRAW_STRUCT_BINDING: u32 = 2;
+    const PER_DRAW_STRUCT_BINDING: u32 = 1;
+    const TEXTURE_BINDING: u32 = 2;
+    const READ_TEXTURE_BINDING: u32 = 3;
+    const SAMPLER_BINDING: u32 = 4;
 
     pub fn new(device: &wgpu::Device, source: Option<wgpu::ShaderModuleDescriptor>) -> Self {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -31,6 +33,9 @@ impl AccumulationPass {
                     visibility: wgpu::ShaderStages::COMPUTE,
                     ty: wgpu::BindingType::StorageTexture {
                         format: wgpu::TextureFormat::Rgba32Float,
+                        #[cfg(target_arch = "wasm32")]
+                        access: wgpu::StorageTextureAccess::WriteOnly,
+                        #[cfg(not(target_arch = "wasm32"))]
                         access: wgpu::StorageTextureAccess::ReadWrite,
                         view_dimension: wgpu::TextureViewDimension::D2,
                     },
@@ -46,6 +51,24 @@ impl AccumulationPass {
                     },
                     count: None,
                 },
+                #[cfg(target_arch = "wasm32")]
+                wgpu::BindGroupLayoutEntry {
+                    binding: Self::READ_TEXTURE_BINDING,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Texture {
+                        multisampled: false,
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                    },
+                    count: None,
+                },
+                #[cfg(target_arch = "wasm32")]
+                wgpu::BindGroupLayoutEntry {
+                    binding: Self::SAMPLER_BINDING,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
             ],
         });
 
@@ -56,6 +79,7 @@ impl AccumulationPass {
         });
 
         let shader = match source {
+            #[cfg(not(target_arch = "wasm32"))]
             None => device.create_shader_module(wgpu::include_spirv!(concat!(
                 "..",
                 path_separator!(),
@@ -64,6 +88,16 @@ impl AccumulationPass {
                 "spirv",
                 path_separator!(),
                 "accumulation.comp.spv"
+            ))),
+            #[cfg(target_arch = "wasm32")]
+            None => device.create_shader_module(wgpu::include_spirv!(concat!(
+                "..",
+                path_separator!(),
+                "shaders",
+                path_separator!(),
+                "spirv",
+                path_separator!(),
+                "accumulation_pingpong.comp.spv"
             ))),
             Some(v) => device.create_shader_module(v),
         };
@@ -81,12 +115,13 @@ impl AccumulationPass {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn create_frame_bind_groups(
         &self,
         device: &wgpu::Device,
         in_rays: &GPUBuffer<Ray>,
-        view: &wgpu::TextureView,
         global_uniforms: &UniformBuffer<PerDrawUniforms>,
+        view: &wgpu::TextureView,
     ) -> wgpu::BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Accumulation Bind Group"),
@@ -103,6 +138,44 @@ impl AccumulationPass {
                 wgpu::BindGroupEntry {
                     binding: Self::PER_DRAW_STRUCT_BINDING,
                     resource: global_uniforms.as_entire_binding(),
+                },
+            ],
+        })
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn create_frame_bind_groups(
+        &self,
+        device: &wgpu::Device,
+        in_rays: &GPUBuffer<Ray>,
+        global_uniforms: &UniformBuffer<PerDrawUniforms>,
+        write_view: &wgpu::TextureView,
+        input_view: &wgpu::TextureView,
+        sampler: &wgpu::Sampler,
+    ) -> wgpu::BindGroup {
+        device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Accumulation Bind Group"),
+            layout: &self.bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: Self::RAY_BINDING,
+                    resource: in_rays.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: Self::TEXTURE_BINDING,
+                    resource: wgpu::BindingResource::TextureView(write_view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: Self::PER_DRAW_STRUCT_BINDING,
+                    resource: global_uniforms.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: Self::READ_TEXTURE_BINDING,
+                    resource: wgpu::BindingResource::TextureView(input_view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: Self::SAMPLER_BINDING,
+                    resource: wgpu::BindingResource::Sampler(sampler),
                 },
             ],
         })
