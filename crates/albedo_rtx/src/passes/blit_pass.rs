@@ -1,5 +1,5 @@
 use albedo_backend::UniformBuffer;
-use wgpu::BindGroup;
+use wgpu::{BindGroup, BindingType};
 
 use crate::macros::path_separator;
 use crate::uniforms;
@@ -21,15 +21,17 @@ impl BlitPass {
                 wgpu::BindGroupLayoutEntry {
                     binding: Self::TEXTURE_SAMPLER_BINDING,
                     visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    // ty: BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    ty: BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry {
                     binding: Self::TEXTURE_BINDING,
                     visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Texture {
+                    ty: BindingType::Texture {
                         multisampled: false,
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        // @todo: Should be filterable.
+                        sample_type: wgpu::TextureSampleType::Float { filterable: false },
                         view_dimension: wgpu::TextureViewDimension::D2,
                     },
                     count: None,
@@ -37,7 +39,7 @@ impl BlitPass {
                 wgpu::BindGroupLayoutEntry {
                     binding: Self::PER_DRAW_STRUCT_BINDING,
                     visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
+                    ty: BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
                         min_binding_size: None,

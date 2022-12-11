@@ -14,7 +14,7 @@ layout (set = 0, binding = 0, std430) readonly buffer RayBuffer {
 layout(set = 0, binding = 1) uniform GlobalUniformBuffer {
   GlobalUniforms global;
 };
-layout(set = 0, binding = 2, rgba32f) uniform image2D uWriteTarget;
+layout(set = 0, binding = 2, rgba32f) writeonly uniform image2D uWriteTarget;
 layout(set = 0, binding = 3) uniform texture2D uRenderTarget;
 layout(set = 0, binding = 4) uniform sampler uSampler;
 
@@ -29,7 +29,7 @@ main()
 
   RayPayload ray = rays[index];
 
-  ivec2 targetSize = imageSize(uWriteTarget);
+  uvec2 targetSize = imageSize(uWriteTarget);
   ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
   if (coords.x < targetSize.x && coords.y < targetSize.y)
   {

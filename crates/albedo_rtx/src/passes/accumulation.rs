@@ -16,7 +16,7 @@ impl AccumulationPass {
 
     pub fn new(device: &wgpu::Device, source: Option<wgpu::ShaderModuleDescriptor>) -> Self {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("Ray Generator Layout"),
+            label: Some("Accumulation Bind Group Layout"),
             entries: &[
                 wgpu::BindGroupLayoutEntry {
                     binding: Self::RAY_BINDING,
@@ -57,7 +57,7 @@ impl AccumulationPass {
                     visibility: wgpu::ShaderStages::COMPUTE,
                     ty: wgpu::BindingType::Texture {
                         multisampled: false,
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        sample_type: wgpu::TextureSampleType::Float { filterable: false },
                         view_dimension: wgpu::TextureViewDimension::D2,
                     },
                     count: None,
