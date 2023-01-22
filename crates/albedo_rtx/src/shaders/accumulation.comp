@@ -25,6 +25,11 @@ main()
     gl_GlobalInvocationID.y * gl_WorkGroupSize.x * gl_NumWorkGroups.x +
     gl_GlobalInvocationID.x;
 
+  if (index >= rays.length())
+  {
+    return;
+  }
+
   RayPayload ray = rays[index];
 
   ivec2 targetSize = imageSize(uRenderTarget);

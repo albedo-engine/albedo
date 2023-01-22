@@ -2,6 +2,12 @@ use std::convert::TryInto;
 
 pub static INVALID_INDEX: u32 = std::u32::MAX;
 
+pub trait Uniform: Sized {
+    fn size_in_bytes() -> u32 {
+        std::mem::size_of::<Self>() as u32
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct Instance {
@@ -15,6 +21,7 @@ pub struct Instance {
 }
 unsafe impl bytemuck::Pod for Instance {}
 unsafe impl bytemuck::Zeroable for Instance {}
+impl Uniform for Instance {}
 
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
@@ -27,6 +34,7 @@ pub struct Material {
 }
 unsafe impl bytemuck::Pod for Material {}
 unsafe impl bytemuck::Zeroable for Material {}
+impl Uniform for Material {}
 
 impl Material {
     pub fn new(color: glam::Vec4, roughness: f32, reflectivity: f32) -> Material {
@@ -49,6 +57,7 @@ pub struct Vertex {
 }
 unsafe impl bytemuck::Pod for Vertex {}
 unsafe impl bytemuck::Zeroable for Vertex {}
+impl Uniform for Vertex {}
 
 impl Vertex {
     const DEFAULT_UV: [f32; 2] = [0.0, 0.0];
@@ -80,6 +89,7 @@ pub struct Light {
 
 unsafe impl bytemuck::Pod for Light {}
 unsafe impl bytemuck::Zeroable for Light {}
+impl Uniform for Light {}
 
 impl Light {
     pub fn new() -> Self {
@@ -144,6 +154,7 @@ impl PerDrawUniforms {
 
 unsafe impl bytemuck::Pod for PerDrawUniforms {}
 unsafe impl bytemuck::Zeroable for PerDrawUniforms {}
+impl Uniform for PerDrawUniforms {}
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -175,6 +186,7 @@ impl Default for Camera {
 
 unsafe impl bytemuck::Pod for Camera {}
 unsafe impl bytemuck::Zeroable for Camera {}
+impl Uniform for Camera {}
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -187,6 +199,7 @@ pub struct Ray {
 }
 unsafe impl bytemuck::Pod for Ray {}
 unsafe impl bytemuck::Zeroable for Ray {}
+impl Uniform for Ray {}
 
 impl Ray {
     pub fn new() -> Self {
@@ -228,6 +241,7 @@ pub struct Intersection {
 
 unsafe impl bytemuck::Pod for Intersection {}
 unsafe impl bytemuck::Zeroable for Intersection {}
+impl Uniform for Intersection {}
 
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
@@ -280,3 +294,4 @@ impl TextureInfo {
 
 unsafe impl bytemuck::Pod for TextureInfo {}
 unsafe impl bytemuck::Zeroable for TextureInfo {}
+impl Uniform for TextureInfo {}

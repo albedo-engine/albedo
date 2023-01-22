@@ -36,7 +36,7 @@ main()
     vec4 c = vec4(0.0);
     if (global.frame > 1)
     {
-      // c = texelFetch(sampler2D(uRenderTarget, uSampler), coords. 0);
+      c = texelFetch(sampler2D(uRenderTarget, uSampler), coords, 0);
     }
     imageStore(uWriteTarget, coords, c + vec4(ray.radiance.rgb, 1.0));
   }
