@@ -8,11 +8,14 @@ repository = "https://github.com/albedo-engine/albedo"
 license = "MIT"
 keywords = ["raytracing", "graphics" ]
 
+[features]
+accumulate_read_write = []
+
 [dependencies]
 bytemuck = "1.4.1"
 glam = "0.20.2"
 guillotiere = "0.6.2"
-wgpu = { version = "0.14.2", features = ["spirv"] }
+wgpu = { version = "0.15.0", features = ["spirv"] }
 albedo_backend = { path = "../albedo_backend", version = "0.0.1-beta.0" }
 albedo_bvh = { path = "../albedo_bvh", version = "0.0.1-beta.0" }
 albedo_math = { path = "../albedo_math", version = "0.0.1-beta.0" }

@@ -1,3 +1,4 @@
+use crate::get_dispatch_size;
 use crate::macros::path_separator;
 use crate::uniforms::{PerDrawUniforms, Ray};
 use albedo_backend::{GPUBuffer, UniformBuffer};
@@ -8,6 +9,8 @@ pub struct AccumulationPass {
 }
 
 impl AccumulationPass {
+    const WORKGROUP_SIZE: (u32, u32, u32) = (8, 8, 1);
+
     const RAY_BINDING: u32 = 0;
     const PER_DRAW_STRUCT_BINDING: u32 = 1;
     const TEXTURE_BINDING: u32 = 2;
@@ -33,9 +36,9 @@ impl AccumulationPass {
                     visibility: wgpu::ShaderStages::COMPUTE,
                     ty: wgpu::BindingType::StorageTexture {
                         format: wgpu::TextureFormat::Rgba32Float,
-                        #[cfg(target_arch = "wasm32")]
+                        #[cfg(feature = "accumulate_read_write")]
                         access: wgpu::StorageTextureAccess::WriteOnly,
-                        #[cfg(not(target_arch = "wasm32"))]
+                        #[cfg(not(feature = "accumulate_read_write"))]
                         access: wgpu::StorageTextureAccess::ReadWrite,
                         view_dimension: wgpu::TextureViewDimension::D2,
                     },
@@ -51,7 +54,7 @@ impl AccumulationPass {
                     },
                     count: None,
                 },
-                #[cfg(target_arch = "wasm32")]
+                #[cfg(feature = "accumulate_read_write")]
                 wgpu::BindGroupLayoutEntry {
                     binding: Self::READ_TEXTURE_BINDING,
                     visibility: wgpu::ShaderStages::COMPUTE,
@@ -62,7 +65,7 @@ impl AccumulationPass {
                     },
                     count: None,
                 },
-                #[cfg(target_arch = "wasm32")]
+                #[cfg(feature = "accumulate_read_write")]
                 wgpu::BindGroupLayoutEntry {
                     binding: Self::SAMPLER_BINDING,
                     visibility: wgpu::ShaderStages::COMPUTE,
@@ -79,7 +82,7 @@ impl AccumulationPass {
         });
 
         let shader = match source {
-            #[cfg(not(target_arch = "wasm32"))]
+            #[cfg(not(feature = "accumulate_read_write"))]
             None => device.create_shader_module(wgpu::include_spirv!(concat!(
                 "..",
                 path_separator!(),
@@ -89,7 +92,7 @@ impl AccumulationPass {
                 path_separator!(),
                 "accumulation.comp.spv"
             ))),
-            #[cfg(target_arch = "wasm32")]
+            #[cfg(feature = "accumulate_read_write")]
             None => device.create_shader_module(wgpu::include_spirv!(concat!(
                 "..",
                 path_separator!(),
@@ -115,7 +118,7 @@ impl AccumulationPass {
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(feature = "accumulate_read_write"))]
     pub fn create_frame_bind_groups(
         &self,
         device: &wgpu::Device,
@@ -143,7 +146,7 @@ impl AccumulationPass {
         })
     }
 
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(feature = "accumulate_read_write")]
     pub fn create_frame_bind_groups(
         &self,
         device: &wgpu::Device,
@@ -185,13 +188,14 @@ impl AccumulationPass {
         &self,
         encoder: &mut wgpu::CommandEncoder,
         frame_bind_groups: &wgpu::BindGroup,
-        dispatch_size: (u32, u32, u32),
+        size: (u32, u32, u32),
     ) {
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some("Accumulation Pass"),
         });
+        let workgroups = get_dispatch_size(size, Self::WORKGROUP_SIZE);
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, frame_bind_groups, &[]);
-        pass.dispatch_workgroups(dispatch_size.0, dispatch_size.1, dispatch_size.2);
+        pass.dispatch_workgroups(workgroups.0, workgroups.1, workgroups.2);
     }
 }

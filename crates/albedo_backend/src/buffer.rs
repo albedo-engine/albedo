@@ -1,3 +1,4 @@
+use bytemuck::bytes_of;
 use std::marker::PhantomData;
 use wgpu;
 // @todo: migrate to gfx.
@@ -21,6 +22,9 @@ impl<T: bytemuck::Pod> GPUBuffer<T> {
         count: usize,
     ) -> Self {
         let byte_count = (std::mem::size_of::<T>() * count) as u64;
+
+        println!("Size = {}", byte_count);
+
         let gpu_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
             size: byte_count,
@@ -29,7 +33,7 @@ impl<T: bytemuck::Pod> GPUBuffer<T> {
         });
         GPUBuffer {
             gpu_buffer,
-            count: 0,
+            count,
             content_type: PhantomData,
         }
     }
@@ -78,6 +82,10 @@ impl<T: bytemuck::Pod> GPUBuffer<T> {
         self.count
     }
 
+    pub fn size(&self) -> wgpu::BufferSize {
+        wgpu::BufferSize::new((std::mem::size_of::<T>() * self.count) as u64).unwrap()
+    }
+
     pub fn inner(&self) -> &wgpu::Buffer {
         &self.gpu_buffer
     }
@@ -97,7 +105,6 @@ impl<T: bytemuck::Pod> UniformBuffer<T> {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
-        println!("{}", std::mem::size_of::<T>());
         UniformBuffer {
             gpu_buffer,
             content_type: PhantomData,

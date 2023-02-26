@@ -4,19 +4,21 @@ COMPILER=/Users/davidpeicho/Tools/glslc/bin/glslc
 
 to_spirv()
 {
-    $COMPILER $1 -o $2
+    file=$1
+    filename="$(basename -- $file)"
+    output_path=./src/shaders/spirv/$filename.spv
+    echo "Compiling into $output_path..."
+    $COMPILER $file -o $output_path
+    echo "Compilation done!"
+    echo ""
 }
 
-
-for file in ./src/shaders/*.comp
-do
-    if [[ -f $file ]]; then
-        filename="$(basename -- $file)"
-        output_path=./src/shaders/spirv/$filename.spv
-        echo "Compiling into $output_path..."
-        to_spirv $file $output_path
-        echo "Compilation done!"
-        echo ""
-    fi
+for file in ./src/shaders/*.comp; do
+    to_spirv $file
 done
-
+for file in ./src/shaders/*.frag; do
+    to_spirv $file
+done
+for file in ./src/shaders/*.vert; do
+    to_spirv $file
+done

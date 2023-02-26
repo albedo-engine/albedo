@@ -168,7 +168,7 @@ shade(RayPayload ray, Intersection intersection)
     + uint(global.seed) * uint(26699)
   ) | uint(1);
 
-  if (ray.terminated > 0u)
+  if (ray.terminated.x > 0u)
   {
     return ray;
   }
@@ -179,7 +179,7 @@ shade(RayPayload ray, Intersection intersection)
     vec2 uv = cartesianToEqui(ray.dir.xyz);
     vec3 probe = sampleProbe(samplerNearest, Probe, uv);
     ray.radiance.rgb += throughput * probe;
-    ray.terminated = 1u;
+    ray.terminated.x = 1u;
   }
   else if (intersection.emitter != INVALID_UINT)
   {
@@ -250,17 +250,11 @@ layout(local_size_x = 8, local_size_y = 8) in;
 void
 main()
 {
-  uint index =
-    gl_GlobalInvocationID.z * gl_WorkGroupSize.x * gl_NumWorkGroups.x * gl_WorkGroupSize.y * gl_NumWorkGroups.y +
-    gl_GlobalInvocationID.y * gl_WorkGroupSize.x * gl_NumWorkGroups.x +
-    gl_GlobalInvocationID.x;
+  uint index = gl_GlobalInvocationID.y * gl_WorkGroupSize.x * gl_NumWorkGroups.x + gl_GlobalInvocationID.x;
+  if (index >= rays.length()) return;
 
-  // @todo: maybe let's just make the array bigger?
-  if (index < rays.length())
-  {
-    RayPayload ray = rays[index];
-    Intersection intersection = intersections[index];
-    // Modified ray is written back to SSBO.
-    rays[index] = shade(ray, intersection);
-  }
+  RayPayload ray = rays[index];
+  Intersection intersection = intersections[index];
+  // Modified ray is written back to SSBO.
+  rays[index] = shade(ray, intersection);
 }

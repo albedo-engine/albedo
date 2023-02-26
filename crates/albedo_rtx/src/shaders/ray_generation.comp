@@ -29,7 +29,6 @@ generateRay(uvec3 coords, uvec2 dimensions)
 {
   RayPayload ray;
 
-  // vec2 half = vec2(CameraUniforms.dimensions) * 0.5;
   vec2 halfSize = vec2(dimensions) * 0.5;
   vec3 clip = vec3(
     coords.x - halfSize.x,
@@ -47,7 +46,7 @@ generateRay(uvec3 coords, uvec2 dimensions)
     1.0 // throughput component
   );
   ray.radiance = vec4(0.0, 0.0, 0.0, 1.0);
-  ray.terminated = 0u;
+  ray.terminated = uvec4(0u);
 
   return ray;
 }
@@ -56,14 +55,15 @@ generateRay(uvec3 coords, uvec2 dimensions)
 layout(local_size_x = 8, local_size_y = 8) in;
 void main()
 {
-  uint index =
-    gl_GlobalInvocationID.z * gl_WorkGroupSize.x * gl_NumWorkGroups.x * gl_WorkGroupSize.y * gl_NumWorkGroups.y +
-    gl_GlobalInvocationID.y * gl_WorkGroupSize.x * gl_NumWorkGroups.x +
-    gl_GlobalInvocationID.x;
+  uint index = gl_GlobalInvocationID.y * gl_WorkGroupSize.x * gl_NumWorkGroups.x + gl_GlobalInvocationID.x;
+  if (index >= rays.length()) return;
 
-  // @todo: maybe let's just make the array bigger?
-  if (index < rays.length())
-  {
-    rays[index] = generateRay(gl_GlobalInvocationID, CameraUniforms.dimensions);
-  }
+  uvec2 dimensions = CameraUniforms.dimensions;
+  rays[index] = generateRay(gl_GlobalInvocationID, dimensions);
+
+  // DEBUG
+  // RayPayload ray;
+  // ray.radiance = vec4(1.0, 0.0, 0.0, 0.0);
+  // rays[index] = ray;
+  // END DEBUG
 }

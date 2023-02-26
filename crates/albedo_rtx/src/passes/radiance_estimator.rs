@@ -1,3 +1,4 @@
+use crate::get_dispatch_size;
 use crate::macros::path_separator;
 use crate::uniforms;
 use albedo_backend::{GPUBuffer, UniformBuffer};
@@ -9,6 +10,8 @@ pub struct ShadingPass {
 }
 
 impl ShadingPass {
+    const WORKGROUP_SIZE: (u32, u32, u32) = (8, 8, 1);
+
     const RAY_BINDING: u32 = 0;
     const NODE_BINDING: u32 = 1;
     const INTERSECTION_BINDING: u32 = 2;
@@ -277,13 +280,14 @@ impl ShadingPass {
         &self,
         encoder: &mut wgpu::CommandEncoder,
         frame_bind_groups: &wgpu::BindGroup,
-        dispatch_size: (u32, u32, u32),
+        size: (u32, u32, u32),
     ) {
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some("Shading Pass"),
         });
+        let workgroups = get_dispatch_size(size, Self::WORKGROUP_SIZE);
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, frame_bind_groups, &[]);
-        pass.dispatch_workgroups(dispatch_size.0, dispatch_size.1, dispatch_size.2);
+        pass.dispatch_workgroups(workgroups.0, workgroups.1, workgroups.2);
     }
 }

@@ -1,5 +1,8 @@
+use std::default;
+
 use albedo_backend::{GPUBuffer, UniformBuffer};
 
+use crate::get_dispatch_size;
 use crate::macros::path_separator;
 use crate::uniforms;
 
@@ -16,6 +19,8 @@ pub struct RayPass {
 impl RayPass {
     const RAY_BINDING: u32 = 0;
     const CAMERA_BINDING: u32 = 1;
+
+    const WORKGROUP_SIZE: (u32, u32, u32) = (8, 8, 1);
 
     pub fn new(device: &wgpu::Device, source: Option<wgpu::ShaderModuleDescriptor>) -> Self {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -114,8 +119,9 @@ impl RayPass {
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some("Ray Generator Pass"),
         });
+        let workgroups = get_dispatch_size(dispatch_size, Self::WORKGROUP_SIZE);
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, frame_bind_groups, &[]);
-        pass.dispatch_workgroups(dispatch_size.0, dispatch_size.1, dispatch_size.2);
+        pass.dispatch_workgroups(workgroups.0, workgroups.1, workgroups.2);
     }
 }

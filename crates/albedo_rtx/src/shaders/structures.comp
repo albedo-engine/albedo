@@ -52,8 +52,7 @@ struct RayPayload {
   vec4 origin;
   vec4 dir;
   vec4 radiance;
-  uint terminated;
-  vec3 padding;
+  uvec4 terminated;
 };
 
 struct Ray {

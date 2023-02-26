@@ -194,8 +194,7 @@ pub struct Ray {
     origin: glam::Vec4,
     dir: glam::Vec4,
     radiance: glam::Vec4,
-    terminated: u32,
-    padding: [u32; 3],
+    terminated: [u32; 4],
 }
 unsafe impl bytemuck::Pod for Ray {}
 unsafe impl bytemuck::Zeroable for Ray {}
@@ -207,8 +206,7 @@ impl Ray {
             origin: glam::Vec4::new(0.0, 0.0, 0.0, 1.0),
             dir: glam::Vec4::new(0.0, 0.0, 0.0, 1.0),
             radiance: glam::Vec4::new(0.0, 0.0, 0.0, 1.0),
-            terminated: 0,
-            padding: [0, 0, 0],
+            terminated: [0, 0, 0, 0],
         }
     }
 
@@ -217,8 +215,7 @@ impl Ray {
             origin: glam::Vec4::new(origin.x, origin.y, origin.z, 1.0),
             dir: glam::Vec4::new(direction.x, direction.y, direction.z, 1.0),
             radiance: glam::Vec4::new(0.0, 0.0, 0.0, 1.0),
-            terminated: 0,
-            padding: [0, 0, 0],
+            terminated: [0, 0, 0, 0],
         }
     }
 
