@@ -1,5 +1,3 @@
-use std::default;
-
 use albedo_backend::{GPUBuffer, UniformBuffer};
 
 use crate::get_dispatch_size;

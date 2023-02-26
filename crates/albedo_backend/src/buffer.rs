@@ -1,7 +1,6 @@
-use bytemuck::bytes_of;
 use std::marker::PhantomData;
 use wgpu;
-// @todo: migrate to gfx.
+
 pub struct GPUBuffer<T> {
     gpu_buffer: wgpu::Buffer,
     count: usize,
@@ -22,8 +21,6 @@ impl<T: bytemuck::Pod> GPUBuffer<T> {
         count: usize,
     ) -> Self {
         let byte_count = (std::mem::size_of::<T>() * count) as u64;
-
-        println!("Size = {}", byte_count);
 
         let gpu_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,

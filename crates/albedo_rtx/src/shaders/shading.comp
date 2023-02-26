@@ -79,7 +79,9 @@ layout(set = 0, binding = 10) uniform texture2DArray textureAtlas;
 
 layout( set = 0, binding = 11 ) uniform sampler samplerNearest;
 
-layout (set = 0, binding = 12) uniform GlobalUniformBuffer {
+layout( set = 0, binding = 12 ) uniform sampler samplerLinear;
+
+layout (set = 0, binding = 13) uniform GlobalUniformBuffer {
   GlobalUniforms global;
 };
 
@@ -94,7 +96,8 @@ WangHash(inout uint seed)
   return seed;
 }
 
-float rand(inout uint seed)
+float
+rand(inout uint seed)
 {
   return float(WangHash(seed)) / 4294967296.0;
 }
@@ -141,7 +144,8 @@ cartesianToEqui(vec3 dir)
   return longlat / vec2(2.0 * PI_F, PI_F);
 }
 
-vec3 interpolate(vec3 v0, vec3 v1, vec3 v2, vec3 barycentric)
+vec3
+interpolate(vec3 v0, vec3 v1, vec3 v2, vec3 barycentric)
 {
   return (
     barycentric.x * v0 +
@@ -150,7 +154,8 @@ vec3 interpolate(vec3 v0, vec3 v1, vec3 v2, vec3 barycentric)
   );
 }
 
-vec2 interpolate(vec2 v0, vec2 v1, vec2 v2, vec3 barycentric)
+vec2
+interpolate(vec2 v0, vec2 v1, vec2 v2, vec3 barycentric)
 {
   return (
     barycentric.x * v0 +
@@ -162,22 +167,19 @@ vec2 interpolate(vec2 v0, vec2 v1, vec2 v2, vec3 barycentric)
 RayPayload
 shade(RayPayload ray, Intersection intersection)
 {
-    uint randState = uint(
+  uint randState = uint(
     gl_GlobalInvocationID.x * uint(1973)
     + gl_GlobalInvocationID.y * uint(9277)
     + uint(global.seed) * uint(26699)
   ) | uint(1);
 
-  if (ray.terminated.x > 0u)
-  {
-    return ray;
-  }
+  if (ray.terminated.x > 0u) return ray;
 
   vec3 throughput = getThroughput(ray);
   if (abs(MAX_FLOAT - intersection.dist) < EPSILON)
   {
     vec2 uv = cartesianToEqui(ray.dir.xyz);
-    vec3 probe = sampleProbe(samplerNearest, Probe, uv);
+    vec3 probe = sampleProbe(samplerLinear, Probe, uv);
     ray.radiance.rgb += throughput * probe;
     ray.terminated.x = 1u;
   }

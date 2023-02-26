@@ -14,7 +14,9 @@ impl AccumulationPass {
     const RAY_BINDING: u32 = 0;
     const PER_DRAW_STRUCT_BINDING: u32 = 1;
     const TEXTURE_BINDING: u32 = 2;
+    #[cfg(feature = "accumulate_read_write")]
     const READ_TEXTURE_BINDING: u32 = 3;
+    #[cfg(feature = "accumulate_read_write")]
     const SAMPLER_BINDING: u32 = 4;
 
     pub fn new(device: &wgpu::Device, source: Option<wgpu::ShaderModuleDescriptor>) -> Self {

@@ -124,7 +124,7 @@ impl TextureAtlas {
         for i in 0..texture.height {
             let dst_height_byte_offset = (y + i) as usize * bytes_per_atlas_row;
             let dst_start_byte =
-                (bytes_per_atlas_layer + dst_height_byte_offset + (x * Self::COMPONENTS) as usize);
+                bytes_per_atlas_layer + dst_height_byte_offset + (x * Self::COMPONENTS) as usize;
             let src_start_byte = i as usize * bytes_per_row;
             let src_slice = &texture.data[src_start_byte..(src_start_byte + bytes_per_row)];
             self.data[dst_start_byte..(dst_start_byte + bytes_per_row)].copy_from_slice(src_slice);

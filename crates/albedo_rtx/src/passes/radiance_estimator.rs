@@ -24,7 +24,8 @@ impl ShadingPass {
     const TEXTURE_INFO_BINDING: u32 = 9;
     const TEXTURE_ATLAS_BINDING: u32 = 10;
     const SAMPLER_BINDING: u32 = 11;
-    const PER_DRAW_STRUCT_BINDING: u32 = 12;
+    const SAMPLER_LINEAR_BINDING: u32 = 12;
+    const PER_DRAW_STRUCT_BINDING: u32 = 13;
 
     pub fn new(device: &wgpu::Device) -> Self {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -147,6 +148,12 @@ impl ShadingPass {
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry {
+                    binding: Self::SAMPLER_LINEAR_BINDING,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
                     binding: Self::PER_DRAW_STRUCT_BINDING,
                     visibility: wgpu::ShaderStages::COMPUTE,
                     ty: wgpu::BindingType::Buffer {
@@ -215,6 +222,7 @@ impl ShadingPass {
         atlas_view: &wgpu::TextureView,
         global_uniforms: &UniformBuffer<uniforms::PerDrawUniforms>,
         sampler_nearest: &wgpu::Sampler,
+        sampler_linear: &wgpu::Sampler,
     ) -> wgpu::BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Radiance Estimator Base Bind Group"),
@@ -267,6 +275,10 @@ impl ShadingPass {
                 wgpu::BindGroupEntry {
                     binding: Self::SAMPLER_BINDING,
                     resource: wgpu::BindingResource::Sampler(sampler_nearest),
+                },
+                wgpu::BindGroupEntry {
+                    binding: Self::SAMPLER_LINEAR_BINDING,
+                    resource: wgpu::BindingResource::Sampler(sampler_linear),
                 },
                 wgpu::BindGroupEntry {
                     binding: Self::PER_DRAW_STRUCT_BINDING,
