@@ -1,0 +1,12 @@
+[package]
+name = "albedo_gpu_picking_example"
+version = "0.1.0"
+description = "Example for 3D picking using Albedo"
+publish = false
+license = "MIT"
+
+[bin]
+name = "albedo_gpu_picking_example"
+
+[dependencies]
+albedo_rtx = { path = "../../crates/albedo_rtx" }
