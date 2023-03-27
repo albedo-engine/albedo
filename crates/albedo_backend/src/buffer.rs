@@ -1,5 +1,101 @@
+use bytemuck::Pod;
 use std::marker::PhantomData;
-use wgpu;
+use wgpu::util::DeviceExt;
+
+use crate::DynSize;
+
+#[derive(Clone, Copy)]
+struct BufferOptions {
+    pub count: u64,
+    pub usage: wgpu::BufferUsages,
+}
+
+impl BufferOptions {
+    pub fn new() -> Self {
+        BufferOptions {
+            ..Default::default()
+        }
+    }
+}
+
+impl Default for BufferOptions {
+    fn default() -> Self {
+        Self {
+            count: Default::default(),
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct BufferInitDescriptor<'a, T> {
+    /// Debug label of a buffer. This will show up in graphics debuggers for easy identification.
+    pub label: wgpu::Label<'a>,
+    /// Contents of a buffer on creation.
+    pub contents: &'a [T],
+    /// Usages of a buffer. If the buffer is used in any way that isn't specified here, the operation
+    /// will panic.
+    pub usage: wgpu::BufferUsages,
+}
+
+pub struct Buffer<T = crate::DynSize> {
+    inner: wgpu::Buffer,
+    count: u64,
+    bytes_per_element: u64,
+    _content_type: PhantomData<T>,
+}
+
+impl<T: Pod> Buffer<T> {
+    pub fn new_with_data<'a>(
+        device: &wgpu::Device,
+        options: BufferInitDescriptor<'a, T>,
+    ) -> Buffer<T> {
+        let bytes_per_element = std::mem::size_of::<T>() as u64;
+        let inner = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: options.label,
+            contents: bytemuck::cast_slice(options.contents),
+            usage: options.usage,
+        });
+        Buffer {
+            inner,
+            count: options.contents.len() as u64,
+            bytes_per_element,
+            _content_type: PhantomData,
+        }
+    }
+
+    pub fn count(&self) -> u64 {
+        self.count
+    }
+
+    pub fn bytes_per_element(&self) -> u64 {
+        self.bytes_per_element
+    }
+
+    pub fn inner(&self) -> &wgpu::Buffer {
+        &self.inner
+    }
+}
+
+impl Buffer<DynSize> {
+    pub fn new_with_data<'a, T: Pod>(
+        device: &wgpu::Device,
+        options: BufferInitDescriptor<'a, T>,
+    ) -> Buffer<()> {
+        let bytes_per_element = std::mem::size_of::<T>() as u64;
+        let inner = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: options.label,
+            contents: bytemuck::cast_slice(options.contents),
+            usage: options.usage,
+        });
+        Buffer {
+            inner,
+            count: options.contents.len() as u64,
+            bytes_per_element,
+            _content_type: PhantomData,
+        }
+    }
+}
 
 pub struct GPUBuffer<T> {
     gpu_buffer: wgpu::Buffer,
@@ -118,6 +214,23 @@ impl<T: bytemuck::Pod> UniformBuffer<T> {
 }
 
 // Traits //
+
+impl<T: Pod> From<Buffer<T>> for Buffer<DynSize> {
+    fn from(buffer: Buffer<T>) -> Self {
+        Buffer {
+            inner: buffer.inner,
+            count: buffer.count,
+            bytes_per_element: buffer.bytes_per_element,
+            _content_type: PhantomData,
+        }
+    }
+}
+
+impl<'a, T: bytemuck::Pod> From<&'a Buffer<T>> for &'a wgpu::Buffer {
+    fn from(buffer: &'a Buffer<T>) -> Self {
+        buffer.inner()
+    }
+}
 
 impl<'a, T: bytemuck::Pod> From<&'a GPUBuffer<T>> for &'a wgpu::Buffer {
     fn from(buffer: &'a GPUBuffer<T>) -> Self {

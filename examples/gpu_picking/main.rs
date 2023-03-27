@@ -1,11 +1,29 @@
-#[path = "../example.rs"]
+#[path = "../example/mod.rs"]
 mod example;
-use example::Example;
+use example::{meshes, Example};
+use meshes::Geometry;
 
-struct PickingExample {}
+use albedo_backend::{Buffer, BufferInitDescriptor, Primitive};
+
+struct PickingExample {
+    primitive: Primitive,
+}
 
 impl Example for PickingExample {
-    fn new() -> Self {
+    fn new(app: &example::App) -> Self {
+        let cube = meshes::CubeGeometry::new();
+        let primitive = Primitive::new(
+            Buffer::new_with_data(
+                &app.device,
+                BufferInitDescriptor {
+                    label: None,
+                    contents: cube.vertices(),
+                    usage: wgpu::BufferUsages::VERTEX,
+                },
+            ),
+            cube.indices(),
+        );
+
         PickingExample {}
     }
 

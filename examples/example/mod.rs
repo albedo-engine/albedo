@@ -6,6 +6,8 @@ use winit::{
 mod async_exec;
 use async_exec::Spawner;
 
+pub mod meshes;
+
 #[cfg(not(target_arch = "wasm32"))]
 macro_rules! log {
     ( $( $t:tt )* ) => {
@@ -119,14 +121,14 @@ pub trait Example: 'static + Sized {
         "Example"
     }
 
-    fn new() -> Self;
+    fn new(app: &App) -> Self;
     fn resize(&mut self, platform: &App);
     fn update(&mut self, event: winit::event::WindowEvent);
     fn render(&mut self, platform: &App, view: &wgpu::TextureView);
 }
 
 fn run<E: Example>(event_loop: EventLoop, app: App) {
-    let mut example = E::new();
+    let mut example = E::new(&app);
     let mut app = app;
     event_loop.run(move |event, _, control_flow| {
         *control_flow = if cfg!(feature = "metal-auto-capture") {

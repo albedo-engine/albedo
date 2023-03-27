@@ -1,8 +1,12 @@
 mod buffer;
+mod primitive;
 
 pub mod shader_bindings;
 
-pub use buffer::{GPUBuffer, UniformBuffer};
+pub use buffer::{Buffer, BufferInitDescriptor, GPUBuffer, UniformBuffer};
+pub use primitive::{IndexBuffer, Primitive};
+
+pub struct DynSize(u64);
 
 pub struct Alignment2D {
     pub unpadded_bytes_per_row: usize,
