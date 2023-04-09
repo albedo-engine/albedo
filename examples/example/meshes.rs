@@ -14,6 +14,9 @@ impl Vertex {
     }
 }
 
+unsafe impl bytemuck::Zeroable for Vertex {}
+unsafe impl bytemuck::Pod for Vertex {}
+
 pub trait Geometry {
     fn vertices<'a>(&'a self) -> &'a [Vertex];
     fn indices<'a>(&'a self) -> &'a [u16];

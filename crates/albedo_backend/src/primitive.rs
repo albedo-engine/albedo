@@ -1,8 +1,8 @@
-use crate::Buffer;
+use crate::{Buffer, TypedBuffer};
 
 pub enum IndexBuffer {
-    U16(Buffer<u16>),
-    U32(Buffer<u32>),
+    U16(TypedBuffer<u16>),
+    U32(TypedBuffer<u32>),
 }
 
 pub struct Primitive {

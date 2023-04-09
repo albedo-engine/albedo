@@ -52,6 +52,7 @@ dependencies = [
  "albedo_backend",
  "albedo_rtx",
  "async-executor",
+ "bytemuck",
  "console_error_panic_hook",
  "console_log",
  "enumflags2",

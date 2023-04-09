@@ -1,12 +1,14 @@
+mod bind_group;
 mod buffer;
 mod primitive;
+mod render_pipeline;
 
 pub mod shader_bindings;
 
-pub use buffer::{Buffer, BufferInitDescriptor, GPUBuffer, UniformBuffer};
+pub use bind_group::BindGroupLayoutBuilder;
+pub use buffer::{Buffer, BufferInitDescriptor, GPUBuffer, TypedBuffer, UniformBuffer};
 pub use primitive::{IndexBuffer, Primitive};
-
-pub struct DynSize(u64);
+pub use render_pipeline::RenderPipelineBuilder;
 
 pub struct Alignment2D {
     pub unpadded_bytes_per_row: usize,

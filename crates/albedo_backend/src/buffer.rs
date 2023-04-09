@@ -2,31 +2,6 @@ use bytemuck::Pod;
 use std::marker::PhantomData;
 use wgpu::util::DeviceExt;
 
-use crate::DynSize;
-
-#[derive(Clone, Copy)]
-struct BufferOptions {
-    pub count: u64,
-    pub usage: wgpu::BufferUsages,
-}
-
-impl BufferOptions {
-    pub fn new() -> Self {
-        BufferOptions {
-            ..Default::default()
-        }
-    }
-}
-
-impl Default for BufferOptions {
-    fn default() -> Self {
-        Self {
-            count: Default::default(),
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-        }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct BufferInitDescriptor<'a, T> {
     /// Debug label of a buffer. This will show up in graphics debuggers for easy identification.
@@ -38,18 +13,17 @@ pub struct BufferInitDescriptor<'a, T> {
     pub usage: wgpu::BufferUsages,
 }
 
-pub struct Buffer<T = crate::DynSize> {
+pub struct Buffer {
     inner: wgpu::Buffer,
     count: u64,
     bytes_per_element: u64,
-    _content_type: PhantomData<T>,
 }
 
-impl<T: Pod> Buffer<T> {
-    pub fn new_with_data<'a>(
+impl Buffer {
+    pub fn new_with_data<'a, T: Pod>(
         device: &wgpu::Device,
         options: BufferInitDescriptor<'a, T>,
-    ) -> Buffer<T> {
+    ) -> Buffer {
         let bytes_per_element = std::mem::size_of::<T>() as u64;
         let inner = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: options.label,
@@ -60,10 +34,8 @@ impl<T: Pod> Buffer<T> {
             inner,
             count: options.contents.len() as u64,
             bytes_per_element,
-            _content_type: PhantomData,
         }
     }
-
     pub fn count(&self) -> u64 {
         self.count
     }
@@ -77,23 +49,38 @@ impl<T: Pod> Buffer<T> {
     }
 }
 
-impl Buffer<DynSize> {
-    pub fn new_with_data<'a, T: Pod>(
+pub struct TypedBuffer<T: Pod> {
+    inner: Buffer,
+    _content_type: PhantomData<T>,
+}
+
+impl<T: Pod> TypedBuffer<T> {
+    pub fn new_with_data<'a>(
         device: &wgpu::Device,
         options: BufferInitDescriptor<'a, T>,
-    ) -> Buffer<()> {
+    ) -> TypedBuffer<T> {
         let bytes_per_element = std::mem::size_of::<T>() as u64;
         let inner = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: options.label,
             contents: bytemuck::cast_slice(options.contents),
             usage: options.usage,
         });
-        Buffer {
-            inner,
-            count: options.contents.len() as u64,
-            bytes_per_element,
+        TypedBuffer {
+            inner: Buffer {
+                inner,
+                count: options.contents.len() as u64,
+                bytes_per_element,
+            },
             _content_type: PhantomData,
         }
+    }
+}
+
+impl<T: Pod> core::ops::Deref for TypedBuffer<T> {
+    type Target = Buffer;
+
+    fn deref(&self) -> &Buffer {
+        &self.inner
     }
 }
 
@@ -215,20 +202,21 @@ impl<T: bytemuck::Pod> UniformBuffer<T> {
 
 // Traits //
 
-impl<T: Pod> From<Buffer<T>> for Buffer<DynSize> {
-    fn from(buffer: Buffer<T>) -> Self {
-        Buffer {
-            inner: buffer.inner,
-            count: buffer.count,
-            bytes_per_element: buffer.bytes_per_element,
-            _content_type: PhantomData,
-        }
+impl<T: Pod> From<TypedBuffer<T>> for Buffer {
+    fn from(buffer: TypedBuffer<T>) -> Self {
+        buffer.inner
     }
 }
 
-impl<'a, T: bytemuck::Pod> From<&'a Buffer<T>> for &'a wgpu::Buffer {
-    fn from(buffer: &'a Buffer<T>) -> Self {
+impl<'a> From<&'a Buffer> for &'a wgpu::Buffer {
+    fn from(buffer: &'a Buffer) -> Self {
         buffer.inner()
+    }
+}
+
+impl<'a, T: bytemuck::Pod> From<&'a TypedBuffer<T>> for &'a wgpu::Buffer {
+    fn from(buffer: &'a TypedBuffer<T>) -> Self {
+        (*buffer).inner()
     }
 }
 
