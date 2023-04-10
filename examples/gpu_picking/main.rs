@@ -1,47 +1,50 @@
 #[path = "../example/mod.rs"]
 mod example;
-use example::{meshes, Example};
+use example::{
+    meshes::{self, Vertex},
+    Example,
+};
 use meshes::Geometry;
 
 use std::borrow::Cow;
 
 use albedo_backend::{
-    BindGroupLayoutBuilder, Buffer, BufferInitDescriptor, IndexBuffer, Primitive,
-    RenderPipelineBuilder, TypedBuffer,
+    BindGroupLayoutBuilder, BufferInitDescriptor, IndexBuffer, RenderPipelineBuilder, TypedBuffer,
+    TypedUniformBuffer, VertexBufferLayoutBuilder,
 };
 
-struct VertexData {
-    primitive: Primitive,
-}
 struct PickingExample {
-    vertex_data: VertexData,
+    pipeline: wgpu::RenderPipeline,
+    bind_group: wgpu::BindGroup,
+    vertex_buffer: TypedBuffer<Vertex>,
+    index_buffer: IndexBuffer,
 }
 
-impl VertexData {
-    fn new(app: &example::App) -> Self {
-        let cube = meshes::CubeGeometry::new();
-        let primitive = Primitive::new(
-            Buffer::new_with_data(
-                &app.device,
-                BufferInitDescriptor {
-                    label: Some("Cube Positions"),
-                    contents: cube.vertices(),
-                    usage: wgpu::BufferUsages::VERTEX,
-                },
-            ),
-            IndexBuffer::U16(TypedBuffer::new_with_data(
-                &app.device,
-                BufferInitDescriptor {
-                    label: Some("Cube Indices"),
-                    contents: cube.indices(),
-                    usage: wgpu::BufferUsages::VERTEX,
-                },
-            )),
-        );
+// @todo: Create a UniformBlock derive
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+struct Uniforms {
+    transform: glam::Mat4,
+}
+unsafe impl bytemuck::Pod for Uniforms {}
+unsafe impl bytemuck::Zeroable for Uniforms {}
 
+impl Example for PickingExample {
+    fn new(app: &example::App) -> Self {
         let bgl = BindGroupLayoutBuilder::new_with_size(1)
             .uniform_buffer(wgpu::ShaderStages::VERTEX, None)
             .build(&app.device);
+
+        let shader = app
+            .device
+            .create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: None,
+                source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("shader.wgsl"))),
+            });
+
+        let vertex_buffer_layout = VertexBufferLayoutBuilder::new(2)
+            .auto_attribute(wgpu::VertexFormat::Float32x4)
+            .auto_attribute(wgpu::VertexFormat::Float32x2);
 
         let pipeline_layout = app
             .device
@@ -51,27 +54,61 @@ impl VertexData {
                 push_constant_ranges: &[],
             });
 
-        let shader = app
-            .device
-            .create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: None,
-                source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("shader.wgsl"))),
-            });
+        let pipeline = RenderPipelineBuilder::new(wgpu::VertexState {
+            module: &shader,
+            entry_point: "vs_main",
+            buffers: &[vertex_buffer_layout.build(None)],
+        })
+        .layout(&pipeline_layout)
+        .fragment(Some(wgpu::FragmentState {
+            module: &shader,
+            entry_point: "fs_main",
+            targets: &[Some(app.surface_config.format.into())],
+        }))
+        .build(&app.device);
 
-        // let pipeline = RenderPipelineBuilder::new(wgpu::VertexState {
-        //     module: &shader,
-        //     entry_point: "vs_main",
-        //     buffers: primitive.vertices().inner(),
-        // })
+        let cube = meshes::CubeGeometry::new();
+        let vertex_buffer = TypedBuffer::new_with_data(
+            &app.device,
+            cube.vertices(),
+            Some(BufferInitDescriptor::new(
+                Some("Cube Positions"),
+                wgpu::BufferUsages::VERTEX,
+            )),
+        );
+        let index_buffer = IndexBuffer::new_with_data_16(
+            &app.device,
+            cube.indices(),
+            Some(BufferInitDescriptor::new(
+                Some("Cube Indices"),
+                wgpu::BufferUsages::VERTEX,
+            )),
+        );
 
-        VertexData { primitive }
-    }
-}
+        let aspect_ratio = app.surface_config.width as f32 / app.surface_config.height as f32;
 
-impl Example for PickingExample {
-    fn new(app: &example::App) -> Self {
+        let mut uniforms = Uniforms {
+            transform: glam::Mat4::IDENTITY,
+        };
+        uniforms.transform = glam::Mat4::perspective_rh_gl(0.38, aspect_ratio, 0.01, 100.0)
+            * glam::Mat4::from_translation(glam::Vec3::new(0.0, 0.0, -10.0));
+        let uniform_buffer = TypedUniformBuffer::new_with_data(&app.device, &uniforms, None);
+
+        let bind_group = app.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &bgl,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: uniform_buffer.as_entire_binding(),
+            }],
+            label: Some("Bind Group"),
+        });
+        // let vertex_data = VertexData::new(app);
+
         PickingExample {
-            vertex_data: VertexData::new(app),
+            pipeline,
+            bind_group,
+            vertex_buffer,
+            index_buffer,
         }
     }
 
@@ -79,7 +116,43 @@ impl Example for PickingExample {
 
     fn update(&mut self, event: winit::event::WindowEvent) {}
 
-    fn render(&mut self, app: &example::App, view: &wgpu::TextureView) {}
+    fn render(&mut self, app: &example::App, view: &wgpu::TextureView) {
+        let mut encoder = app
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+        {
+            let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: None,
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.1,
+                            g: 0.2,
+                            b: 0.3,
+                            a: 1.0,
+                        }),
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: None,
+            });
+            rpass.push_debug_group("Prepare data for draw.");
+            rpass.set_pipeline(&self.pipeline);
+            rpass.set_bind_group(0, &self.bind_group, &[]);
+            rpass.set_index_buffer(
+                self.index_buffer.inner().slice(..),
+                wgpu::IndexFormat::Uint16,
+            );
+            rpass.set_vertex_buffer(0, self.vertex_buffer.inner().slice(..));
+            rpass.pop_debug_group();
+            rpass.insert_debug_marker("Draw!");
+            rpass.draw_indexed(0..self.index_buffer.count() as u32, 0, 0..1);
+        }
+
+        app.queue.submit(Some(encoder.finish()));
+    }
 }
 
 fn main() {

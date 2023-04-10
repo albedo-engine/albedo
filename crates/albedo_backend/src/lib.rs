@@ -1,14 +1,17 @@
 mod bind_group;
 mod buffer;
-mod primitive;
 mod render_pipeline;
+mod vertex_buffer;
 
 pub mod shader_bindings;
 
 pub use bind_group::BindGroupLayoutBuilder;
-pub use buffer::{Buffer, BufferInitDescriptor, GPUBuffer, TypedBuffer, UniformBuffer};
-pub use primitive::{IndexBuffer, Primitive};
+pub use buffer::{
+    Buffer, BufferInitDescriptor, GPUBuffer, IndexBuffer, TypedBuffer, TypedUniformBuffer,
+    UniformBuffer,
+};
 pub use render_pipeline::RenderPipelineBuilder;
+pub use vertex_buffer::VertexBufferLayoutBuilder;
 
 pub struct Alignment2D {
     pub unpadded_bytes_per_row: usize,

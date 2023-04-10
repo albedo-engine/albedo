@@ -30,6 +30,11 @@ impl<'a> RenderPipelineBuilder<'a> {
         self
     }
 
+    pub fn layout(mut self, layout: &'a wgpu::PipelineLayout) -> Self {
+        self.desc.layout = Some(layout);
+        self
+    }
+
     pub fn fragment(mut self, state: Option<wgpu::FragmentState<'a>>) -> Self {
         self.desc.fragment = state;
         self

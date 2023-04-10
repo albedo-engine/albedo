@@ -3,14 +3,30 @@ use std::marker::PhantomData;
 use wgpu::util::DeviceExt;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct BufferInitDescriptor<'a, T> {
+pub struct BufferInitDescriptor<'a> {
     /// Debug label of a buffer. This will show up in graphics debuggers for easy identification.
     pub label: wgpu::Label<'a>,
-    /// Contents of a buffer on creation.
-    pub contents: &'a [T],
     /// Usages of a buffer. If the buffer is used in any way that isn't specified here, the operation
     /// will panic.
     pub usage: wgpu::BufferUsages,
+}
+
+impl<'a> BufferInitDescriptor<'a> {
+    pub fn new(label: wgpu::Label<'a>, usage: wgpu::BufferUsages) -> Self {
+        BufferInitDescriptor { label, usage }
+    }
+    pub fn with_label(label: wgpu::Label<'a>) -> Self {
+        BufferInitDescriptor {
+            label,
+            usage: wgpu::BufferUsages::COPY_DST,
+        }
+    }
+}
+
+impl<'a> Default for BufferInitDescriptor<'a> {
+    fn default() -> Self {
+        BufferInitDescriptor::new(None, wgpu::BufferUsages::COPY_DST)
+    }
 }
 
 pub struct Buffer {
@@ -22,17 +38,19 @@ pub struct Buffer {
 impl Buffer {
     pub fn new_with_data<'a, T: Pod>(
         device: &wgpu::Device,
-        options: BufferInitDescriptor<'a, T>,
+        contents: &[T],
+        options: Option<BufferInitDescriptor<'a>>,
     ) -> Buffer {
+        let options = options.unwrap_or_default();
         let bytes_per_element = std::mem::size_of::<T>() as u64;
         let inner = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: options.label,
-            contents: bytemuck::cast_slice(options.contents),
+            contents: bytemuck::cast_slice(contents),
             usage: options.usage,
         });
         Buffer {
             inner,
-            count: options.contents.len() as u64,
+            count: contents.len() as u64,
             bytes_per_element,
         }
     }
@@ -57,22 +75,34 @@ pub struct TypedBuffer<T: Pod> {
 impl<T: Pod> TypedBuffer<T> {
     pub fn new_with_data<'a>(
         device: &wgpu::Device,
-        options: BufferInitDescriptor<'a, T>,
+        contents: &[T],
+        options: Option<BufferInitDescriptor<'a>>,
     ) -> TypedBuffer<T> {
         let bytes_per_element = std::mem::size_of::<T>() as u64;
-        let inner = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: options.label,
-            contents: bytemuck::cast_slice(options.contents),
-            usage: options.usage,
-        });
         TypedBuffer {
-            inner: Buffer {
-                inner,
-                count: options.contents.len() as u64,
-                bytes_per_element,
-            },
+            inner: Buffer::new_with_data(device, contents, options),
             _content_type: PhantomData,
         }
+    }
+}
+
+pub struct TypedUniformBuffer<T: Pod>(TypedBuffer<T>);
+
+impl<T: Pod> TypedUniformBuffer<T> {
+    pub fn new_with_data<'a>(
+        device: &wgpu::Device,
+        content: &T,
+        options: Option<BufferInitDescriptor>,
+    ) -> Self {
+        let mut options = options.unwrap_or_default();
+        options.usage = options.usage | wgpu::BufferUsages::UNIFORM;
+        Self {
+            0: TypedBuffer::new_with_data(device, &[*content], Some(options)),
+        }
+    }
+
+    pub fn as_entire_binding(&self) -> wgpu::BindingResource {
+        self.0.inner().as_entire_binding()
     }
 }
 
@@ -81,6 +111,51 @@ impl<T: Pod> core::ops::Deref for TypedBuffer<T> {
 
     fn deref(&self) -> &Buffer {
         &self.inner
+    }
+}
+
+pub enum IndexBuffer {
+    U16(TypedBuffer<u16>),
+    U32(TypedBuffer<u32>),
+}
+
+impl IndexBuffer {
+    pub fn new_with_data_16(
+        device: &wgpu::Device,
+        data: &[u16],
+        options: Option<BufferInitDescriptor>,
+    ) -> Self {
+        let mut options = options.unwrap_or_default();
+        options.usage = options.usage | wgpu::BufferUsages::INDEX;
+        IndexBuffer::U16(TypedBuffer::new_with_data(device, data, Some(options)))
+    }
+
+    pub fn new_with_data_32(
+        device: &wgpu::Device,
+        data: &[u16],
+        options: Option<BufferInitDescriptor>,
+    ) -> Self {
+        let mut options = options.unwrap_or_default();
+        options.usage = options.usage | wgpu::BufferUsages::INDEX;
+        IndexBuffer::U16(TypedBuffer::new_with_data(device, data, Some(options)))
+    }
+
+    pub fn inner(&self) -> &wgpu::Buffer {
+        match self {
+            IndexBuffer::U16(b) => b.inner(),
+            IndexBuffer::U32(b) => b.inner(),
+        }
+    }
+}
+
+impl core::ops::Deref for IndexBuffer {
+    type Target = Buffer;
+
+    fn deref(&self) -> &Buffer {
+        match self {
+            IndexBuffer::U16(b) => b.deref(),
+            IndexBuffer::U32(b) => b.deref(),
+        }
     }
 }
 
