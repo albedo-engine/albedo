@@ -9,14 +9,14 @@ use meshes::Geometry;
 use std::borrow::Cow;
 
 use albedo_backend::{
-    BindGroupLayoutBuilder, BufferInitDescriptor, IndexBuffer, RenderPipelineBuilder, TypedBuffer,
-    TypedUniformBuffer, VertexBufferLayoutBuilder,
+    BindGroupLayoutBuilder, Buffer, BufferInitDescriptor, IndexBuffer, RenderPipelineBuilder,
+    UniformBuffer, VertexBufferLayoutBuilder,
 };
 
 struct PickingExample {
     pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
-    vertex_buffer: TypedBuffer<Vertex>,
+    vertex_buffer: Buffer<Vertex>,
     index_buffer: IndexBuffer,
 }
 
@@ -68,7 +68,7 @@ impl Example for PickingExample {
         .build(&app.device);
 
         let cube = meshes::CubeGeometry::new();
-        let vertex_buffer = TypedBuffer::new_with_data(
+        let vertex_buffer = Buffer::sized_with_data(
             &app.device,
             cube.vertices(),
             Some(BufferInitDescriptor::new(
@@ -76,7 +76,7 @@ impl Example for PickingExample {
                 wgpu::BufferUsages::VERTEX,
             )),
         );
-        let index_buffer = IndexBuffer::new_with_data_16(
+        let index_buffer = IndexBuffer::with_data_16(
             &app.device,
             cube.indices(),
             Some(BufferInitDescriptor::new(
@@ -92,7 +92,7 @@ impl Example for PickingExample {
         };
         uniforms.transform = glam::Mat4::perspective_rh_gl(0.38, aspect_ratio, 0.01, 100.0)
             * glam::Mat4::from_translation(glam::Vec3::new(0.0, 0.0, -10.0));
-        let uniform_buffer = TypedUniformBuffer::new_with_data(&app.device, &uniforms, None);
+        let uniform_buffer = UniformBuffer::sized_with_data(&app.device, &uniforms, None);
 
         let bind_group = app.device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &bgl,
