@@ -1,5 +1,8 @@
 use bytemuck::Pod;
-use std::{marker::PhantomData, ops::Deref};
+use std::{
+    marker::PhantomData,
+    ops::{Deref, RangeBounds},
+};
 use wgpu::util::DeviceExt;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -29,74 +32,74 @@ impl<'a> Default for BufferInitDescriptor<'a> {
     }
 }
 
-pub struct Buffer<T: Pod = ()> {
+pub struct BufferHandle<T: Pod = ()> {
     inner: wgpu::Buffer,
     byte_size: u64,
     _content_type: PhantomData<T>,
 }
 
-impl<T: Pod> Buffer<T> {
-    pub fn with_data(
-        device: &wgpu::Device,
-        contents: &[u8],
-        count: u64,
-        options: Option<BufferInitDescriptor>,
-    ) -> Buffer<()> {
-        let options = options.unwrap_or_default();
-        let byte_size = contents.len() as u64 / count;
-        let inner = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: options.label,
-            contents,
-            usage: options.usage,
-        });
-        Buffer {
-            inner,
-            byte_size,
-            _content_type: PhantomData,
-        }
+fn create_buffer_with_data(
+    device: &wgpu::Device,
+    contents: &[u8],
+    count: u64,
+    options: Option<BufferInitDescriptor>,
+) -> BufferHandle {
+    let options = options.unwrap_or_default();
+    let byte_size = contents.len() as u64 / count;
+    let inner = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: options.label,
+        contents,
+        usage: options.usage,
+    });
+    BufferHandle {
+        inner,
+        byte_size,
+        _content_type: PhantomData,
     }
+}
 
-    pub fn with_count(
-        device: &wgpu::Device,
-        byte_size: u64,
-        count: u64,
-        options: Option<BufferInitDescriptor>,
-    ) -> Self {
-        let options = options.unwrap_or_default();
-        let inner = device.create_buffer(&wgpu::BufferDescriptor {
-            label: None,
-            size: byte_size * count,
-            usage: options.usage,
-            mapped_at_creation: false,
-        });
-        Self {
-            inner,
-            byte_size,
-            _content_type: PhantomData,
-        }
+fn create_buffer_with_count(
+    device: &wgpu::Device,
+    byte_size: u64,
+    count: u64,
+    options: Option<BufferInitDescriptor>,
+) -> BufferHandle {
+    let options = options.unwrap_or_default();
+    let inner = device.create_buffer(&wgpu::BufferDescriptor {
+        label: None,
+        size: byte_size * count,
+        usage: options.usage,
+        mapped_at_creation: false,
+    });
+    BufferHandle {
+        inner,
+        byte_size,
+        _content_type: PhantomData,
     }
+}
 
-    pub fn sized_with_data<'a>(
-        device: &wgpu::Device,
-        contents: &[T],
-        options: Option<BufferInitDescriptor<'a>>,
-    ) -> Buffer<T> {
-        let options = options.unwrap_or_default();
-        let byte_size = std::mem::size_of::<T>() as u64;
-        let inner = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: options.label,
-            contents: bytemuck::cast_slice(contents),
-            usage: options.usage,
-        });
-        Buffer {
-            inner,
-            byte_size,
-            _content_type: PhantomData,
-        }
+fn create_sized_buffer_with_data<'a, T: Pod>(
+    device: &wgpu::Device,
+    contents: &[T],
+    options: Option<BufferInitDescriptor<'a>>,
+) -> BufferHandle<T> {
+    let options = options.unwrap_or_default();
+    let byte_size = std::mem::size_of::<T>() as u64;
+    let inner = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: options.label,
+        contents: bytemuck::cast_slice(contents),
+        usage: options.usage,
+    });
+    BufferHandle {
+        inner,
+        byte_size,
+        _content_type: PhantomData,
     }
+}
 
-    pub fn to_dynamic(self) -> Buffer {
-        Buffer {
+impl<T: Pod> BufferHandle<T> {
+    pub fn to_dynamic(self) -> BufferHandle {
+        BufferHandle {
             inner: self.inner,
             byte_size: self.byte_size,
             _content_type: PhantomData,
@@ -115,12 +118,19 @@ impl<T: Pod> Buffer<T> {
         &self.inner
     }
 
+    pub fn slice<S>(&self, bounds: S) -> wgpu::BufferSlice
+    where
+        S: RangeBounds<wgpu::BufferAddress>,
+    {
+        self.inner.slice(bounds)
+    }
+
     pub fn as_entire_binding(&self) -> wgpu::BindingResource {
         self.inner.as_entire_binding()
     }
 }
 
-pub struct UniformBuffer<T: Pod>(Buffer<T>);
+pub struct UniformBuffer<T: Pod>(BufferHandle<T>);
 
 impl<T: Pod> UniformBuffer<T> {
     pub fn sized_with_data<'a>(
@@ -130,71 +140,51 @@ impl<T: Pod> UniformBuffer<T> {
     ) -> Self {
         let mut options = options.unwrap_or_default();
         options.usage = options.usage | wgpu::BufferUsages::UNIFORM;
-        Self {
-            0: Buffer::sized_with_data(device, &[*content], Some(options)),
-        }
+        UniformBuffer(create_sized_buffer_with_data(
+            device,
+            &[*content],
+            Some(options),
+        ))
     }
 }
 
 impl<T: Pod> Deref for UniformBuffer<T> {
-    type Target = Buffer<T>;
+    type Target = BufferHandle<T>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-pub struct IndexBufer16(Buffer<u16>);
+pub struct StorageBuffer<T: Pod>(BufferHandle<T>);
 
-impl Deref for IndexBufer16 {
-    type Target = Buffer<u16>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl IndexBufer16 {
-    pub fn with_data<'a>(
+impl<T: Pod> StorageBuffer<T> {
+    pub fn sized_with_data<'a>(
         device: &wgpu::Device,
-        content: &[u16],
+        content: &[T],
         options: Option<BufferInitDescriptor>,
     ) -> Self {
         let mut options = options.unwrap_or_default();
-        options.usage = options.usage | wgpu::BufferUsages::INDEX;
-        Self {
-            0: Buffer::sized_with_data(device, content, Some(options)),
-        }
+        options.usage = options.usage | wgpu::BufferUsages::STORAGE;
+        StorageBuffer(create_sized_buffer_with_data(
+            device,
+            content,
+            Some(options),
+        ))
     }
 }
 
-pub struct IndexBufer32(Buffer<u32>);
-
-impl Deref for IndexBufer32 {
-    type Target = Buffer<u32>;
+impl<T: Pod> Deref for StorageBuffer<T> {
+    type Target = BufferHandle<T>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
-    }
-}
-
-impl IndexBufer32 {
-    pub fn with_data<'a>(
-        device: &wgpu::Device,
-        content: &[u32],
-        options: Option<BufferInitDescriptor>,
-    ) -> Self {
-        let mut options = options.unwrap_or_default();
-        options.usage = options.usage | wgpu::BufferUsages::INDEX;
-        Self {
-            0: Buffer::sized_with_data(device, content, Some(options)),
-        }
     }
 }
 
 pub enum IndexBuffer {
-    U16(IndexBufer16),
-    U32(IndexBufer32),
+    U16(BufferHandle<u16>),
+    U32(BufferHandle<u32>),
 }
 
 impl IndexBuffer {
@@ -203,7 +193,13 @@ impl IndexBuffer {
         content: &[u16],
         options: Option<BufferInitDescriptor>,
     ) -> Self {
-        IndexBuffer::U16(IndexBufer16::with_data(device, content, options))
+        let mut options = options.unwrap_or_default();
+        options.usage = options.usage | wgpu::BufferUsages::INDEX;
+        IndexBuffer::U16(create_sized_buffer_with_data(
+            device,
+            content,
+            Some(options),
+        ))
     }
 
     pub fn with_data_32<'a>(
@@ -211,20 +207,26 @@ impl IndexBuffer {
         content: &[u32],
         options: Option<BufferInitDescriptor>,
     ) -> Self {
-        IndexBuffer::U32(IndexBufer32::with_data(device, content, options))
+        let mut options = options.unwrap_or_default();
+        options.usage = options.usage | wgpu::BufferUsages::INDEX;
+        IndexBuffer::U32(create_sized_buffer_with_data(
+            device,
+            content,
+            Some(options),
+        ))
     }
 
     pub fn inner(&self) -> &wgpu::Buffer {
         match self {
-            IndexBuffer::U16(b) => b.0.inner(),
-            IndexBuffer::U32(b) => b.0.inner(),
+            IndexBuffer::U16(b) => b.inner(),
+            IndexBuffer::U32(b) => b.inner(),
         }
     }
 
     pub fn count(&self) -> u64 {
         match self {
-            IndexBuffer::U16(b) => b.0.count(),
-            IndexBuffer::U32(b) => b.0.count(),
+            IndexBuffer::U16(b) => b.count(),
+            IndexBuffer::U32(b) => b.count(),
         }
     }
 
@@ -325,8 +327,8 @@ impl<T: bytemuck::Pod> GPUBuffer<T> {
 
 // Traits //
 
-impl<'a> From<&'a Buffer> for &'a wgpu::Buffer {
-    fn from(buffer: &'a Buffer) -> Self {
+impl<'a> From<&'a BufferHandle> for &'a wgpu::Buffer {
+    fn from(buffer: &'a BufferHandle) -> Self {
         buffer.inner()
     }
 }

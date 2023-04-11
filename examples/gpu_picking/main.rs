@@ -9,14 +9,14 @@ use meshes::Geometry;
 use std::borrow::Cow;
 
 use albedo_backend::{
-    BindGroupLayoutBuilder, Buffer, BufferInitDescriptor, IndexBuffer, RenderPipelineBuilder,
-    UniformBuffer, VertexBufferLayoutBuilder,
+    BindGroupLayoutBuilder, BufferInitDescriptor, IndexBuffer, RenderPipelineBuilder,
+    StorageBuffer, UniformBuffer, VertexBufferLayoutBuilder,
 };
 
 struct PickingExample {
     pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
-    vertex_buffer: Buffer<Vertex>,
+    vertex_buffer: StorageBuffer<Vertex>,
     index_buffer: IndexBuffer,
 }
 
@@ -68,7 +68,7 @@ impl Example for PickingExample {
         .build(&app.device);
 
         let cube = meshes::CubeGeometry::new();
-        let vertex_buffer = Buffer::sized_with_data(
+        let vertex_buffer = StorageBuffer::sized_with_data(
             &app.device,
             cube.vertices(),
             Some(BufferInitDescriptor::new(
