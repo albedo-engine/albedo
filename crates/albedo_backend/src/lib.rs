@@ -1,6 +1,6 @@
-mod gpu;
-
-pub use gpu::*;
+pub mod data;
+pub mod gpu;
+pub mod mesh;
 
 pub struct Alignment2D {
     pub unpadded_bytes_per_row: usize,
