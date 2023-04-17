@@ -13,6 +13,27 @@ use albedo_backend::{
     StorageBuffer, UniformBuffer, VertexBufferLayoutBuilder,
 };
 
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct Vertex3D {
+    position: [f32; 4],
+    normal: [f32; 4],
+}
+unsafe impl bytemuck::Pod for Vertex {}
+unsafe impl bytemuck::Zeroable for Vertex {}
+
+impl Vertex for Vertex3D {
+    fn as_vertex_formats() -> &'static [wgpu::VertexFormat] {
+        &[wgpu::VertexFormat::Float32x4, wgpu::VertexFormat::Float32x4]
+    }
+    fn set_position(&mut self, pos: &[f32; 3]) {
+        self.position.copy_from_slice(&pos[0..3])
+    }
+    fn set_normal(&mut self, normal: &[f32; 3]) {
+        self.normal.copy_from_slice(&normal[0..3])
+    }
+}
+
 struct PickingExample {
     pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,

@@ -59,6 +59,13 @@ unsafe impl bytemuck::Pod for Vertex {}
 unsafe impl bytemuck::Zeroable for Vertex {}
 impl Uniform for Vertex {}
 
+// @todo: Use derive instead.
+impl AsVertexFormats for Vertex {
+    fn as_vertex_formats() -> &'static [wgpu::VertexFormat] {
+        &[wgpu::VertexFormat::Float32x4, wgpu::VertexFormat::Float32x4]
+    }
+}
+
 impl Vertex {
     const DEFAULT_UV: [f32; 2] = [0.0, 0.0];
 
