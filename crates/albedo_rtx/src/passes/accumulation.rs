@@ -1,7 +1,7 @@
 use crate::get_dispatch_size;
 use crate::macros::path_separator;
 use crate::uniforms::{PerDrawUniforms, Ray};
-use albedo_backend::{GPUBuffer, UniformBuffer};
+use albedo_backend::{gpu::GPUBuffer, gpu::UniformBuffer};
 
 pub struct AccumulationPass {
     bind_group_layout: wgpu::BindGroupLayout,

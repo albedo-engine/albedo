@@ -1,4 +1,4 @@
-use albedo_backend::GPUBuffer;
+use albedo_backend::gpu::GPUBuffer;
 
 use crate::macros::path_separator;
 use crate::uniforms;

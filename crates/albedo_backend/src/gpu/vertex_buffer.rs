@@ -1,3 +1,7 @@
+pub trait AsVertexBufferLayout {
+    fn as_vertex_buffer_layout(&self) -> VertexBufferLayoutBuilder;
+}
+
 pub struct VertexBufferLayoutBuilder {
     attributes: Vec<wgpu::VertexAttribute>,
 }

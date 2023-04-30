@@ -26,12 +26,23 @@ impl InterleavedVec {
     }
 
     pub fn with_capacity(count: usize, sizes: Vec<usize>) -> Self {
-        let stride = compute_stride(sizes);
+        let stride = compute_stride(&sizes);
         Self {
             data: Vec::with_capacity(count * stride),
             stride,
             sizes,
         }
+    }
+
+    pub fn set<T: Pod>(&mut self, index: usize, element: T) -> &mut Self {
+        if std::mem::size_of::<T>() != self.stride as usize {
+            panic!("push() called with an element that has an unexpected stide");
+        }
+        let byte_start = index * self.stride;
+        let output: &mut [T] =
+            bytemuck::cast_slice_mut(&mut self.data[byte_start..byte_start + self.stride]);
+        output[0] = element;
+        self
     }
 
     pub fn push<T: Pod>(&mut self, element: T) -> &mut Self {
@@ -85,7 +96,11 @@ impl InterleavedVec {
         &self.data
     }
 
-    pub fn count(&self) -> usize {
+    pub fn data_mut(&mut self) -> &mut [u8] {
+        &mut self.data
+    }
+
+    pub fn stride(&self) -> usize {
         self.stride
     }
 

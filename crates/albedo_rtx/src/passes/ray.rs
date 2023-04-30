@@ -1,4 +1,4 @@
-use albedo_backend::{GPUBuffer, UniformBuffer};
+use albedo_backend::{gpu::GPUBuffer, gpu::UniformBuffer};
 
 use crate::get_dispatch_size;
 use crate::macros::path_separator;

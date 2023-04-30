@@ -14,6 +14,14 @@ pub struct BufferInitDescriptor<'a> {
     pub usage: wgpu::BufferUsages,
 }
 
+pub trait AsBuffer {
+    fn as_gpu_buffer(
+        &self,
+        device: &wgpu::Device,
+        descriptor: BufferInitDescriptor,
+    ) -> Vec<BufferHandle>;
+}
+
 impl<'a> BufferInitDescriptor<'a> {
     pub fn new(label: wgpu::Label<'a>, usage: wgpu::BufferUsages) -> Self {
         BufferInitDescriptor { label, usage }
@@ -38,23 +46,44 @@ pub struct BufferHandle<T: Pod = ()> {
     _content_type: PhantomData<T>,
 }
 
-fn create_buffer_with_data(
-    device: &wgpu::Device,
-    contents: &[u8],
-    count: u64,
-    options: Option<BufferInitDescriptor>,
-) -> BufferHandle {
-    let options = options.unwrap_or_default();
-    let byte_size = contents.len() as u64 / count;
-    let inner = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: options.label,
-        contents,
-        usage: options.usage,
-    });
-    BufferHandle {
-        inner,
-        byte_size,
-        _content_type: PhantomData,
+impl<T: Pod> BufferHandle<T> {
+    pub fn with_data(
+        device: &wgpu::Device,
+        contents: &[u8],
+        count: u64,
+        options: Option<BufferInitDescriptor>,
+    ) -> BufferHandle {
+        let options = options.unwrap_or_default();
+        let byte_size = contents.len() as u64 / count;
+        let inner = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: options.label,
+            contents,
+            usage: options.usage,
+        });
+        BufferHandle {
+            inner,
+            byte_size,
+            _content_type: PhantomData,
+        }
+    }
+
+    pub fn sized_with_data<'a>(
+        device: &wgpu::Device,
+        content: &[T],
+        options: Option<BufferInitDescriptor>,
+    ) -> Self {
+        let options: BufferInitDescriptor = options.unwrap_or_default();
+        let byte_size = std::mem::size_of::<T>() as u64;
+        let inner = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: options.label,
+            contents: bytemuck::cast_slice(content),
+            usage: options.usage,
+        });
+        BufferHandle {
+            inner,
+            byte_size,
+            _content_type: PhantomData,
+        }
     }
 }
 
@@ -70,25 +99,6 @@ fn create_buffer_with_count(
         size: byte_size * count,
         usage: options.usage,
         mapped_at_creation: false,
-    });
-    BufferHandle {
-        inner,
-        byte_size,
-        _content_type: PhantomData,
-    }
-}
-
-fn create_sized_buffer_with_data<'a, T: Pod>(
-    device: &wgpu::Device,
-    contents: &[T],
-    options: Option<BufferInitDescriptor<'a>>,
-) -> BufferHandle<T> {
-    let options = options.unwrap_or_default();
-    let byte_size = std::mem::size_of::<T>() as u64;
-    let inner = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: options.label,
-        contents: bytemuck::cast_slice(contents),
-        usage: options.usage,
     });
     BufferHandle {
         inner,
@@ -140,7 +150,7 @@ impl<T: Pod> UniformBuffer<T> {
     ) -> Self {
         let mut options = options.unwrap_or_default();
         options.usage = options.usage | wgpu::BufferUsages::UNIFORM;
-        UniformBuffer(create_sized_buffer_with_data(
+        UniformBuffer(BufferHandle::sized_with_data(
             device,
             &[*content],
             Some(options),
@@ -166,7 +176,7 @@ impl<T: Pod> StorageBuffer<T> {
     ) -> Self {
         let mut options = options.unwrap_or_default();
         options.usage = options.usage | wgpu::BufferUsages::STORAGE;
-        StorageBuffer(create_sized_buffer_with_data(
+        StorageBuffer(BufferHandle::<T>::sized_with_data(
             device,
             content,
             Some(options),
@@ -195,7 +205,7 @@ impl IndexBuffer {
     ) -> Self {
         let mut options = options.unwrap_or_default();
         options.usage = options.usage | wgpu::BufferUsages::INDEX;
-        IndexBuffer::U16(create_sized_buffer_with_data(
+        IndexBuffer::U16(BufferHandle::sized_with_data(
             device,
             content,
             Some(options),
@@ -209,7 +219,7 @@ impl IndexBuffer {
     ) -> Self {
         let mut options = options.unwrap_or_default();
         options.usage = options.usage | wgpu::BufferUsages::INDEX;
-        IndexBuffer::U32(create_sized_buffer_with_data(
+        IndexBuffer::U32(BufferHandle::sized_with_data(
             device,
             content,
             Some(options),
@@ -237,7 +247,6 @@ impl IndexBuffer {
         }
     }
 }
-
 pub struct GPUBuffer<T> {
     gpu_buffer: wgpu::Buffer,
     count: usize,

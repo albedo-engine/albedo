@@ -1,4 +1,4 @@
-use albedo_backend::UniformBuffer;
+use albedo_backend::gpu::UniformBuffer;
 use wgpu::{BindGroup, BindingType};
 
 use crate::macros::path_separator;

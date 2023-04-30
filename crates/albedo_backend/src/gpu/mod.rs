@@ -6,6 +6,9 @@ mod vertex_buffer;
 pub mod shader_bindings;
 
 pub use bind_group::BindGroupLayoutBuilder;
-pub use buffer::{BufferInitDescriptor, GPUBuffer, IndexBuffer, StorageBuffer, UniformBuffer};
+pub use buffer::{
+    AsBuffer, BufferHandle, BufferInitDescriptor, GPUBuffer, IndexBuffer, StorageBuffer,
+    UniformBuffer,
+};
 pub use render_pipeline::RenderPipelineBuilder;
-pub use vertex_buffer::VertexBufferLayoutBuilder;
+pub use vertex_buffer::{AsVertexBufferLayout, VertexBufferLayoutBuilder};
