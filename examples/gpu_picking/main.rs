@@ -8,8 +8,8 @@ use meshes::Geometry;
 
 use std::borrow::Cow;
 
-use albedo_backend::gpu;
-use albedo_backend::gpu::{AsBuffer, AsVertexBufferLayout};
+use albedo_backend::gpu::AsVertexBufferLayout;
+use albedo_backend::gpu::{self, ResourceBuilder};
 
 use albedo_backend::mesh::shapes::Shape;
 use albedo_backend::mesh::*;
@@ -51,8 +51,7 @@ impl Vertex for Vertex3D {
 struct PickingExample {
     pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
-    vertex_buffers: Vec<gpu::BufferHandle>,
-    index_buffer: gpu::IndexBuffer,
+    primitive_gpu: gpu::Primitive,
 }
 
 // @todo: Create a UniformBlock derive
@@ -101,30 +100,13 @@ impl Example for PickingExample {
         }))
         .build(&app.device);
 
-        let cube = meshes::CubeGeometry::new();
-        let vertex_buffers = primitive.as_gpu_buffer(
-            &app.device,
-            gpu::BufferInitDescriptor::new(
-                Some("Cube Positions"),
+        let primitive_gpu = PrimitiveResourceBuilder::new(&primitive)
+            .descriptor(gpu::BufferInitDescriptor::new(
+                Some("Primtive Buffers"),
                 wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::STORAGE,
-            ),
-        );
-        // let vertex_buffer = gpu::StorageBuffer::sized_with_data(
-        //     &app.device,
-        //     cube.vertices(),
-        //     Some(gpu::BufferInitDescriptor::new(
-        //         Some("Cube Positions"),
-        //         wgpu::BufferUsages::VERTEX,
-        //     )),
-        // );
-        let index_buffer = gpu::IndexBuffer::with_data_16(
-            &app.device,
-            cube.indices(),
-            Some(gpu::BufferInitDescriptor::new(
-                Some("Cube Indices"),
-                wgpu::BufferUsages::VERTEX,
-            )),
-        );
+            ))
+            .build(&app.device)
+            .unwrap();
 
         let aspect_ratio = app.surface_config.width as f32 / app.surface_config.height as f32;
 
@@ -148,8 +130,7 @@ impl Example for PickingExample {
         PickingExample {
             pipeline,
             bind_group,
-            vertex_buffers,
-            index_buffer,
+            primitive_gpu,
         }
     }
 
@@ -183,15 +164,18 @@ impl Example for PickingExample {
             rpass.set_pipeline(&self.pipeline);
             rpass.set_bind_group(0, &self.bind_group, &[]);
             rpass.set_index_buffer(
-                self.index_buffer.inner().slice(..),
+                self.primitive_gpu.indices.inner().slice(..),
                 wgpu::IndexFormat::Uint16,
             );
-            for i in 0..self.vertex_buffers.len() {
-                rpass.set_vertex_buffer(i as u32, self.vertex_buffers[i].inner().slice(..));
+            for i in 0..self.primitive_gpu.attributes.len() {
+                rpass.set_vertex_buffer(
+                    i as u32,
+                    self.primitive_gpu.attributes[i].inner().slice(..),
+                );
             }
             rpass.pop_debug_group();
             rpass.insert_debug_marker("Draw!");
-            rpass.draw_indexed(0..self.index_buffer.count() as u32, 0, 0..1);
+            rpass.draw_indexed(0..self.primitive_gpu.indices.count() as u32, 0, 0..1);
         }
 
         app.queue.submit(Some(encoder.finish()));

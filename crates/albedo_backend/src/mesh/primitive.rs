@@ -1,4 +1,5 @@
 use std::marker::PhantomData;
+use std::primitive;
 
 use bytemuck::Pod;
 
@@ -248,27 +249,60 @@ impl gpu::AsVertexBufferLayout for Primitive {
     }
 }
 
-impl gpu::AsBuffer for Primitive {
-    fn as_gpu_buffer(
-        &self,
-        device: &wgpu::Device,
-        descriptor: gpu::BufferInitDescriptor,
-    ) -> Vec<gpu::BufferHandle> {
-        match &self.data {
-            AttributeData::Interleaved(v) => {
-                vec![gpu::BufferHandle::<()>::with_data(
-                    device,
-                    v.data(),
-                    v.count() as u64,
-                    Some(descriptor),
-                )]
-            }
+pub struct PrimitiveResourceBuilder<'a> {
+    primitive: &'a Primitive,
+    descriptor: Option<gpu::BufferInitDescriptor<'a>>,
+}
+
+impl<'a> PrimitiveResourceBuilder<'a> {
+    pub fn new(primitive: &'a Primitive) -> Self {
+        Self {
+            primitive,
+            descriptor: None,
+        }
+    }
+
+    pub fn descriptor(mut self, desc: gpu::BufferInitDescriptor<'a>) -> Self {
+        self.descriptor = Some(desc);
+        self
+    }
+}
+
+impl<'a> gpu::ResourceBuilder for PrimitiveResourceBuilder<'a> {
+    type Resource = gpu::Primitive;
+
+    fn build(self, device: &wgpu::Device) -> Result<Self::Resource, String> {
+        let mut attributes = vec![];
+        let descriptor = if let Some(desc) = self.descriptor {
+            desc
+        } else {
+            gpu::BufferInitDescriptor::new(Some("Primitive Buffer"), wgpu::BufferUsages::VERTEX)
+        };
+
+        attributes.push(match &self.primitive.data {
+            AttributeData::Interleaved(v) => gpu::BufferHandle::<()>::with_data(
+                device,
+                v.data(),
+                v.count() as u64,
+                Some(descriptor),
+            ),
             AttributeData::Chunk(v) => {
                 todo!("unimplemented")
             }
             AttributeData::SoA(ref soa) => {
                 todo!("unimplemented")
             }
-        }
+        });
+
+        // @todo: no unwrap.
+        let indices = match self.primitive.index_data.as_ref().unwrap() {
+            IndexData::U16(v) => gpu::IndexBuffer::with_data_16(device, &v, Some(descriptor)),
+            IndexData::U32(v) => gpu::IndexBuffer::with_data_32(device, &v, Some(descriptor)),
+        };
+
+        Ok(gpu::Primitive {
+            attributes,
+            indices,
+        })
     }
 }

@@ -5,21 +5,13 @@ use std::{
 };
 use wgpu::util::DeviceExt;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct BufferInitDescriptor<'a> {
     /// Debug label of a buffer. This will show up in graphics debuggers for easy identification.
     pub label: wgpu::Label<'a>,
     /// Usages of a buffer. If the buffer is used in any way that isn't specified here, the operation
     /// will panic.
     pub usage: wgpu::BufferUsages,
-}
-
-pub trait AsBuffer {
-    fn as_gpu_buffer(
-        &self,
-        device: &wgpu::Device,
-        descriptor: BufferInitDescriptor,
-    ) -> Vec<BufferHandle>;
 }
 
 impl<'a> BufferInitDescriptor<'a> {
