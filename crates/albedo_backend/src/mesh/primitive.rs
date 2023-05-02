@@ -1,5 +1,4 @@
 use std::marker::PhantomData;
-use std::primitive;
 
 use bytemuck::Pod;
 

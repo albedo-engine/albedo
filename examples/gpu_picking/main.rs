@@ -15,11 +15,21 @@ use albedo_backend::mesh::shapes::Shape;
 use albedo_backend::mesh::*;
 
 #[repr(C)]
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy)]
 pub struct Vertex3D {
     position: [f32; 4],
     normal: [f32; 4],
 }
+
+impl Default for Vertex3D {
+    fn default() -> Self {
+        Self {
+            position: [0.0, 0.0, 0.0, 1.0],
+            normal: Default::default(),
+        }
+    }
+}
+
 unsafe impl bytemuck::Pod for Vertex3D {}
 unsafe impl bytemuck::Zeroable for Vertex3D {}
 
@@ -103,7 +113,8 @@ impl Example for PickingExample {
         let primitive_gpu = PrimitiveResourceBuilder::new(&primitive)
             .descriptor(gpu::BufferInitDescriptor::new(
                 Some("Primtive Buffers"),
-                wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::STORAGE,
+                // wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::STORAGE,
+                wgpu::BufferUsages::VERTEX,
             ))
             .build(&app.device)
             .unwrap();
@@ -125,8 +136,6 @@ impl Example for PickingExample {
             }],
             label: Some("Bind Group"),
         });
-        // let vertex_data = VertexData::new(app);
-
         PickingExample {
             pipeline,
             bind_group,
@@ -183,6 +192,5 @@ impl Example for PickingExample {
 }
 
 fn main() {
-    println!("Hello World!");
     example::start::<PickingExample>();
 }
