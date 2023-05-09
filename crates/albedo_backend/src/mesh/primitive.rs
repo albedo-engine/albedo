@@ -118,7 +118,7 @@ impl Primitive {
                     _phantom_data: PhantomData,
                 }
             }
-            AttributeData::Chunk(v) => {
+            AttributeData::Chunk(_v) => {
                 todo!("unimplemented")
             }
             AttributeData::SoA(ref mut soa) => {
@@ -153,7 +153,7 @@ impl Primitive {
     pub fn count(&self) -> usize {
         match &self.data {
             AttributeData::Interleaved(ref v) => v.count(),
-            AttributeData::Chunk(v) => {
+            AttributeData::Chunk(_v) => {
                 todo!("unimplemented")
             }
             AttributeData::SoA(ref v) => {
@@ -279,24 +279,21 @@ impl<'a> gpu::ResourceBuilder for PrimitiveResourceBuilder<'a> {
         };
 
         attributes.push(match &self.primitive.data {
-            AttributeData::Interleaved(v) => gpu::BufferHandle::<()>::with_data(
-                device,
-                v.data(),
-                v.count() as u64,
-                Some(descriptor),
-            ),
-            AttributeData::Chunk(v) => {
+            AttributeData::Interleaved(v) => {
+                gpu::DynBuffer::new_with_data(device, v.data(), v.count() as u64, Some(descriptor))
+            }
+            AttributeData::Chunk(_v) => {
                 todo!("unimplemented")
             }
-            AttributeData::SoA(ref soa) => {
+            AttributeData::SoA(ref _soa) => {
                 todo!("unimplemented")
             }
         });
 
         // @todo: no unwrap.
         let indices = match self.primitive.index_data.as_ref().unwrap() {
-            IndexData::U16(v) => gpu::IndexBuffer::with_data_16(device, &v, Some(descriptor)),
-            IndexData::U32(v) => gpu::IndexBuffer::with_data_32(device, &v, Some(descriptor)),
+            IndexData::U16(v) => gpu::IndexBuffer::new_with_data_16(device, &v, Some(descriptor)),
+            IndexData::U32(v) => gpu::IndexBuffer::new_with_data_32(device, &v, Some(descriptor)),
         };
 
         Ok(gpu::Primitive {

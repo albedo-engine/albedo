@@ -1,7 +1,7 @@
 use crate::get_dispatch_size;
 use crate::macros::path_separator;
 use crate::uniforms;
-use albedo_backend::{gpu::GPUBuffer, gpu::UniformBuffer};
+use albedo_backend::gpu;
 
 pub struct ShadingPass {
     bind_group_layout: wgpu::BindGroupLayout,
@@ -209,18 +209,18 @@ impl ShadingPass {
     pub fn create_frame_bind_groups(
         &self,
         device: &wgpu::Device,
-        out_rays: &GPUBuffer<uniforms::Ray>,
+        out_rays: &gpu::Buffer<uniforms::Ray>,
         nodes: &wgpu::Buffer,
-        intersections: &GPUBuffer<uniforms::Intersection>,
-        instances: &GPUBuffer<uniforms::Instance>,
-        indices: &GPUBuffer<u32>,
+        intersections: &gpu::Buffer<uniforms::Intersection>,
+        instances: &gpu::Buffer<uniforms::Instance>,
+        indices: &gpu::Buffer<u32>,
         vertices: &wgpu::Buffer,
-        lights: &GPUBuffer<uniforms::Light>,
-        materials: &GPUBuffer<uniforms::Material>,
+        lights: &gpu::Buffer<uniforms::Light>,
+        materials: &gpu::Buffer<uniforms::Material>,
         probe_view: &wgpu::TextureView,
         texture_info: &wgpu::TextureView,
         atlas_view: &wgpu::TextureView,
-        global_uniforms: &UniformBuffer<uniforms::PerDrawUniforms>,
+        global_uniforms: &gpu::UniformBufferSlice<uniforms::PerDrawUniforms>,
         sampler_nearest: &wgpu::Sampler,
         sampler_linear: &wgpu::Sampler,
     ) -> wgpu::BindGroup {

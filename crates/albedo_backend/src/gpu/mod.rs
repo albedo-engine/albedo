@@ -8,9 +8,7 @@ mod vertex_buffer;
 pub mod shader_bindings;
 
 pub use bind_group::BindGroupLayoutBuilder;
-pub use buffer::{
-    BufferHandle, BufferInitDescriptor, GPUBuffer, IndexBuffer, StorageBuffer, UniformBuffer,
-};
+pub use buffer::*;
 pub use primitive::*;
 pub use render_pipeline::RenderPipelineBuilder;
 pub use resource::*;

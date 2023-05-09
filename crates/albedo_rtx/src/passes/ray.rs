@@ -1,4 +1,4 @@
-use albedo_backend::{gpu::GPUBuffer, gpu::UniformBuffer};
+use albedo_backend::gpu;
 
 use crate::get_dispatch_size;
 use crate::macros::path_separator;
@@ -89,8 +89,8 @@ impl RayPass {
     pub fn create_frame_bind_groups(
         &self,
         device: &wgpu::Device,
-        out_rays: &GPUBuffer<uniforms::Ray>,
-        camera: &UniformBuffer<uniforms::Camera>,
+        out_rays: &gpu::Buffer<uniforms::Ray>,
+        camera: &gpu::UniformBufferSlice<uniforms::Camera>,
     ) -> wgpu::BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Ray Generation Frame Bind Group"),

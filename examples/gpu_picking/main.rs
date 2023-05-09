@@ -116,7 +116,7 @@ impl Example for PickingExample {
                 wgpu::BufferUsages::VERTEX,
             ))
             .build(&app.device)
-        .unwrap();
+            .unwrap();
 
         let aspect_ratio = app.surface_config.width as f32 / app.surface_config.height as f32;
 
@@ -136,7 +136,7 @@ impl Example for PickingExample {
             });
         }
 
-        let uniform_buffer = gpu::StorageBuffer::sized_with_data(&app.device, &uniforms_data, None);
+        let uniform_buffer = gpu::Buffer::new_storage_with_data(&app.device, &uniforms_data, None);
 
         let bind_group = app.device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &bgl,

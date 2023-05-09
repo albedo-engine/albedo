@@ -1,6 +1,6 @@
-use super::{BufferHandle, IndexBuffer};
+use super::{DynBuffer, IndexBuffer};
 
 pub struct Primitive {
-    pub attributes: Vec<BufferHandle>,
+    pub attributes: Vec<DynBuffer>,
     pub indices: IndexBuffer,
 }
