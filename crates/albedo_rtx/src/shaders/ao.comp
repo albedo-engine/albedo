@@ -1,0 +1,168 @@
+#version 450
+
+#extension GL_EXT_samplerless_texture_functions : enable
+#extension GL_GOOGLE_include_directive : enable
+
+#include "structures.comp"
+
+#define PI_F 3.14159265359
+#define TWO_PI 6.28318530718
+#define TO_RAD_F (PI_F / 180.0)
+#define MAX_FLOAT 3.402823466e+38
+
+#define VEC3_UP vec3(0.0, 0.999999995, 0.0001)
+
+#define MAX_UINT 0xFFFFFFFF
+#define INVALID_UINT MAX_UINT
+
+/**
+ * Layout 0.
+ */
+
+layout (set = 0, binding = 0, std430) buffer RayBuffer {
+  RayPayload rays[];
+};
+
+layout (set = 0, binding = 1, std430) readonly buffer BVHNodeBuffer {
+  BVHNode nodes[];
+};
+
+layout (set = 0, binding = 2, std430) readonly buffer IntersectionBuffer {
+  Intersection intersections[];
+};
+
+layout (set = 0, binding = 3, std430) readonly buffer InstanceBuffer {
+  Instance instances[];
+};
+
+layout (set = 0, binding = 4, std430) readonly buffer IndexBuffer {
+  uint indices[];
+};
+
+layout (set = 0, binding = 5, std430) readonly buffer VertexBuffer {
+  Vertex vertices[];
+};
+
+layout (set = 0, binding = 6) uniform GlobalUniformBuffer {
+  GlobalUniforms global;
+};
+
+uint
+WangHash(inout uint seed)
+{
+  seed = uint(seed ^ uint(61)) ^ uint(seed >> uint(16));
+  seed *= uint(9);
+  seed = seed ^ (seed >> 4);
+  seed *= uint(0x27d4eb2d);
+  seed = seed ^ (seed >> 15);
+  return seed;
+}
+
+float
+rand(inout uint seed)
+{
+  return float(WangHash(seed)) / 4294967296.0;
+}
+
+/* Utils */
+
+#include "utils/intersection_utils.comp"
+
+vec3
+getThroughput(inout RayPayload ray)
+{
+  return vec3(ray.origin.w, ray.dir.w, ray.radiance.w);
+}
+
+void
+setThroughput(inout RayPayload ray, vec3 throughput)
+{
+  ray.origin.w = throughput.x;
+  ray.dir.w = throughput.y;
+  ray.radiance.w = throughput.z;
+}
+
+vec3
+interpolate(vec3 v0, vec3 v1, vec3 v2, vec3 barycentric)
+{
+  return (
+    barycentric.x * v0 +
+    barycentric.y * v1 +
+    barycentric.z * v2
+  );
+}
+
+vec2
+interpolate(vec2 v0, vec2 v1, vec2 v2, vec3 barycentric)
+{
+  return (
+    barycentric.x * v0 +
+    barycentric.y * v1 +
+    barycentric.z * v2
+  );
+}
+
+RayPayload
+shade(RayPayload ray, Intersection intersection)
+{
+  uint randState = uint(
+    gl_GlobalInvocationID.x * uint(1973)
+    + gl_GlobalInvocationID.y * uint(9277)
+    + uint(global.seed) * uint(26699)
+  ) | uint(1);
+
+  if (ray.terminated.x > 0u) return ray;
+
+  float maxDist = 10.0;
+
+  vec3 throughput = getThroughput(ray);
+  if (maxDist < EPSILON)
+  {
+    return ray;
+  }
+
+  Instance instance = instances[intersection.instance];
+
+  vec3 barycentric = vec3(1.0 - intersection.uv.x - intersection.uv.y, intersection.uv);
+
+  uint vertexOffset = instance.vertexRootIndex;
+  Vertex vertex0 = getVertex(vertexOffset, intersection.index);
+  Vertex vertex1 = getVertex(vertexOffset, intersection.index + 1);
+  Vertex vertex2 = getVertex(vertexOffset, intersection.index + 2);
+
+  // @todo: clean up uvs. Should UVs and normal always be packed together
+  // anyway? The intersection code only need vertices.
+  vec2 uv0 = vec2(vertex0.position.w, vertex0.normal.w);
+  vec2 uv1 = vec2(vertex1.position.w, vertex1.normal.w);
+  vec2 uv2 = vec2(vertex2.position.w, vertex2.normal.w);
+
+  vec2 uv = interpolate(uv0, uv1, uv2, barycentric);
+  vec3 normal = interpolate(
+    vertex0.normal.xyz,
+    vertex1.normal.xyz,
+    vertex2.normal.xyz,
+    barycentric
+  );
+  normal = transformDirection(normal, instance.modelToWorld);
+  normal = normalize(normal);
+
+  vec3 sample = randomSampleHemisphere(normal, uint(global.seed));
+
+
+  ray.radiance.rgb = vec3(1.0, 0.0, 0.0);
+  setThroughput(ray, throughput);
+  return ray;
+}
+
+layout(local_size_x = 8, local_size_y = 8) in;
+void
+main()
+{
+  uint index = gl_GlobalInvocationID.y * gl_WorkGroupSize.x * gl_NumWorkGroups.x + gl_GlobalInvocationID.x;
+  if (index >= rays.length()) return;
+
+  RayPayload ray = rays[index];
+  Intersection intersection = intersections[index];
+  // Modified ray is written back to SSBO.
+  rays[index] = shade(ray, intersection);
+}

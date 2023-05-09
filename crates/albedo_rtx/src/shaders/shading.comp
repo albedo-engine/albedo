@@ -107,6 +107,7 @@ rand(inout uint seed)
 #include "utils/intersection_utils.comp"
 #include "utils/texture_utils.comp"
 #include "utils/sampling.comp"
+#include "utils/bsdf/ue4.comp"
 
 vec3
 decodeRGBE(vec4 hdr)
