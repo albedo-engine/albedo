@@ -1,8 +1,6 @@
-mod buffer;
-
-pub mod shader_bindings;
-
-pub use buffer::{GPUBuffer, UniformBuffer};
+pub mod data;
+pub mod gpu;
+pub mod mesh;
 
 pub struct Alignment2D {
     pub unpadded_bytes_per_row: usize,

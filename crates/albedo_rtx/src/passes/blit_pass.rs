@@ -1,4 +1,4 @@
-use albedo_backend::UniformBuffer;
+use albedo_backend::gpu;
 use wgpu::{BindGroup, BindingType};
 
 use crate::macros::path_separator;
@@ -107,7 +107,7 @@ impl BlitPass {
         device: &wgpu::Device,
         view: &wgpu::TextureView,
         sampler: &wgpu::Sampler,
-        global_uniforms: &UniformBuffer<uniforms::PerDrawUniforms>,
+        global_uniforms: &gpu::Buffer<uniforms::PerDrawUniforms>,
     ) -> BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Blit Bind Group"),
