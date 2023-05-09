@@ -1,10 +1,8 @@
 #[path = "../example/mod.rs"]
 mod example;
-use example::{
-    meshes::{self},
-    Example,
-};
-use meshes::Geometry;
+use example::Example;
+
+use nanorand::Rng;
 
 use std::borrow::Cow;
 
@@ -62,6 +60,7 @@ struct PickingExample {
     pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
     primitive_gpu: gpu::Primitive,
+    uniforms_data: Vec<Uniforms>,
 }
 
 // @todo: Create a UniformBlock derive
@@ -76,7 +75,7 @@ unsafe impl bytemuck::Zeroable for Uniforms {}
 impl Example for PickingExample {
     fn new(app: &example::App) -> Self {
         let bgl = gpu::BindGroupLayoutBuilder::new_with_size(1)
-            .uniform_buffer(wgpu::ShaderStages::VERTEX, None)
+            .storage_buffer(wgpu::ShaderStages::VERTEX, true)
             .build(&app.device);
 
         let shader = app
@@ -117,16 +116,27 @@ impl Example for PickingExample {
                 wgpu::BufferUsages::VERTEX,
             ))
             .build(&app.device)
-            .unwrap();
+        .unwrap();
 
         let aspect_ratio = app.surface_config.width as f32 / app.surface_config.height as f32;
 
-        let mut uniforms = Uniforms {
-            transform: glam::Mat4::IDENTITY,
-        };
-        uniforms.transform = glam::Mat4::perspective_rh_gl(0.38, aspect_ratio, 0.01, 100.0)
-            * glam::Mat4::from_translation(glam::Vec3::new(0.0, 0.0, -10.0));
-        let uniform_buffer = gpu::UniformBuffer::sized_with_data(&app.device, &uniforms, None);
+        const NB_INSTANCES: usize = 100;
+        let mut rng = nanorand::WyRand::new_seed(42);
+        let mut rand_val = || rng.generate::<f32>() * 10.0 - 10.0;
+        let mut uniforms_data: Vec<Uniforms> = Vec::with_capacity(NB_INSTANCES);
+        for i in 0..NB_INSTANCES {
+            let localToWorld = glam::Mat4::from_translation(glam::Vec3::new(
+                rand_val(),
+                rand_val(),
+                rand_val() - 10.0,
+            ));
+            uniforms_data.push(Uniforms {
+                transform: glam::Mat4::perspective_rh_gl(0.38, aspect_ratio, 0.01, 100.0)
+                    * localToWorld,
+            });
+        }
+
+        let uniform_buffer = gpu::StorageBuffer::sized_with_data(&app.device, &uniforms_data, None);
 
         let bind_group = app.device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &bgl,
@@ -140,6 +150,7 @@ impl Example for PickingExample {
             pipeline,
             bind_group,
             primitive_gpu,
+            uniforms_data,
         }
     }
 
@@ -184,7 +195,11 @@ impl Example for PickingExample {
             }
             rpass.pop_debug_group();
             rpass.insert_debug_marker("Draw!");
-            rpass.draw_indexed(0..self.primitive_gpu.indices.count() as u32, 0, 0..1);
+            rpass.draw_indexed(
+                0..self.primitive_gpu.indices.count() as u32,
+                0,
+                0..(self.uniforms_data.len() as u32),
+            );
         }
 
         app.queue.submit(Some(encoder.finish()));
