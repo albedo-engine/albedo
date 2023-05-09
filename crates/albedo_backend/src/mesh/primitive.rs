@@ -52,7 +52,7 @@ enum AttributeData {
     Chunk(Vec<u8>),
 }
 
-enum IndexData {
+pub enum IndexData {
     U16(Vec<u16>),
     U32(Vec<u32>),
 }
