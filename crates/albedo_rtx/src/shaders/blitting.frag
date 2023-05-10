@@ -1,8 +1,8 @@
 #version 450
 
 // @todo: split global uniforms.
-#include "structures.comp"
-#include "utils/colorspace.comp"
+#include "structures.glsl"
+#include "utils/colorspace.glsl"
 
 layout( location = 0 ) in vec2 vUv;
 

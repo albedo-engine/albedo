@@ -2,7 +2,7 @@
 
 #extension GL_GOOGLE_include_directive : enable
 
-#include "structures.comp"
+#include "structures.glsl"
 
 /**
  * Layout 0
