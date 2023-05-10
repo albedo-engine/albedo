@@ -114,15 +114,15 @@ impl BlitPass {
             layout: &self.bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
-                    binding: 0,
+                    binding: Self::TEXTURE_SAMPLER_BINDING,
                     resource: wgpu::BindingResource::Sampler(sampler),
                 },
                 wgpu::BindGroupEntry {
-                    binding: 1,
+                    binding: Self::TEXTURE_BINDING,
                     resource: wgpu::BindingResource::TextureView(view),
                 },
                 wgpu::BindGroupEntry {
-                    binding: 2,
+                    binding: Self::PER_DRAW_STRUCT_BINDING,
                     resource: global_uniforms.as_entire_binding(),
                 },
             ],
