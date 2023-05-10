@@ -1,9 +1,7 @@
+use albedo_backend::gpu;
 use albedo_rtx::uniforms;
 use libc;
-use std::{os::raw, sync::Mutex};
-
-mod baker;
-pub use baker::*;
+use std::sync::Mutex;
 
 mod app;
 pub use app::*;
@@ -85,8 +83,11 @@ pub extern "C" fn set_mesh_data(desc: MeshDescriptor) {
 
     let mut guard = app.lock().unwrap();
     let runtime = guard.as_mut().unwrap();
-    let baker = runtime.baker_mut();
-    baker.set_mesh_data(runtime.device(), &vertices, raw_indices);
+    runtime.data = Some(MeshData::new(
+        runtime.context.device(),
+        &vertices,
+        raw_indices,
+    ));
 }
 
 pub extern "C" fn bake(raw_slice: *mut ImageSlice) {
@@ -94,10 +95,8 @@ pub extern "C" fn bake(raw_slice: *mut ImageSlice) {
     if raw_slice.is_null() {
         return;
     }
-    println!("Baking...2");
     let mut guard = app.lock().unwrap();
     let runtime = guard.as_mut().unwrap();
-
     let slice = unsafe { raw_slice.as_mut() }.unwrap();
-    runtime.baker().bake_into(runtime.device(), slice);
+    println!("Baking...2");
 }

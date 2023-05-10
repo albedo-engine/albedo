@@ -1,4 +1,5 @@
-use crate::Baker;
+use albedo_backend::gpu;
+use albedo_rtx::uniforms;
 use futures;
 
 pub struct GpuContext {
@@ -54,32 +55,37 @@ impl GpuContext {
     }
 }
 
+/// GPU data for a single mesh.
+pub struct MeshData {
+    index_buffer: gpu::IndexBuffer,
+    vertex_buffer: gpu::Buffer<uniforms::Vertex>,
+}
+
+impl MeshData {
+    pub fn new(device: &wgpu::Device, vertices: &[uniforms::Vertex], indices: &[u32]) -> Self {
+        Self {
+            vertex_buffer: gpu::Buffer::new_vertex_with_data(device, vertices, None),
+            index_buffer: gpu::IndexBuffer::new_with_data_32(device, indices, None),
+        }
+    }
+    pub fn vertices(&self) -> &gpu::Buffer<uniforms::Vertex> {
+        &self.vertex_buffer
+    }
+    pub fn indices(&self) -> &gpu::IndexBuffer {
+        &self.index_buffer
+    }
+}
+
 pub struct App {
-    context: GpuContext,
-    baker: Baker,
+    pub context: GpuContext,
+    pub data: Option<MeshData>,
 }
 
 impl App {
     pub fn new() -> Self {
         App {
             context: GpuContext::new(),
-            baker: Baker::new(),
+            data: None,
         }
-    }
-
-    pub fn device(&self) -> &wgpu::Device {
-        &self.context.device
-    }
-
-    pub fn queue(&self) -> &wgpu::Queue {
-        &self.context.queue
-    }
-
-    pub fn baker_mut(&mut self) -> &mut Baker {
-        &mut self.baker
-    }
-
-    pub fn baker(&self) -> &Baker {
-        &self.baker
     }
 }
