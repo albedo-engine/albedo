@@ -1,4 +1,4 @@
-use albedo_backend::{gpu, mesh::IndexData};
+use albedo_backend::gpu;
 use albedo_rtx::uniforms;
 
 /// GPU data for a single mesh.
@@ -37,7 +37,7 @@ impl Baker {
         });
     }
 
-    pub fn bake_into(device: &wgpu::Device, out: &mut crate::ImageSlice) -> Vec<f32> {
+    pub fn bake_into(&self, device: &wgpu::Device, out: &mut crate::ImageSlice) -> Vec<f32> {
         vec![]
     }
 }

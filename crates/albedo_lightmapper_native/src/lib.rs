@@ -1,3 +1,5 @@
+use albedo_rtx::uniforms;
+
 mod baker;
 pub use baker::*;
 
@@ -45,39 +47,46 @@ pub struct MeshDescriptor {
     index_count: u32,
 }
 
-static mut context: Option<Context> = None;
+thread_local! {
+    static mut context: Option<Context> = None;
+};
 
 #[no_mangle]
 pub extern "C" fn init() {
     println!("Hello from Rust");
-    context = Context::new();
+    unsafe {
+        context = Some(Context::new());
+    }
 }
 
 pub extern "C" fn set_mesh_data(desc: MeshDescriptor) {
+    let count = desc.vertex_count / 3;
     if count % 3 != 0 {
         panic!("Vertex count must be a multiple of 3");
     }
 
     println!("Seting mesh data...");
 
-    let count = desc.vertex / 3;
-    let raw_indices = unsafe { &desc.indices };
-    let raw_positions = unsafe { &desc.positions };
-    let raw_normals = unsafe { &desc.normals };
+    let raw_indices =
+        unsafe { std::slice::from_raw_parts(desc.indices, desc.index_count as usize) };
+    let raw_positions =
+        unsafe { std::slice::from_raw_parts(desc.positions, desc.vertex_count as usize) };
+    let raw_normals =
+        unsafe { std::slice::from_raw_parts(desc.normals, desc.vertex_count as usize) };
 
     // @todo: Skip conversion by making the BVH / GPU struct split the vertex.
-    let vertices: Vec<uniforms::Vertex> = Vec::with_capacity(count);
+    let mut vertices: Vec<uniforms::Vertex> = Vec::with_capacity(count as usize);
     for j in 0..count {
-        let i = j * 3;
+        let i = j as usize * 3;
         let pos = [raw_positions[i], raw_positions[i + 1], raw_positions[i + 2]];
         let normal = [raw_normals[i], raw_normals[i + 1], raw_normals[i + 2]];
-        vertices.push(uniforms::Vertex::new(pos, normal, None));
+        vertices.push(uniforms::Vertex::new(&pos, &normal, None));
     }
 
     context
         .unwrap()
-        .baker_mut
-        .set_mesh_data(&vertices, raw_indices);
+        .baker_mut()
+        .set_mesh_data(context.unwrap().device(), &vertices, raw_indices);
 }
 
 pub extern "C" fn bake(slice: *mut ImageSlice) {
@@ -86,5 +95,5 @@ pub extern "C" fn bake(slice: *mut ImageSlice) {
         return;
     }
     println!("Baking...2");
-    context.baker.bake_into(&mut slice);
+    context.unwrap().baker().bake_into(&mut slice);
 }
