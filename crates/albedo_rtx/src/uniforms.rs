@@ -1,3 +1,4 @@
+use albedo_backend::gpu;
 use std::convert::TryInto;
 
 pub static INVALID_INDEX: u32 = std::u32::MAX;

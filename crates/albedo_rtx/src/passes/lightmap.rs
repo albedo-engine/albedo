@@ -17,61 +17,16 @@ impl LightmapPass {
     const PER_DRAW_STRUCT_BINDING: u32 = 4;
 
     pub fn new(device: &wgpu::Device) -> Self {
-        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: None,
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: Self::INSTANCE_BINDING,
-                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: Self::NODE_BINDING,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: Self::INDEX_BINDING,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: Self::VERTEX_BINDING,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: Self::PER_DRAW_STRUCT_BINDING,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-            ],
-        });
+        let bind_group_layout = gpu::BindGroupLayoutBuilder::new_with_size(5)
+            .storage_buffer(
+                wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                true,
+            )
+            .storage_buffer(wgpu::ShaderStages::FRAGMENT, true)
+            .storage_buffer(wgpu::ShaderStages::FRAGMENT, true)
+            .storage_buffer(wgpu::ShaderStages::FRAGMENT, true)
+            .uniform_buffer(wgpu::ShaderStages::FRAGMENT, None)
+            .build(device);
 
         let vx_module = device.create_shader_module(wgpu::include_spirv!(concat!(
             "..",
@@ -98,23 +53,10 @@ impl LightmapPass {
             push_constant_ranges: &[],
         });
 
-        let position = wgpu::VertexAttribute {
-            format: wgpu::VertexFormat::Float32x4,
-            shader_location: 0,
-            offset: 0,
-        };
-
-        let normal = wgpu::VertexAttribute {
-            format: wgpu::VertexFormat::Float32x4,
-            shader_location: 1,
-            offset: position.format.size(),
-        };
-
-        let layout = wgpu::VertexBufferLayout {
-            array_stride: position.format.size() + normal.format.size(),
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &[position, normal],
-        };
+        let layout_builder = gpu::VertexBufferLayoutBuilder::new(2)
+            .auto_attribute(wgpu::VertexFormat::Float32x4)
+            .auto_attribute(wgpu::VertexFormat::Float32x4);
+        let layout = layout_builder.build(None);
 
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Lightmap Pipeline"),
@@ -189,7 +131,6 @@ impl LightmapPass {
         instances: &gpu::Buffer<uniforms::Instance>,
         indices: &gpu::Buffer<u32>,
         vertices: &wgpu::Buffer,
-        vertex_count: u32,
     ) {
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
@@ -197,12 +138,7 @@ impl LightmapPass {
                 view: view,
                 resolve_target: None,
                 ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: 0.9,
-                        g: 0.2,
-                        b: 0.3,
-                        a: 1.0,
-                    }),
+                    load: wgpu::LoadOp::Load,
                     store: true,
                 },
             })],

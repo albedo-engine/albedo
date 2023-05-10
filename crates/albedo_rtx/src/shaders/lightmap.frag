@@ -2,6 +2,7 @@
 
 #include "utils/math.glsl"
 #include "structures.glsl"
+
 #define MAX_SAMPLES 16
 
 layout(location=0) in vec3 vPositionWorld;
