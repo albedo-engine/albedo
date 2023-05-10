@@ -1,13 +1,12 @@
 use crate::Baker;
 use futures;
 
-pub struct Context {
+pub struct GpuContext {
     device: wgpu::Device,
     queue: wgpu::Queue,
-    baker: Baker,
 }
 
-impl Context {
+impl GpuContext {
     pub fn new() -> Self {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::PRIMARY,
@@ -43,19 +42,7 @@ impl Context {
         ))
         .expect("Unable to find a suitable GPU adapter!");
 
-        Self {
-            device,
-            queue,
-            baker: Baker::new(),
-        }
-    }
-
-    pub fn baker(&self) -> &Baker {
-        &self.baker
-    }
-
-    pub fn baker_mut(&mut self) -> &mut Baker {
-        &mut self.baker
+        Self { device, queue }
     }
 
     pub fn device(&self) -> &wgpu::Device {
@@ -64,5 +51,35 @@ impl Context {
 
     pub fn queue(&self) -> &wgpu::Queue {
         &self.queue
+    }
+}
+
+pub struct App {
+    context: GpuContext,
+    baker: Baker,
+}
+
+impl App {
+    pub fn new() -> Self {
+        App {
+            context: GpuContext::new(),
+            baker: Baker::new(),
+        }
+    }
+
+    pub fn device(&self) -> &wgpu::Device {
+        &self.context.device
+    }
+
+    pub fn queue(&self) -> &wgpu::Queue {
+        &self.context.queue
+    }
+
+    pub fn baker_mut(&mut self) -> &mut Baker {
+        &mut self.baker
+    }
+
+    pub fn baker(&self) -> &Baker {
+        &self.baker
     }
 }

@@ -12,6 +12,7 @@ keywords = ["lightmapper", "raytracing", "graphics"]
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [dependencies]
+libc = "*"
 wgpu = "0.15.0"
 futures = "0.3"
 albedo_backend = { path = "../albedo_backend" }

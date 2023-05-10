@@ -1,10 +1,12 @@
 use albedo_rtx::uniforms;
+use libc;
+use std::{os::raw, sync::Mutex};
 
 mod baker;
 pub use baker::*;
 
-mod context;
-pub use context::*;
+mod app;
+pub use app::*;
 
 #[repr(C)]
 pub struct Slice<'a, T> {
@@ -47,15 +49,13 @@ pub struct MeshDescriptor {
     index_count: u32,
 }
 
-thread_local! {
-    static mut context: Option<Context> = None;
-};
+static app: Mutex<Option<App>> = Mutex::new(None);
 
 #[no_mangle]
 pub extern "C" fn init() {
     println!("Hello from Rust");
     unsafe {
-        context = Some(Context::new());
+        *app.lock().unwrap() = Some(App::new());
     }
 }
 
@@ -83,17 +83,21 @@ pub extern "C" fn set_mesh_data(desc: MeshDescriptor) {
         vertices.push(uniforms::Vertex::new(&pos, &normal, None));
     }
 
-    context
-        .unwrap()
-        .baker_mut()
-        .set_mesh_data(context.unwrap().device(), &vertices, raw_indices);
+    let mut guard = app.lock().unwrap();
+    let runtime = guard.as_mut().unwrap();
+    let baker = runtime.baker_mut();
+    baker.set_mesh_data(runtime.device(), &vertices, raw_indices);
 }
 
-pub extern "C" fn bake(slice: *mut ImageSlice) {
+pub extern "C" fn bake(raw_slice: *mut ImageSlice) {
     println!("Baking...");
-    if slice.is_null() {
+    if raw_slice.is_null() {
         return;
     }
     println!("Baking...2");
-    context.unwrap().baker().bake_into(&mut slice);
+    let mut guard = app.lock().unwrap();
+    let runtime = guard.as_mut().unwrap();
+
+    let slice = unsafe { raw_slice.as_mut() }.unwrap();
+    runtime.baker().bake_into(runtime.device(), slice);
 }
