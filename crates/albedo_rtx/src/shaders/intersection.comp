@@ -2,21 +2,8 @@
 
 #extension GL_GOOGLE_include_directive : enable
 
-#include "structures.comp"
-
-#define PI_F 3.14159265359
-#define TWO_PI 6.28318530718
-#define TO_RAD_F (PI_F / 180.0)
-#define MAX_FLOAT 3.402823466e+38
-
-#define VEC3_UP vec3(0.0, 0.999999995, 0.0001)
-
-#define MAX_UINT 0xFFFFFFFF
-#define INVALID_UINT MAX_UINT
-
-/**
- * Layout 0
- */
+#include "utils/math.glsl"
+#include "structures.glsl"
 
 layout (set = 0, binding = 0, std430) readonly buffer InstanceBuffer {
   Instance instances[];
@@ -47,25 +34,9 @@ layout (set = 0, binding = 6, std430) buffer IntersectionBuffer {
   Intersection intersections[];
 };
 
-#include "utils/intersection_utils.comp"
-
 /* Utils */
 
-uint
-WangHash(inout uint seed)
-{
-  seed = uint(seed ^ uint(61)) ^ uint(seed >> uint(16));
-  seed *= uint(9);
-  seed = seed ^ (seed >> 4);
-  seed *= uint(0x27d4eb2d);
-  seed = seed ^ (seed >> 15);
-  return seed;
-}
-
-float rand(inout uint seed)
-{
-  return float(WangHash(seed)) / 4294967296.0;
-}
+#include "utils/intersection_utils.glsl"
 
 layout(local_size_x = 8, local_size_y = 8) in;
 void main()

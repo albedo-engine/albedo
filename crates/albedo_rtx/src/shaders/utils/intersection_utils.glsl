@@ -1,7 +1,7 @@
 #ifndef INTERSECTION_UTILS_H
 #define INTERSECTION_UTILS_H
 
-#include "common.comp"
+#include "common.glsl"
 
 Vertex
 getVertex(uint vertexOffset, uint index)
