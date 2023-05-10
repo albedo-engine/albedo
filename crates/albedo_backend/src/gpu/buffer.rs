@@ -2,6 +2,10 @@ use bytemuck::Pod;
 use std::{convert::TryFrom, marker::PhantomData, ops::RangeBounds};
 use wgpu::util::DeviceExt;
 
+use crate::mesh::IndexData;
+
+// @todo: Add a buffer builder.
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct BufferInitDescriptor<'a> {
     /// Debug label of a buffer. This will show up in graphics debuggers for easy identification.
@@ -157,6 +161,16 @@ impl<T: Pod> Buffer<T> {
         Buffer::new_with_data(device, content, Some(options))
     }
 
+    pub fn new_vertex_with_data<'a>(
+        device: &wgpu::Device,
+        content: &[T],
+        options: Option<BufferInitDescriptor>,
+    ) -> Self {
+        let mut options = options.unwrap_or_default();
+        options.usage = options.usage | wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST;
+        Buffer::new_with_data(device, content, Some(options))
+    }
+
     pub fn update(&mut self, queue: &wgpu::Queue, content: &[T]) {
         let slice = bytemuck::cast_slice(content);
         queue.write_buffer(&self.inner, 0, slice);
@@ -185,6 +199,17 @@ pub enum IndexBuffer {
 }
 
 impl IndexBuffer {
+    pub fn new_with_data(
+        device: &wgpu::Device,
+        indices: &crate::mesh::IndexData,
+        options: Option<BufferInitDescriptor>,
+    ) -> Self {
+        match indices {
+            IndexData::U16(data) => Self::new_with_data_16(device, data, options),
+            IndexData::U32(data) => Self::new_with_data_32(device, data, options),
+        }
+    }
+
     pub fn new_with_data_16<'a>(
         device: &wgpu::Device,
         content: &[u16],
