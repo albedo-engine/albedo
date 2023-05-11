@@ -1,5 +1,5 @@
 use crate::builders::BVHBuilder;
-use crate::{FlatNode, Mesh, Vertex, BVH};
+use crate::{FlatNode, Mesh, BVH};
 
 /// Node, vertex, and index offset of an entry
 ///
@@ -20,7 +20,7 @@ pub struct BLASEntryDescriptor {
 ///
 /// Entries are used to find the start index of each
 /// BVH.
-pub struct BLASArray<Vert: Vertex> {
+pub struct BLASArray<Vert: bytemuck::Pod> {
     /// Node, vertex, and index offset for each entry
     pub entries: Vec<BLASEntryDescriptor>,
     /// List of nodes of all entries
@@ -31,7 +31,7 @@ pub struct BLASArray<Vert: Vertex> {
     pub indices: Vec<u32>,
 }
 
-impl<Vert: Vertex> BLASArray<Vert> {
+impl<Vert: bytemuck::Pod> BLASArray<Vert> {
     pub fn new<Builder: BVHBuilder>(
         meshes: &[impl Mesh<Vert>],
         builder: &mut Builder,

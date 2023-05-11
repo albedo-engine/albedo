@@ -7,10 +7,16 @@ namespace Albedo {
 extern "C" {
 #endif
 
+struct AttributeSlice {
+    const unsigned char* data;
+    unsigned int stride;
+};
+
 struct MeshDescriptor {
-    const float* positions;
-    const float* normals;
-    const float* indices;
+    AttributeSlice positions;
+    AttributeSlice normals;
+    AttributeSlice uvs;
+    const unsigned int* indices;
     unsigned int vertex_count;
     unsigned int index_count;
 };
@@ -18,7 +24,7 @@ struct MeshDescriptor {
 struct ImageSlice {
     unsigned int width;
     unsigned int height;
-    float* data;
+    unsigned char* data;
 };
 
 void init();

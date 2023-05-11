@@ -16,7 +16,7 @@ impl LightmapPass {
     const VERTEX_BINDING: u32 = 3;
     const PER_DRAW_STRUCT_BINDING: u32 = 4;
 
-    pub fn new(device: &wgpu::Device) -> Self {
+    pub fn new(device: &wgpu::Device, target_format: wgpu::TextureFormat) -> Self {
         let bind_group_layout = gpu::BindGroupLayoutBuilder::new_with_size(5)
             .storage_buffer(
                 wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
@@ -69,7 +69,7 @@ impl LightmapPass {
             fragment: Some(wgpu::FragmentState {
                 module: &fg_module,
                 entry_point: "main",
-                targets: &[Some(wgpu::TextureFormat::Rgba32Float.into())],
+                targets: &[Some(target_format.into())],
             }),
             primitive: wgpu::PrimitiveState {
                 cull_mode: None,
@@ -138,7 +138,12 @@ impl LightmapPass {
                 view: view,
                 resolve_target: None,
                 ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Load,
+                    load: wgpu::LoadOp::Clear(wgpu::Color {
+                        r: 1.0,
+                        g: 1.0,
+                        b: 1.0,
+                        a: 1.0,
+                    }),
                     store: true,
                 },
             })],

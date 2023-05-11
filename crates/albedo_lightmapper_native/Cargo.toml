@@ -18,3 +18,9 @@ futures = "0.3"
 albedo_backend = { path = "../albedo_backend" }
 albedo_bvh = { path = "../albedo_bvh" }
 albedo_rtx = { path = "../albedo_rtx" }
+bytemuck = "1.4.1"
+futures-intrusive = "0.4"
+libloading = "*"
+
+[target.'cfg(windows)'.dependencies]
+renderdoc = "0.11.0"

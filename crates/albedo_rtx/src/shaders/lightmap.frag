@@ -3,7 +3,7 @@
 #include "utils/math.glsl"
 #include "structures.glsl"
 
-#define MAX_SAMPLES 16
+#define MAX_SAMPLES 128
 
 layout(location=0) in vec3 vPositionWorld;
 layout(location=1) in vec3 vNormalWorld;
@@ -41,9 +41,11 @@ void main() {
     + uint(global.seed) * uint(26699)
   ) | uint(1);
 
+  vec3 normal = normalize(vNormalWorld);
+  float radius = 5.0;
+
   float accumulate = 0.0;
   for(int i = 0; i < MAX_SAMPLES; ++i) {
-    vec3 normal = vNormalWorld;
     vec3 worldUp = abs(normal.z) < 0.9999 ? vec3(0, 0, 1) : vec3(1, 0, 0);
     vec3 tangent = normalize(cross(worldUp, normal));
     vec3 bitangent = cross(normal, tangent);
@@ -59,10 +61,10 @@ void main() {
     intersection.instance = INVALID_UINT;
     intersection.emitter = INVALID_UINT;
     intersection.dist = sceneHit(ray, intersection);
-    if(intersection.dist > 1.0)
+    if(intersection.dist >= radius)
       accumulate += 1.0;
   }
-  accumulate /= MAX_SAMPLES;
+  accumulate /= float(MAX_SAMPLES);
 
   outColor = vec4(vec3(accumulate), 1.0);
 }
