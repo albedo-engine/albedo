@@ -118,13 +118,6 @@ impl SceneGPU {
             ),
         }
     }
-    pub fn vertices(&self) -> &gpu::Buffer<Vertex> {
-        &self.vertex_buffer
-    }
-    //pub fn indices(&self) -> &gpu::IndexBuffer {
-    pub fn indices(&self) -> &gpu::Buffer<u32> {
-        &self.index_buffer
-    }
 }
 
 pub struct App {

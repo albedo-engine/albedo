@@ -245,6 +245,8 @@ pub extern "C" fn set_mesh_data(desc: MeshDescriptor) {
             desc.normals.get(i),
             Some(desc.uvs.get(i)),
         ));
+        println!("[Albedo] Pos = [{}, {}, {}], Normal = [{}, {}, {}]",
+            pos[0], pos[1], pos[2], normal[0], normal[1], normal[2])
     }
 
     for i in 0..desc.index_count as usize {

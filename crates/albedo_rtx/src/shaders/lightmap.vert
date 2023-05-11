@@ -23,6 +23,7 @@ void main() {
   vNormalWorld = (instance.modelToWorld * vec4(vNormal.xyz, 1.0)).xyz;
   /* UV */
   vUv = vec2(vPosition.w, vNormal.w);
+  vUv *= 0.999;
   vUv = mod(vUv, vec2(1.0, 1.0));
   /* Position in lightmap UV space */
   gl_Position = vec4(vUv * 2.0 - 1.0, 0.0, 1.0);
