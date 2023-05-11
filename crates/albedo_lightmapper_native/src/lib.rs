@@ -249,8 +249,6 @@ pub extern "C" fn set_mesh_data(desc: MeshDescriptor) {
         );
     }
 
-    let instance = Instance::default();
-
     let mut builder = builders::SAHBuilder::new();
     let result = BLASArray::new(&[desc], &mut builder);
 
@@ -258,6 +256,19 @@ pub extern "C" fn set_mesh_data(desc: MeshDescriptor) {
         Ok(val) => val,
         Err(str) => return,
     };
+
+    let entry = blas.entries.get(0).unwrap();
+    let instance = Instance {
+        vertex_root_index: entry.vertex,
+        index_root_index: entry.index,
+        bvh_root_index: entry.node,
+        ..Default::default()
+    };
+
+    println!(
+        "Instance = {}, {}",
+        instance.model_to_world, instance.world_to_model
+    );
 
     runtime.scene = Some(SceneGPU::new(
         runtime.context.device(),
