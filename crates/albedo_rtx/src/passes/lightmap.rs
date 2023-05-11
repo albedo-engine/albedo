@@ -69,7 +69,7 @@ impl LightmapPass {
             fragment: Some(wgpu::FragmentState {
                 module: &fg_module,
                 entry_point: "main",
-                targets: &[Some(wgpu::TextureFormat::Rgba32Float.into())],
+                targets: &[Some(target_format.into())],
             }),
             primitive: wgpu::PrimitiveState {
                 cull_mode: None,

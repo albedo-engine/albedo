@@ -9,10 +9,10 @@ mod app;
 pub use app::*;
 
 #[repr(C)]
-pub struct ImageSlice<'a> {
+pub struct ImageSlice {
     pub width: u32,
     pub height: u32,
-    pub data: &'a mut [u8],
+    pub data: *mut u8,
 }
 
 #[repr(C)]
@@ -43,10 +43,7 @@ impl<'a> Mesh<Vertex> for MeshData<'a> {
         let i = index as usize;
         let pos = self.positions[i];
         let normal = self.normals[i];
-        let uv = match &self.uvs {
-            Some(u) => u[i],
-            None => [0.0, 0.0],
-        };
+        let uv = self.uvs[i];
         Vertex::new(&pos, &normal, Some(&uv))
     }
 
@@ -196,16 +193,21 @@ pub extern "C" fn init() {
     unsafe {
         *app.lock().unwrap() = Some(App::new());
     }
+    println!("{}", app.lock().unwrap().is_none());
 }
 
 #[no_mangle]
 pub extern "C" fn set_mesh_data(desc: MeshDescriptor) {
-    let count = desc.vertex_count / 3;
+    let count = desc.index_count / 3;
     if count % 3 != 0 {
         panic!("Vertex count must be a multiple of 3");
     }
 
+    let mut guard = app.lock().unwrap();
     println!("Seting mesh data...");
+    println!("{}", guard.is_none());
+
+    let runtime: &mut App = guard.as_mut().unwrap();
 
     let mesh_data = MeshData {
         indices: unsafe { std::slice::from_raw_parts(desc.indices, desc.index_count as usize) },
@@ -218,18 +220,18 @@ pub extern "C" fn set_mesh_data(desc: MeshDescriptor) {
         normals: unsafe {
             std::slice::from_raw_parts(desc.normals as *const [f32; 3], desc.vertex_count as usize)
         },
-        uvs: Some(unsafe {
+        uvs: unsafe {
             std::slice::from_raw_parts(desc.uvs as *const [f32; 2], desc.vertex_count as usize)
-        }),
+        },
         index_count: desc.index_count,
         vertex_count: desc.vertex_count,
     };
 
-    let indices = unsafe { std::slice::from_raw_parts(desc.indices, desc.index_count as usize) };
-
     // @todo: Skip conversion by making the BVH / GPU struct split the vertex.
     let mut vertices: Vec<Vertex> = Vec::with_capacity(count as usize);
     for i in 0..count as usize {
+        let v = &mesh_data.positions[i];
+        println!("Pusing vertex {}, {}, {}", v[0], v[1], v[2]);
         vertices.push(Vertex::new(
             &mesh_data.positions[i],
             &mesh_data.normals[i],
@@ -246,26 +248,21 @@ pub extern "C" fn set_mesh_data(desc: MeshDescriptor) {
         Ok(val) => val,
         Err(str) => return,
     };
-    let mut guard = app.lock().unwrap();
-    let runtime = guard.as_mut().unwrap();
+
     runtime.scene = Some(SceneGPU::new(
         runtime.context.device(),
         &[instance],
         &blas.nodes,
-        indices,
-        &vertices,
+        &blas.indices,
+        &blas.vertices,
     ));
 }
 
 #[no_mangle]
-pub extern "C" fn bake(raw_slice: *mut ImageSlice) {
+pub extern "C" fn bake(raw_slice: ImageSlice) {
     println!("Baking...");
-    if raw_slice.is_null() {
-        return;
-    }
     let mut guard = app.lock().unwrap();
     let runtime = guard.as_mut().unwrap();
-    let slice = unsafe { raw_slice.as_mut() }.unwrap();
     let context = &runtime.context;
 
     println!("\n============================================================");
@@ -287,7 +284,16 @@ pub extern "C" fn bake(raw_slice: *mut ImageSlice) {
     );
 
     let data = futures::executor::block_on(renderer.lightmap(&runtime.context, scene)).unwrap();
-    slice.data.copy_from_slice(&data);
+
+    println!("[ALBEDO]: Read {} bytes ", data.len());
+    println!(
+        "[ALBEDO]: First few pixels: [{}, {}, {}, {}], [{}, {}, {}, {}]",
+        data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]
+    );
+
+    let byte_count = (raw_slice.width * raw_slice.height * 4) as usize;
+    let out = unsafe { std::slice::from_raw_parts_mut(raw_slice.data, byte_count) };
+    out.copy_from_slice(&data);
 
     println!("[ALBEDO] Copy is done!");
 }

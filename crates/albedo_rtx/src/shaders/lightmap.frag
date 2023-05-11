@@ -64,5 +64,6 @@ void main() {
   }
   accumulate /= MAX_SAMPLES;
 
-  outColor = vec4(vec3(accumulate), 1.0);
+  // outColor = vec4(vec3(1.0 - accumulate), 1.0);
+  outColor = vec4(1.0, 0.0, 0.0, 1.0);
 }
