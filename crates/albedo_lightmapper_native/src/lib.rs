@@ -8,19 +8,42 @@ use std::sync::Mutex;
 mod app;
 pub use app::*;
 
-#[repr(C)]
-pub struct StridedSlice {
+pub struct StridedSlice<V> {
     pub stride: u32,
-    pub data: *mut u8,
+    pub bytes: *mut u8,
+    pub ptr: *mut V,
 }
 
-impl StridedSlice {
-    pub fn get<M: Sized>(&self, index: usize) -> &M {
-        unsafe {
-            let start = self.data.offset(self.stride as isize * index as isize);
-            (start as *mut M).as_ref().unwrap()
+impl<V: Sized> StridedSlice<V> {
+    pub fn from_raw(stride: u32, bytes: *mut u8) -> Self {
+        StridedSlice::<V> {
+            stride,
+            bytes,
+            ptr: bytes as *mut V
         }
     }
+
+    pub fn get(&self, index: usize) -> &V {
+        unsafe {
+            let start = self.bytes.offset(self.stride as isize * index as isize);
+            (start as *mut V).as_ref().unwrap()
+        }
+    }
+}
+
+pub struct MeshData<'a> {
+    positions: StridedSlice<[f32; 3]>,
+    normals: StridedSlice<[f32; 3]>,
+    uvs: StridedSlice<[f32; 2]>,
+    indices: &'a [u32],
+    vertex_count: u32,
+    index_count: u32,
+}
+
+#[repr(C)]
+pub struct AttributeSlice {
+    pub stride: u32,
+    pub bytes: *mut u8,
 }
 
 #[repr(C)]
@@ -32,17 +55,17 @@ pub struct ImageSlice {
 
 #[repr(C)]
 pub struct MeshDescriptor {
-    positions: StridedSlice,
-    normals: StridedSlice,
-    uvs: StridedSlice,
+    positions: AttributeSlice,
+    normals: AttributeSlice,
+    uvs: AttributeSlice,
     indices: *const u32,
     vertex_count: u32,
     index_count: u32,
 }
 
-impl<'a> Mesh<Vertex> for MeshDescriptor {
+impl<'a> Mesh<Vertex> for MeshData<'a> {
     fn index(&self, index: u32) -> Option<&u32> {
-        Some(unsafe { &self.indices.offset(index as isize).as_ref().unwrap() })
+        self.indices.get(index as usize)
     }
 
     fn vertex(&self, index: u32) -> Vertex {
@@ -218,45 +241,27 @@ pub extern "C" fn set_mesh_data(desc: MeshDescriptor) {
 
     let runtime: &mut App = guard.as_mut().unwrap();
 
-    // let mesh_data = MeshData {
-    //     indices: unsafe { std::slice::from_raw_parts(desc.indices, desc.index_count as usize) },
-    //     positions: unsafe {
-    //         std::slice::from_raw_parts(
-    //             desc.positions as *const [f32; 3],
-    //             desc.vertex_count as usize,
-    //         )
-    //     },
-    //     normals: unsafe {
-    //         std::slice::from_raw_parts(desc.normals as *const [f32; 3], desc.vertex_count as usize)
-    //     },
-    //     uvs: unsafe {
-    //         std::slice::from_raw_parts(desc.uvs as *const [f32; 2], desc.vertex_count as usize)
-    //     },
-    //     index_count: desc.index_count,
-    //     vertex_count: desc.vertex_count,
-    // };
+    let mesh_data = MeshData {
+        positions: StridedSlice::<[f32; 3]>::from_raw(desc.positions.stride, desc.positions.bytes),
+        normals: StridedSlice::<[f32; 3]>::from_raw(desc.normals.stride, desc.positions.bytes),
+        uvs: StridedSlice::<[f32; 2]>::from_raw(desc.uvs.stride, desc.uvs.bytes),
+        indices: unsafe { std::slice::from_raw_parts(desc.indices, desc.index_count as usize) },
+        vertex_count: desc.vertex_count,
+        index_count: desc.index_count,
+    };
 
     // @todo: Skip conversion by making the BVH / GPU struct split the vertex.
     let mut vertices: Vec<Vertex> = Vec::with_capacity(desc.vertex_count as usize);
     for i in 0..desc.vertex_count as usize {
-        let pos: &[f32; 3] = desc.positions.get(i);
-        let normal: &[f32; 3] = desc.normals.get(i);
-        let uv: &[f32; 2] = desc.uvs.get(i);
         vertices.push(Vertex::new(
-            desc.positions.get(i),
-            desc.normals.get(i),
-            Some(desc.uvs.get(i)),
+            mesh_data.positions.get(i),
+            mesh_data.normals.get(i),
+            Some(mesh_data.uvs.get(i)),
         ));
-        println!("[Albedo] Pos = [{}, {}, {}], Normal = [{}, {}, {}]",
-            pos[0], pos[1], pos[2], normal[0], normal[1], normal[2])
-    }
-
-    for i in 0..desc.index_count as usize {
-        println!("Index {}", desc.index(i as u32).unwrap());
     }
 
     let mut builder = builders::SAHBuilder::new();
-    let result = BLASArray::new(&[desc], &mut builder);
+    let result = BLASArray::new(&[mesh_data], &mut builder);
 
     let blas = match result {
         Ok(val) => val,
