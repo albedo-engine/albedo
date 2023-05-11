@@ -147,6 +147,8 @@ impl Renderer {
             &scene_resources.vertex_buffer.inner(),
         );
 
+        device.poll(wgpu::Maintain::Wait);
+
         encoder.copy_texture_to_buffer(
             texture.as_image_copy(),
             wgpu::ImageCopyBuffer {
@@ -243,10 +245,10 @@ pub extern "C" fn set_mesh_data(desc: MeshDescriptor) {
             desc.normals.get(i),
             Some(desc.uvs.get(i)),
         ));
-        println!(
-            "Pusing uv [{}, {}, {}] / [{}, {}, {}] / [{}, {}]",
-            pos[0], pos[1], pos[2], normal[0], normal[1], normal[2], uv[0], uv[1]
-        );
+    }
+
+    for i in 0..desc.index_count as usize {
+        println!("Index {}", desc.index(i as u32).unwrap());
     }
 
     let mut builder = builders::SAHBuilder::new();
@@ -264,11 +266,6 @@ pub extern "C" fn set_mesh_data(desc: MeshDescriptor) {
         bvh_root_index: entry.node,
         ..Default::default()
     };
-
-    println!(
-        "Instance = {}, {}",
-        instance.model_to_world, instance.world_to_model
-    );
 
     runtime.scene = Some(SceneGPU::new(
         runtime.context.device(),
