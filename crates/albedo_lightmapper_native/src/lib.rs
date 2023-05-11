@@ -198,8 +198,7 @@ pub extern "C" fn init() {
 
 #[no_mangle]
 pub extern "C" fn set_mesh_data(desc: MeshDescriptor) {
-    let count = desc.index_count / 3;
-    if count % 3 != 0 {
+    if desc.index_count % 3 != 0 {
         panic!("Vertex count must be a multiple of 3");
     }
 
@@ -228,8 +227,8 @@ pub extern "C" fn set_mesh_data(desc: MeshDescriptor) {
     };
 
     // @todo: Skip conversion by making the BVH / GPU struct split the vertex.
-    let mut vertices: Vec<Vertex> = Vec::with_capacity(count as usize);
-    for i in 0..count as usize {
+    let mut vertices: Vec<Vertex> = Vec::with_capacity(desc.vertex_count as usize);
+    for i in 0..desc.vertex_count as usize {
         let v = &mesh_data.positions[i];
         println!("Pusing vertex {}, {}, {}", v[0], v[1], v[2]);
         vertices.push(Vertex::new(
