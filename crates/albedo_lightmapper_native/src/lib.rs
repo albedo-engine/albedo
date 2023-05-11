@@ -19,7 +19,7 @@ impl<V: Sized> StridedSlice<V> {
         StridedSlice::<V> {
             stride,
             bytes,
-            ptr: bytes as *mut V
+            ptr: bytes as *mut V,
         }
     }
 
@@ -220,13 +220,9 @@ static app: Mutex<Option<App>> = Mutex::new(None);
 
 #[no_mangle]
 pub extern "C" fn init() {
-    println!("Hello from Rust");
-    println!("CWD: {}", std::env::current_dir().unwrap().as_os_str().to_str().unwrap());
-
     unsafe {
         *app.lock().unwrap() = Some(App::new());
     }
-    println!("{}", app.lock().unwrap().is_none());
 }
 
 #[no_mangle]
@@ -236,8 +232,6 @@ pub extern "C" fn set_mesh_data(desc: MeshDescriptor) {
     }
 
     let mut guard = app.lock().unwrap();
-    println!("Seting mesh data...");
-    println!("{}", guard.is_none());
 
     let runtime: &mut App = guard.as_mut().unwrap();
 
@@ -287,7 +281,6 @@ pub extern "C" fn set_mesh_data(desc: MeshDescriptor) {
 
 #[no_mangle]
 pub extern "C" fn bake(raw_slice: ImageSlice) {
-    println!("Baking...");
     let mut guard = app.lock().unwrap();
     let mut runtime = guard.as_mut().unwrap();
 
@@ -316,12 +309,6 @@ pub extern "C" fn bake(raw_slice: ImageSlice) {
     );
 
     let data = futures::executor::block_on(renderer.lightmap(&context, scene)).unwrap();
-
-    println!("[ALBEDO]: Read {} bytes ", data.len());
-    println!(
-        "[ALBEDO]: First few pixels: [{}, {}, {}, {}], [{}, {}, {}, {}]",
-        data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]
-    );
 
     let byte_count = (raw_slice.width * raw_slice.height * 4) as usize;
     let out = unsafe { std::slice::from_raw_parts_mut(raw_slice.data, byte_count) };
