@@ -2,14 +2,14 @@ use albedo_backend::gpu;
 use albedo_bvh::FlatNode;
 use albedo_rtx::uniforms::{Instance, Vertex};
 use futures;
-use renderdoc::{RenderDoc, V141};
+// use renderdoc::{RenderDoc, V141};
 
 pub struct GpuContext {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub sampler_nearest: wgpu::Sampler,
     pub sampler_linear: wgpu::Sampler,
-    pub renderdoc: Option<RenderDoc<V141>>,
+    // pub renderdoc: Option<RenderDoc<V141>>,
 }
 
 impl GpuContext {
@@ -67,20 +67,19 @@ impl GpuContext {
             ..Default::default()
         });
 
-        if false {
-            unsafe { libloading::os::windows::Library::new( "renderdoc.dll"); }
+        // if false {
+        //     unsafe { libloading::os::windows::Library::new( "renderdoc.dll"); }
+        //     let renderdoc = Some(RenderDoc::<V141>::new().unwrap());
+        // }
 
-            let renderdoc = Some(RenderDoc::<V141>::new().unwrap());
-        }
-
-        let renderdoc = None;
+        // let renderdoc = None;
 
         Self {
             device,
             queue,
             sampler_nearest,
             sampler_linear,
-            renderdoc,
+            // renderdoc,
         }
     }
 

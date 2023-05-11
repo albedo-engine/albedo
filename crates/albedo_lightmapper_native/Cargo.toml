@@ -20,5 +20,7 @@ albedo_bvh = { path = "../albedo_bvh" }
 albedo_rtx = { path = "../albedo_rtx" }
 bytemuck = "1.4.1"
 futures-intrusive = "0.4"
-renderdoc = "0.11.0"
 libloading = "*"
+
+[target.'cfg(windows)'.dependencies]
+renderdoc = "0.11.0"

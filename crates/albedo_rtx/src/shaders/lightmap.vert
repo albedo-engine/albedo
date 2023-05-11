@@ -20,7 +20,7 @@ void main() {
   /* Position in World space */
   vPositionWorld = (instance.modelToWorld * vec4(vPosition.xyz, 1.0)).xyz;
   /* Normal in World space */
-  vNormalWorld = (instance.modelToWorld * vec4(vNormal.xyz, 1.0)).xyz;
+  vNormalWorld = (instance.modelToWorld * vec4(vNormal.xyz, 0.0)).xyz;
   /* UV */
   vUv = vec2(vPosition.w, vNormal.w);
   vUv *= 0.99999;
