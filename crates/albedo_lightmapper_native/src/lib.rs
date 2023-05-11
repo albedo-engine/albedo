@@ -198,6 +198,8 @@ static app: Mutex<Option<App>> = Mutex::new(None);
 #[no_mangle]
 pub extern "C" fn init() {
     println!("Hello from Rust");
+    println!("CWD: {}", std::env::current_dir().unwrap().as_os_str().to_str().unwrap());
+
     unsafe {
         *app.lock().unwrap() = Some(App::new());
     }
@@ -282,8 +284,13 @@ pub extern "C" fn set_mesh_data(desc: MeshDescriptor) {
 pub extern "C" fn bake(raw_slice: ImageSlice) {
     println!("Baking...");
     let mut guard = app.lock().unwrap();
-    let runtime = guard.as_mut().unwrap();
-    let context = &runtime.context;
+    let mut runtime = guard.as_mut().unwrap();
+
+    let mut context = &mut runtime.context;
+
+    if let Some(renderdoc) = &mut context.renderdoc {
+        renderdoc.start_frame_capture(std::ptr::null(), std::ptr::null());
+    }
 
     println!("\n============================================================");
     println!("                   🚀 Lightmapper 🚀                           ");
@@ -303,7 +310,7 @@ pub extern "C" fn bake(raw_slice: ImageSlice) {
         wgpu::TextureFormat::Rgba8Unorm,
     );
 
-    let data = futures::executor::block_on(renderer.lightmap(&runtime.context, scene)).unwrap();
+    let data = futures::executor::block_on(renderer.lightmap(&context, scene)).unwrap();
 
     println!("[ALBEDO]: Read {} bytes ", data.len());
     println!(
@@ -314,6 +321,10 @@ pub extern "C" fn bake(raw_slice: ImageSlice) {
     let byte_count = (raw_slice.width * raw_slice.height * 4) as usize;
     let out = unsafe { std::slice::from_raw_parts_mut(raw_slice.data, byte_count) };
     out.copy_from_slice(&data);
+
+    if let Some(renderdoc) = &mut context.renderdoc {
+        renderdoc.end_frame_capture(std::ptr::null(), std::ptr::null());
+    }
 
     println!("[ALBEDO] Copy is done!");
 }

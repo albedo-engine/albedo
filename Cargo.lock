@@ -98,6 +98,8 @@ dependencies = [
  "futures",
  "futures-intrusive",
  "libc",
+ "libloading",
+ "renderdoc",
  "wgpu",
 ]
 
@@ -546,6 +548,15 @@ checksum = "a8a2db397cb1c8772f31494cb8917e48cd1e64f0fa7efac59fbd741a0a8ce841"
 dependencies = [
  "crc32fast",
  "miniz_oxide 0.6.2",
+]
+
+[[package]]
+name = "float-cmp"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "98de4bbd547a563b716d8dfa9aad1cb19bfab00f4fa09a6a4ed21dbcf44ce9c4"
+dependencies = [
+ "num-traits",
 ]
 
 [[package]]
@@ -1446,10 +1457,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "renderdoc"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "272da9ec1e28b0ef17df4dcefad820b13f098ebe9c82697111fc57ccff621e12"
+dependencies = [
+ "bitflags",
+ "float-cmp",
+ "libloading",
+ "once_cell",
+ "renderdoc-sys 1.0.0",
+ "winapi",
+ "wio",
+]
+
+[[package]]
 name = "renderdoc-sys"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1382d1f0a252c4bf97dc20d979a2fdd05b024acd7c2ed0f7595d7817666a157"
+
+[[package]]
+name = "renderdoc-sys"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "216080ab382b992234dda86873c18d4c48358f5cfcb70fd693d7f6f2131b628b"
 
 [[package]]
 name = "rustc-demangle"
@@ -1961,7 +1993,7 @@ dependencies = [
  "profiling",
  "range-alloc",
  "raw-window-handle",
- "renderdoc-sys",
+ "renderdoc-sys 0.7.1",
  "smallvec",
  "thiserror",
  "wasm-bindgen",
@@ -2126,6 +2158,15 @@ dependencies = [
  "web-sys",
  "windows-sys",
  "x11-dl",
+]
+
+[[package]]
+name = "wio"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5d129932f4644ac2396cb456385cbf9e63b5b30c6e8dc4820bdca4eb082037a5"
+dependencies = [
+ "winapi",
 ]
 
 [[package]]
