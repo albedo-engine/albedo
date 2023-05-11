@@ -94,7 +94,9 @@ dependencies = [
  "albedo_backend",
  "albedo_bvh",
  "albedo_rtx",
+ "bytemuck",
  "futures",
+ "futures-intrusive",
  "libc",
  "wgpu",
 ]
@@ -601,6 +603,17 @@ dependencies = [
  "futures-core",
  "futures-task",
  "futures-util",
+]
+
+[[package]]
+name = "futures-intrusive"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a604f7a68fbf8103337523b1fadc8ade7361ee3f112f7c680ad179651616aed5"
+dependencies = [
+ "futures-core",
+ "lock_api",
+ "parking_lot",
 ]
 
 [[package]]

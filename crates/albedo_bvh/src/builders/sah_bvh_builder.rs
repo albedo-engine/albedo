@@ -2,7 +2,7 @@ use albedo_math::{clamp, AABB};
 use glam::Vec3;
 
 use crate::builders::BVHBuilder;
-use crate::{Mesh, Vertex};
+use crate::{Mesh};
 use crate::{Node, BVH};
 
 #[derive(Default, Copy, Clone)]
@@ -25,7 +25,7 @@ impl SAHBuilder {
 }
 
 impl BVHBuilder for SAHBuilder {
-    fn build<V: Vertex>(&mut self, mesh: &impl Mesh<V>) -> Result<BVH, &'static str> {
+    fn build<V: bytemuck::Pod>(&mut self, mesh: &impl Mesh<V>) -> Result<BVH, &'static str> {
         // @todo: support for quads.
         // @todo: support for u8 and u32.
         let nb_triangles = mesh.index_count() / 3;

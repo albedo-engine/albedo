@@ -1,10 +1,21 @@
 use albedo_backend::gpu;
-use albedo_rtx::uniforms;
+use albedo_bvh::{FlatNode};
+use albedo_rtx::uniforms::{Vertex, Instance, Light, Material};
 use futures;
 
+pub struct DefaultTextures {
+    filterable_2d: wgpu::TextureView,
+    filterable_2darray: wgpu::TextureView,
+    non_filterable_1d: wgpu::TextureView,
+}
+
 pub struct GpuContext {
-    device: wgpu::Device,
-    queue: wgpu::Queue,
+    pub device: wgpu::Device,
+    pub queue: wgpu::Queue,
+    //default_textures: DefaultTextures,
+    //default_buffer: wgpu::Buffer,
+    pub sampler_nearest: wgpu::Sampler,
+    pub sampler_linear: wgpu::Sampler,
 }
 
 impl GpuContext {
@@ -43,7 +54,25 @@ impl GpuContext {
         ))
         .expect("Unable to find a suitable GPU adapter!");
 
-        Self { device, queue }
+        let sampler_nearest = device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+        let sampler_linear = device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+        Self { device, queue, sampler_nearest, sampler_linear }
     }
 
     pub fn device(&self) -> &wgpu::Device {
@@ -55,37 +84,65 @@ impl GpuContext {
     }
 }
 
-/// GPU data for a single mesh.
-pub struct MeshData {
-    index_buffer: gpu::IndexBuffer,
-    vertex_buffer: gpu::Buffer<uniforms::Vertex>,
+/// GPU data for scene
+pub struct SceneGPU {
+    pub instance_buffer: gpu::Buffer<Instance>,
+    //pub materials_buffer: gpu::Buffer<Material>,
+    pub bvh_buffer: gpu::Buffer<FlatNode>,
+    pub index_buffer: gpu::Buffer<u32>,
+    //pub index_buffer: gpu::IndexBuffer,
+    pub vertex_buffer: gpu::Buffer<Vertex>,
+    //pub light_buffer: gpu::Buffer<Light>,
+    //pub atlas: Option<TextureAtlasGPU>,
 }
 
-impl MeshData {
-    pub fn new(device: &wgpu::Device, vertices: &[uniforms::Vertex], indices: &[u32]) -> Self {
-        Self {
-            vertex_buffer: gpu::Buffer::new_vertex_with_data(device, vertices, None),
-            index_buffer: gpu::IndexBuffer::new_with_data_32(device, indices, None),
+impl SceneGPU {
+    pub fn new(
+        device: &wgpu::Device,
+        instances: &[Instance],
+        //materials: &[Material],
+        bvh: &[FlatNode],
+        indices: &[u32],
+        vertices: &[Vertex],
+        //lights: &[Light],
+    ) -> Self {
+        SceneGPU {
+            instance_buffer: gpu::Buffer::new_storage_with_data(&device, instances, None),
+            //materials_buffer: gpu::Buffer::new_storage_with_data(&device, materials, None),
+            bvh_buffer: gpu::Buffer::new_storage_with_data(&device, bvh, None),
+            index_buffer: gpu::Buffer::new_storage_with_data(&device, indices, Some(gpu::BufferInitDescriptor{label: None, usage: wgpu::BufferUsages::INDEX})),
+            //index_buffer: gpu::IndexBuffer::new_with_data_32(device, indices, None),
+            vertex_buffer: gpu::Buffer::new_storage_with_data(&device, vertices,  Some(gpu::BufferInitDescriptor{label: None, usage: wgpu::BufferUsages::VERTEX})),
+            //light_buffer: gpu::Buffer::new_storage_with_data(&device, lights, None),
+            //atlas: None,
         }
     }
-    pub fn vertices(&self) -> &gpu::Buffer<uniforms::Vertex> {
+    pub fn vertices(&self) -> &gpu::Buffer<Vertex> {
         &self.vertex_buffer
     }
-    pub fn indices(&self) -> &gpu::IndexBuffer {
+    //pub fn indices(&self) -> &gpu::IndexBuffer {
+    pub fn indices(&self) -> &gpu::Buffer<u32> {
         &self.index_buffer
     }
 }
 
+pub struct AppContext {
+    //pub renderer: &Renderer,
+    //pub scene: Scene,
+    pub scene_gpu: SceneGPU,
+    //pub probe: Option<ProbeGPU>,
+}
+
 pub struct App {
     pub context: GpuContext,
-    pub data: Option<MeshData>,
+    pub scene: Option<SceneGPU>,
 }
 
 impl App {
     pub fn new() -> Self {
         App {
             context: GpuContext::new(),
-            data: None,
+            scene: None,
         }
     }
 }
