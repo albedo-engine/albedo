@@ -16,7 +16,7 @@ impl LightmapPass {
     const VERTEX_BINDING: u32 = 3;
     const PER_DRAW_STRUCT_BINDING: u32 = 4;
 
-    pub fn new(device: &wgpu::Device) -> Self {
+    pub fn new(device: &wgpu::Device, target_format: wgpu::TextureFormat) -> Self {
         let bind_group_layout = gpu::BindGroupLayoutBuilder::new_with_size(5)
             .storage_buffer(
                 wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,

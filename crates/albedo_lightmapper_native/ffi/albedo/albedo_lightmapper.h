@@ -10,7 +10,8 @@ extern "C" {
 struct MeshDescriptor {
     const float* positions;
     const float* normals;
-    const float* indices;
+    const float* uvs;
+    const unsigned int* indices;
     unsigned int vertex_count;
     unsigned int index_count;
 };
@@ -18,7 +19,7 @@ struct MeshDescriptor {
 struct ImageSlice {
     unsigned int width;
     unsigned int height;
-    float* data;
+    unsigned char* data;
 };
 
 void init();
