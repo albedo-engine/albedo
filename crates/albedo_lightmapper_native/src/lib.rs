@@ -9,6 +9,21 @@ mod app;
 pub use app::*;
 
 #[repr(C)]
+pub struct StridedSlice {
+    pub stride: u32,
+    pub data: *mut u8,
+}
+
+impl StridedSlice {
+    pub fn get<M: Sized>(&self, index: usize) -> &M {
+        unsafe {
+            let start = self.data.offset(self.stride as isize * index as isize);
+            (start as *mut M).as_ref().unwrap()
+        }
+    }
+}
+
+#[repr(C)]
 pub struct ImageSlice {
     pub width: u32,
     pub height: u32,
@@ -17,46 +32,37 @@ pub struct ImageSlice {
 
 #[repr(C)]
 pub struct MeshDescriptor {
-    positions: *const f32,
-    normals: *const f32,
-    uvs: *const f32,
+    positions: StridedSlice,
+    normals: StridedSlice,
+    uvs: StridedSlice,
     indices: *const u32,
     vertex_count: u32,
     index_count: u32,
 }
 
-pub struct MeshData<'a> {
-    pub positions: &'a [[f32; 3]],
-    pub normals: &'a [[f32; 3]],
-    pub uvs: &'a [[f32; 2]],
-    pub indices: &'a [u32],
-    pub vertex_count: u32,
-    pub index_count: u32,
-}
-
-impl<'a> Mesh<Vertex> for MeshData<'a> {
+impl<'a> Mesh<Vertex> for MeshDescriptor {
     fn index(&self, index: u32) -> Option<&u32> {
-        self.indices.get(index as usize)
+        Some(unsafe { &self.indices.offset(index as isize).as_ref().unwrap() })
     }
 
     fn vertex(&self, index: u32) -> Vertex {
-        let i = index as usize;
-        let pos = self.positions[i];
-        let normal = self.normals[i];
-        let uv = self.uvs[i];
-        Vertex::new(&pos, &normal, Some(&uv))
+        let i: usize = index as usize;
+        let pos: &[f32; 3] = self.positions.get(i);
+        let normal: &[f32; 3] = self.normals.get(i);
+        let uv: &[f32; 2] = self.uvs.get(i);
+        Vertex::new(pos, normal, Some(uv))
     }
 
     fn vertex_count(&self) -> u32 {
-        self.positions.len() as u32
+        self.vertex_count
     }
 
     fn index_count(&self) -> u32 {
-        self.indices.len() as u32
+        self.index_count
     }
 
     fn position(&self, index: u32) -> Option<&[f32; 3]> {
-        self.positions.get(index as usize)
+        Some(self.positions.get(index as usize))
     }
 }
 
@@ -208,40 +214,45 @@ pub extern "C" fn set_mesh_data(desc: MeshDescriptor) {
 
     let runtime: &mut App = guard.as_mut().unwrap();
 
-    let mesh_data = MeshData {
-        indices: unsafe { std::slice::from_raw_parts(desc.indices, desc.index_count as usize) },
-        positions: unsafe {
-            std::slice::from_raw_parts(
-                desc.positions as *const [f32; 3],
-                desc.vertex_count as usize,
-            )
-        },
-        normals: unsafe {
-            std::slice::from_raw_parts(desc.normals as *const [f32; 3], desc.vertex_count as usize)
-        },
-        uvs: unsafe {
-            std::slice::from_raw_parts(desc.uvs as *const [f32; 2], desc.vertex_count as usize)
-        },
-        index_count: desc.index_count,
-        vertex_count: desc.vertex_count,
-    };
+    // let mesh_data = MeshData {
+    //     indices: unsafe { std::slice::from_raw_parts(desc.indices, desc.index_count as usize) },
+    //     positions: unsafe {
+    //         std::slice::from_raw_parts(
+    //             desc.positions as *const [f32; 3],
+    //             desc.vertex_count as usize,
+    //         )
+    //     },
+    //     normals: unsafe {
+    //         std::slice::from_raw_parts(desc.normals as *const [f32; 3], desc.vertex_count as usize)
+    //     },
+    //     uvs: unsafe {
+    //         std::slice::from_raw_parts(desc.uvs as *const [f32; 2], desc.vertex_count as usize)
+    //     },
+    //     index_count: desc.index_count,
+    //     vertex_count: desc.vertex_count,
+    // };
 
     // @todo: Skip conversion by making the BVH / GPU struct split the vertex.
     let mut vertices: Vec<Vertex> = Vec::with_capacity(desc.vertex_count as usize);
     for i in 0..desc.vertex_count as usize {
-        let v = &mesh_data.positions[i];
-        println!("Pusing vertex {}, {}, {}", v[0], v[1], v[2]);
+        let pos: &[f32; 3] = desc.positions.get(i);
+        let normal: &[f32; 3] = desc.normals.get(i);
+        let uv: &[f32; 2] = desc.uvs.get(i);
         vertices.push(Vertex::new(
-            &mesh_data.positions[i],
-            &mesh_data.normals[i],
-            None,
+            desc.positions.get(i),
+            desc.normals.get(i),
+            Some(desc.uvs.get(i)),
         ));
+        println!(
+            "Pusing uv [{}, {}, {}] / [{}, {}, {}] / [{}, {}]",
+            pos[0], pos[1], pos[2], normal[0], normal[1], normal[2], uv[0], uv[1]
+        );
     }
 
     let instance = Instance::default();
 
     let mut builder = builders::SAHBuilder::new();
-    let result = BLASArray::new(&[mesh_data], &mut builder);
+    let result = BLASArray::new(&[desc], &mut builder);
 
     let blas = match result {
         Ok(val) => val,
