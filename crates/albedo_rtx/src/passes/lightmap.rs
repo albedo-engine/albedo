@@ -1,8 +1,8 @@
 use albedo_backend::gpu;
-use wgpu::{BindGroup, BindingType};
 
 use crate::macros::path_separator;
-use crate::uniforms;
+use crate::uniforms::{Instance, Light, Material, PerDrawUniforms};
+use crate::{SceneLayout};
 
 pub struct LightmapPass {
     bind_group_layout: wgpu::BindGroupLayout,
@@ -10,24 +10,12 @@ pub struct LightmapPass {
 }
 
 impl LightmapPass {
-    const INSTANCE_BINDING: u32 = 0;
-    const NODE_BINDING: u32 = 1;
-    const INDEX_BINDING: u32 = 2;
-    const VERTEX_BINDING: u32 = 3;
-    const PER_DRAW_STRUCT_BINDING: u32 = 4;
-
-    pub fn new(device: &wgpu::Device, target_format: wgpu::TextureFormat) -> Self {
-        let bind_group_layout = gpu::BindGroupLayoutBuilder::new_with_size(5)
-            .storage_buffer(
-                wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                true,
-            )
-            .storage_buffer(wgpu::ShaderStages::FRAGMENT, true)
-            .storage_buffer(wgpu::ShaderStages::FRAGMENT, true)
-            .storage_buffer(wgpu::ShaderStages::FRAGMENT, true)
-            .uniform_buffer(wgpu::ShaderStages::FRAGMENT, None)
-            .build(device);
-
+    pub fn new(device: &wgpu::Device, scene_layout: &SceneLayout, target_format: wgpu::TextureFormat) -> Self {
+        let scene_layout = &scene_layout.layout;
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: None,
+            entries: &[]
+        });
         let vx_module = device.create_shader_module(wgpu::include_spirv!(concat!(
             "..",
             path_separator!(),
@@ -49,7 +37,7 @@ impl LightmapPass {
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Lightmap Pipeline"),
-            bind_group_layouts: &[&bind_group_layout],
+            bind_group_layouts: &[&scene_layout, &bind_group_layout],
             push_constant_ranges: &[],
         });
 
@@ -86,49 +74,37 @@ impl LightmapPass {
         }
     }
 
-    pub fn create_frame_bind_groups(
+    pub fn create_bind_groups(
         &self,
         device: &wgpu::Device,
-        instances: &gpu::Buffer<uniforms::Instance>,
+        scene_layout: &SceneLayout,
+        instances: &gpu::Buffer<Instance>,
         nodes: &wgpu::Buffer,
         indices: &gpu::Buffer<u32>,
         vertices: &wgpu::Buffer,
-        global_uniforms: &gpu::Buffer<uniforms::PerDrawUniforms>,
-    ) -> BindGroup {
-        device.create_bind_group(&wgpu::BindGroupDescriptor {
+        lights: &gpu::Buffer<Light>,
+        materials: &gpu::Buffer<Material>,
+        global_uniforms: &gpu::Buffer<PerDrawUniforms>,
+    ) -> [wgpu::BindGroup; 2] {
+        let scene_bind_group = scene_layout.bind_group(1)
+            .uniforms(global_uniforms)
+            .instances(instances).nodes(nodes).indices(indices).vertices(vertices)
+            .lights(lights).materials(materials)
+            .create(device);
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Lightmap Bind Group"),
             layout: &self.bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: Self::INSTANCE_BINDING,
-                    resource: instances.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: Self::NODE_BINDING,
-                    resource: nodes.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: Self::INDEX_BINDING,
-                    resource: indices.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: Self::VERTEX_BINDING,
-                    resource: vertices.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: Self::PER_DRAW_STRUCT_BINDING,
-                    resource: global_uniforms.as_entire_binding(),
-                },
-            ],
-        })
+            entries: &[],
+        });
+        [scene_bind_group, bind_group]
     }
 
     pub fn draw(
         &self,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
-        bind_group: &BindGroup,
-        instances: &gpu::Buffer<uniforms::Instance>,
+        bind_groups: &[wgpu::BindGroup; 2],
+        instances: &gpu::Buffer<Instance>,
         indices: &gpu::Buffer<u32>,
         vertices: &wgpu::Buffer,
     ) {
@@ -150,7 +126,9 @@ impl LightmapPass {
             depth_stencil_attachment: None,
         });
         pass.set_pipeline(&self.pipeline);
-        pass.set_bind_group(0, bind_group, &[]);
+        for i in 0..bind_groups.len() {
+            pass.set_bind_group(i as u32, &bind_groups[i], &[]);
+        }
         /* Quickly hacked together, will only work with 1 instance */
         pass.set_vertex_buffer(0, vertices.slice(0..));
         pass.set_index_buffer(indices.inner().slice(0..), wgpu::IndexFormat::Uint32);

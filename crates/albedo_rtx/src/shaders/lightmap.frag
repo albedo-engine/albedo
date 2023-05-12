@@ -11,23 +11,10 @@ layout(location=2) in vec2 vUv;
 
 layout(location = 0) out vec4 outColor;
 
-layout (set = 0, binding = 0, std430) readonly buffer InstanceBuffer {
-  Instance instances[];
-};
+#include "utils/materials.glsl"
+#include "scene.glsl"
 
-layout (set = 0, binding = 1, std430) readonly buffer BVHNodeBuffer {
-  BVHNode nodes[];
-};
-
-layout (set = 0, binding = 2, std430) readonly buffer IndexBuffer {
-  uint indices[];
-};
-
-layout (set = 0, binding = 3, std430) readonly buffer VertexBuffer {
-  Vertex vertices[];
-};
-
-layout (set = 0, binding = 4) uniform GlobalUniformBuffer {
+layout(set = 0, binding = 4) uniform GlobalUniformBuffer {
   GlobalUniforms global;
 };
 

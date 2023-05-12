@@ -1,8 +1,8 @@
 use albedo_backend::gpu;
-use wgpu::{BindGroup, BindingType};
+use wgpu;
 
 use crate::macros::path_separator;
-use crate::uniforms;
+use crate::{uniforms, SceneLayout};
 
 pub struct BlitPass {
     bind_group_layout: wgpu::BindGroupLayout,
@@ -12,9 +12,9 @@ pub struct BlitPass {
 impl BlitPass {
     const TEXTURE_SAMPLER_BINDING: u32 = 0;
     const TEXTURE_BINDING: u32 = 1;
-    const PER_DRAW_STRUCT_BINDING: u32 = 2;
 
-    pub fn new(device: &wgpu::Device, swap_chain_format: wgpu::TextureFormat) -> Self {
+    pub fn new(device: &wgpu::Device, scene_layout: &SceneLayout, swap_chain_format: wgpu::TextureFormat) -> Self {
+        let scene_layout = &scene_layout.layout;
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: None,
             entries: &[
@@ -22,27 +22,17 @@ impl BlitPass {
                     binding: Self::TEXTURE_SAMPLER_BINDING,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     // ty: BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                    ty: BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry {
                     binding: Self::TEXTURE_BINDING,
                     visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: BindingType::Texture {
+                    ty: wgpu::BindingType::Texture {
                         multisampled: false,
                         // @todo: Should be filterable.
                         sample_type: wgpu::TextureSampleType::Float { filterable: false },
                         view_dimension: wgpu::TextureViewDimension::D2,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: Self::PER_DRAW_STRUCT_BINDING,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
                     },
                     count: None,
                 },
@@ -70,7 +60,7 @@ impl BlitPass {
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Blit Pipeline"),
-            bind_group_layouts: &[&bind_group_layout],
+            bind_group_layouts: &[&scene_layout, &bind_group_layout],
             push_constant_ranges: &[],
         });
 
@@ -102,14 +92,16 @@ impl BlitPass {
         }
     }
 
-    pub fn create_frame_bind_groups(
+    pub fn create_bind_groups(
         &self,
         device: &wgpu::Device,
+        scene_layout: &SceneLayout,
         view: &wgpu::TextureView,
         sampler: &wgpu::Sampler,
         global_uniforms: &gpu::Buffer<uniforms::PerDrawUniforms>,
-    ) -> BindGroup {
-        device.create_bind_group(&wgpu::BindGroupDescriptor {
+    ) -> [wgpu::BindGroup; 2] {
+        let scene_bind_group = scene_layout.bind_group(1).uniforms(global_uniforms).create(device);
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Blit Bind Group"),
             layout: &self.bind_group_layout,
             entries: &[
@@ -121,19 +113,16 @@ impl BlitPass {
                     binding: Self::TEXTURE_BINDING,
                     resource: wgpu::BindingResource::TextureView(view),
                 },
-                wgpu::BindGroupEntry {
-                    binding: Self::PER_DRAW_STRUCT_BINDING,
-                    resource: global_uniforms.as_entire_binding(),
-                },
             ],
-        })
+        });
+        [scene_bind_group, bind_group]
     }
 
     pub fn draw(
         &self,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
-        bind_group: &BindGroup,
+        bind_groups: &[wgpu::BindGroup; 2],
     ) {
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
@@ -153,7 +142,9 @@ impl BlitPass {
             depth_stencil_attachment: None,
         });
         pass.set_pipeline(&self.pipeline);
-        pass.set_bind_group(0, bind_group, &[]);
+        for i in 0..bind_groups.len() {
+            pass.set_bind_group(i as u32, &bind_groups[i], &[]);
+        }
         pass.draw(0..3, 0..1);
     }
 }

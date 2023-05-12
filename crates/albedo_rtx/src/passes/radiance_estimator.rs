@@ -1,7 +1,9 @@
+use albedo_backend::gpu;
+
 use crate::get_dispatch_size;
 use crate::macros::path_separator;
 use crate::uniforms;
-use albedo_backend::gpu;
+use crate::{SceneLayout};
 
 pub struct ShadingPass {
     bind_group_layout: wgpu::BindGroupLayout,
@@ -13,21 +15,10 @@ impl ShadingPass {
     const WORKGROUP_SIZE: (u32, u32, u32) = (8, 8, 1);
 
     const RAY_BINDING: u32 = 0;
-    const NODE_BINDING: u32 = 1;
     const INTERSECTION_BINDING: u32 = 2;
-    const INSTANCE_BINDING: u32 = 3;
-    const INDEX_BINDING: u32 = 4;
-    const VERTEX_BINDING: u32 = 5;
-    const LIGHT_BINDING: u32 = 6;
-    const MATERIAL_BINDING: u32 = 7;
-    const TEXTURE_PROBE_BINDING: u32 = 8;
-    const TEXTURE_INFO_BINDING: u32 = 9;
-    const TEXTURE_ATLAS_BINDING: u32 = 10;
-    const SAMPLER_BINDING: u32 = 11;
-    const SAMPLER_LINEAR_BINDING: u32 = 12;
-    const PER_DRAW_STRUCT_BINDING: u32 = 13;
 
-    pub fn new(device: &wgpu::Device) -> Self {
+    pub fn new(device: &wgpu::Device, scene_layout: &SceneLayout) -> Self {
+        let scene_layout = &scene_layout.layout;
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Radiance Estimator Base Layout"),
             entries: &[
@@ -36,16 +27,6 @@ impl ShadingPass {
                     visibility: wgpu::ShaderStages::COMPUTE,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Storage { read_only: false },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: Self::NODE_BINDING,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
                         has_dynamic_offset: false,
                         min_binding_size: None,
                     },
@@ -61,114 +42,12 @@ impl ShadingPass {
                     },
                     count: None,
                 },
-                wgpu::BindGroupLayoutEntry {
-                    binding: Self::INSTANCE_BINDING,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: Self::INDEX_BINDING,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: Self::VERTEX_BINDING,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: Self::LIGHT_BINDING,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: Self::MATERIAL_BINDING,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: Self::TEXTURE_PROBE_BINDING,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Texture {
-                        multisampled: false,
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        view_dimension: wgpu::TextureViewDimension::D2,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: Self::TEXTURE_INFO_BINDING,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Texture {
-                        multisampled: false,
-                        sample_type: wgpu::TextureSampleType::Uint,
-                        view_dimension: wgpu::TextureViewDimension::D1,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: Self::TEXTURE_ATLAS_BINDING,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Texture {
-                        multisampled: false,
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        view_dimension: wgpu::TextureViewDimension::D2Array,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: Self::SAMPLER_BINDING,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: Self::SAMPLER_LINEAR_BINDING,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: Self::PER_DRAW_STRUCT_BINDING,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
             ],
         });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Radiance Estimator Pipeline Layout"),
-            bind_group_layouts: &[&bind_group_layout],
+            bind_group_layouts: &[&scene_layout, &bind_group_layout],
             push_constant_ranges: &[],
         });
 
@@ -206,13 +85,14 @@ impl ShadingPass {
         });
     }
 
-    pub fn create_frame_bind_groups(
+    pub fn create_bind_groups(
         &self,
         device: &wgpu::Device,
+        scene_layout: &SceneLayout,
         out_rays: &gpu::Buffer<uniforms::Ray>,
-        nodes: &wgpu::Buffer,
         intersections: &gpu::Buffer<uniforms::Intersection>,
         instances: &gpu::Buffer<uniforms::Instance>,
+        nodes: &wgpu::Buffer,
         indices: &gpu::Buffer<u32>,
         vertices: &wgpu::Buffer,
         lights: &gpu::Buffer<uniforms::Light>,
@@ -223,8 +103,13 @@ impl ShadingPass {
         global_uniforms: &gpu::UniformBufferSlice<uniforms::PerDrawUniforms>,
         sampler_nearest: &wgpu::Sampler,
         sampler_linear: &wgpu::Sampler,
-    ) -> wgpu::BindGroup {
-        device.create_bind_group(&wgpu::BindGroupDescriptor {
+    ) -> [wgpu::BindGroup; 2] {
+        let scene_bind_group = scene_layout.bind_group(1)
+            .uniforms(global_uniforms)
+            .instances(instances).nodes(nodes).indices(indices).vertices(vertices)
+            .lights(lights).materials(materials).textures(probe_view, texture_info, atlas_view, sampler_nearest, sampler_linear)
+            .create(device);
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Radiance Estimator Base Bind Group"),
             layout: &self.bind_group_layout,
             entries: &[
@@ -233,65 +118,18 @@ impl ShadingPass {
                     resource: out_rays.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
-                    binding: Self::NODE_BINDING,
-                    resource: nodes.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
                     binding: Self::INTERSECTION_BINDING,
                     resource: intersections.as_entire_binding(),
                 },
-                wgpu::BindGroupEntry {
-                    binding: Self::INSTANCE_BINDING,
-                    resource: instances.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: Self::INDEX_BINDING,
-                    resource: indices.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: Self::VERTEX_BINDING,
-                    resource: vertices.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: Self::LIGHT_BINDING,
-                    resource: lights.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: Self::MATERIAL_BINDING,
-                    resource: materials.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: Self::TEXTURE_PROBE_BINDING,
-                    resource: wgpu::BindingResource::TextureView(probe_view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: Self::TEXTURE_INFO_BINDING,
-                    resource: wgpu::BindingResource::TextureView(texture_info),
-                },
-                wgpu::BindGroupEntry {
-                    binding: Self::TEXTURE_ATLAS_BINDING,
-                    resource: wgpu::BindingResource::TextureView(atlas_view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: Self::SAMPLER_BINDING,
-                    resource: wgpu::BindingResource::Sampler(sampler_nearest),
-                },
-                wgpu::BindGroupEntry {
-                    binding: Self::SAMPLER_LINEAR_BINDING,
-                    resource: wgpu::BindingResource::Sampler(sampler_linear),
-                },
-                wgpu::BindGroupEntry {
-                    binding: Self::PER_DRAW_STRUCT_BINDING,
-                    resource: global_uniforms.as_entire_binding(),
-                },
             ],
-        })
+        });
+        [scene_bind_group, bind_group]
     }
 
     pub fn dispatch(
         &self,
         encoder: &mut wgpu::CommandEncoder,
-        frame_bind_groups: &wgpu::BindGroup,
+        bind_groups: &[wgpu::BindGroup; 2],
         size: (u32, u32, u32),
     ) {
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -299,7 +137,9 @@ impl ShadingPass {
         });
         let workgroups = get_dispatch_size(size, Self::WORKGROUP_SIZE);
         pass.set_pipeline(&self.pipeline);
-        pass.set_bind_group(0, frame_bind_groups, &[]);
+        for i in 0..bind_groups.len() {
+            pass.set_bind_group(i as u32, &bind_groups[i], &[]);
+        }
         pass.dispatch_workgroups(workgroups.0, workgroups.1, workgroups.2);
     }
 }

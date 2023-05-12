@@ -1,6 +1,6 @@
 use albedo_backend::gpu;
 use albedo_bvh::FlatNode;
-use albedo_rtx::uniforms::{Instance, Vertex};
+use albedo_rtx::uniforms::{Instance, Vertex, Light, Material};
 use futures;
 // use renderdoc::{RenderDoc, V141};
 
@@ -13,7 +13,7 @@ pub struct GpuContext {
 }
 
 impl GpuContext {
-    pub fn new() -> Self {
+    pub fn new(debug: bool) -> Self {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::PRIMARY,
             dx12_shader_compiler: wgpu::util::dx12_shader_compiler_from_env().unwrap_or_default(),
@@ -98,6 +98,8 @@ pub struct SceneGPU {
     pub bvh_buffer: gpu::Buffer<FlatNode>,
     pub index_buffer: gpu::Buffer<u32>,
     pub vertex_buffer: gpu::Buffer<Vertex>,
+    pub light_buffer: gpu::Buffer<Light>,
+    pub material_buffer: gpu::Buffer<Material>,
 }
 
 impl SceneGPU {
@@ -127,6 +129,8 @@ impl SceneGPU {
                     usage: wgpu::BufferUsages::VERTEX,
                 }),
             ),
+            light_buffer: gpu::Buffer::new_storage_with_data(&device, &[], None),
+            material_buffer: gpu::Buffer::new_storage_with_data(&device, &[], None),
         }
     }
 }
@@ -137,9 +141,9 @@ pub struct App {
 }
 
 impl App {
-    pub fn new() -> Self {
+    pub fn new(debug: bool) -> Self {
         App {
-            context: GpuContext::new(),
+            context: GpuContext::new(debug),
             scene: None,
         }
     }

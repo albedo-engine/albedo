@@ -11,9 +11,8 @@ layout(location=0) out vec3 vPositionWorld;
 layout(location=1) out vec3 vNormalWorld;
 layout(location=2) out vec2 vUv;
 
-layout (set = 0, binding = 0, std430) readonly buffer InstanceBuffer {
-  Instance instances[];
-};
+#include "utils/materials.glsl"
+#include "scene.glsl"
 
 void main() {
   Instance instance = instances[gl_InstanceIndex];

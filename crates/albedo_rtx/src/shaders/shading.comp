@@ -5,73 +5,28 @@
 
 #include "structures.glsl"
 #include "utils/colorspace.glsl"
+#include "utils/materials.glsl"
+#include "scene.glsl"
 
-struct TextureInfo
-{
-  uint x;
-  uint y;
-  uint width;
-  uint layerAndHeight; // 24 bits for height, 8 bits for layer index.
-};
-
-struct Material
-{
-  vec4  color;
-  float roughnessFactor;
-  float metallic;
-  uint  albedoTexture;
-  // @todo: for now, metal in B channel and roughness in G.
-  uint  mraTexture;
-};
-
-/**
- * Layout 0.
- */
-
-layout (set = 0, binding = 0, std430) buffer RayBuffer {
+layout(set = 0, binding = 0, std430) buffer RayBuffer {
   RayPayload rays[];
 };
 
-layout (set = 0, binding = 1, std430) readonly buffer BVHNodeBuffer {
-  BVHNode nodes[];
-};
-
-layout (set = 0, binding = 2, std430) readonly buffer IntersectionBuffer {
+layout(set = 0, binding = 2, std430) readonly buffer IntersectionBuffer {
   Intersection intersections[];
 };
 
-layout (set = 0, binding = 3, std430) readonly buffer InstanceBuffer {
-  Instance instances[];
-};
-
-layout (set = 0, binding = 4, std430) readonly buffer IndexBuffer {
-  uint indices[];
-};
-
-layout (set = 0, binding = 5, std430) readonly buffer VertexBuffer {
-  Vertex vertices[];
-};
-
-// @todo: move to uniform?
-layout (set = 0, binding = 6, std430) readonly buffer LightBuffer {
-  Light lights[];
-};
-
-layout (set = 0, binding = 7, std430) readonly buffer MaterialBuffer {
-  Material materials[];
-};
-
-layout( set = 0, binding = 8 ) uniform texture2D Probe;
+layout(set = 0, binding = 8 ) uniform texture2D Probe;
 
 layout(set = 0, binding = 9) uniform utexture1D textureInfo;
 
 layout(set = 0, binding = 10) uniform texture2DArray textureAtlas;
 
-layout( set = 0, binding = 11 ) uniform sampler samplerNearest;
+layout(set = 0, binding = 11 ) uniform sampler samplerNearest;
 
-layout( set = 0, binding = 12 ) uniform sampler samplerLinear;
+layout(set = 0, binding = 12 ) uniform sampler samplerLinear;
 
-layout (set = 0, binding = 13) uniform GlobalUniformBuffer {
+layout(set = 0, binding = 13) uniform GlobalUniformBuffer {
   GlobalUniforms global;
 };
 

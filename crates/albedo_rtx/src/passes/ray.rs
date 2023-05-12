@@ -86,13 +86,13 @@ impl RayPass {
         });
     }
 
-    pub fn create_frame_bind_groups(
+    pub fn create_bind_groups(
         &self,
         device: &wgpu::Device,
         out_rays: &gpu::Buffer<uniforms::Ray>,
         camera: &gpu::UniformBufferSlice<uniforms::Camera>,
-    ) -> wgpu::BindGroup {
-        device.create_bind_group(&wgpu::BindGroupDescriptor {
+    ) -> [wgpu::BindGroup; 1] {
+        [device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Ray Generation Frame Bind Group"),
             layout: &self.bind_group_layout,
             entries: &[
@@ -105,13 +105,13 @@ impl RayPass {
                     resource: camera.as_entire_binding(),
                 },
             ],
-        })
+        })]
     }
 
     pub fn dispatch(
         &self,
         encoder: &mut wgpu::CommandEncoder,
-        frame_bind_groups: &wgpu::BindGroup,
+        bind_groups: &[wgpu::BindGroup; 1],
         dispatch_size: (u32, u32, u32),
     ) {
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -119,7 +119,9 @@ impl RayPass {
         });
         let workgroups = get_dispatch_size(dispatch_size, Self::WORKGROUP_SIZE);
         pass.set_pipeline(&self.pipeline);
-        pass.set_bind_group(0, frame_bind_groups, &[]);
+        for i in 0..bind_groups.len() {
+            pass.set_bind_group(i as u32, &bind_groups[i], &[]);
+        }
         pass.dispatch_workgroups(workgroups.0, workgroups.1, workgroups.2);
     }
 }

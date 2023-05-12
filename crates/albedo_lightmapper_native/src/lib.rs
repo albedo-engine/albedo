@@ -3,6 +3,7 @@ use albedo_bvh;
 use albedo_bvh::{builders, BLASArray, Mesh};
 use albedo_rtx::passes;
 use albedo_rtx::uniforms::{Instance, PerDrawUniforms, Vertex};
+use albedo_rtx::{SceneLayout};
 use std::sync::Mutex;
 
 mod app;
@@ -68,8 +69,7 @@ impl<'a> Mesh<Vertex> for MeshDescriptor {
 
 pub struct Renderer {
     pub lightmap_pass: passes::LightmapPass,
-    global_uniforms_buffer: gpu::Buffer<PerDrawUniforms>,
-    lightmap_bindgroup: wgpu::BindGroup,
+    lightmap_bindgroups: [wgpu::BindGroup; 2],
     size: (u32, u32),
 }
 
@@ -82,19 +82,22 @@ impl Renderer {
     ) -> Self {
         let global_uniforms_buffer: gpu::Buffer<PerDrawUniforms> =
             gpu::Buffer::new_uniform(context.device(), 1, None);
-        let lightmap_pass = passes::LightmapPass::new(context.device(), swapchain_format);
-        let lightmap_bindgroup: wgpu::BindGroup = lightmap_pass.create_frame_bind_groups(
+        let scene_layout = SceneLayout::create(context.device());
+        let lightmap_pass = passes::LightmapPass::new(context.device(), &scene_layout, swapchain_format);
+        let lightmap_bindgroups: [wgpu::BindGroup; 2] = lightmap_pass.create_bind_groups(
             context.device(),
+            &scene_layout,
             &scene_resources.instance_buffer,
             &scene_resources.bvh_buffer.inner(),
             &scene_resources.index_buffer,
             &scene_resources.vertex_buffer.inner(),
+            &scene_resources.light_buffer,
+            &scene_resources.material_buffer,
             &global_uniforms_buffer,
         );
         Self {
-            global_uniforms_buffer,
             lightmap_pass,
-            lightmap_bindgroup,
+            lightmap_bindgroups,
             size,
         }
     }
@@ -141,7 +144,7 @@ impl Renderer {
         self.lightmap_pass.draw(
             &mut encoder,
             &view,
-            &self.lightmap_bindgroup,
+            &self.lightmap_bindgroups,
             &scene_resources.instance_buffer,
             &scene_resources.index_buffer,
             &scene_resources.vertex_buffer.inner(),
@@ -193,13 +196,11 @@ impl Renderer {
     }
 }
 
-static app: Mutex<Option<App>> = Mutex::new(None);
+static APP: Mutex<Option<App>> = Mutex::new(None);
 
 #[no_mangle]
 pub extern "C" fn init() {
-    unsafe {
-        *app.lock().unwrap() = Some(App::new());
-    }
+    *APP.lock().unwrap() = Some(App::new(false));
 }
 
 #[no_mangle]
@@ -208,16 +209,13 @@ pub extern "C" fn set_mesh_data(desc: MeshDescriptor) {
         panic!("Vertex count must be a multiple of 3");
     }
 
-    let mut guard = app.lock().unwrap();
+    let mut guard = APP.lock().unwrap();
 
     let runtime: &mut App = guard.as_mut().unwrap();
 
     // @todo: Skip conversion by making the BVH / GPU struct split the vertex.
     let mut vertices: Vec<Vertex> = Vec::with_capacity(desc.vertex_count as usize);
     for i in 0..desc.vertex_count as usize {
-        let pos: &[f32; 3] = desc.positions.get(i);
-        let normal: &[f32; 3] = desc.normals.get(i);
-        let uv: &[f32; 2] = desc.uvs.get(i);
         vertices.push(Vertex::new(
             desc.positions.get(i),
             desc.normals.get(i),
@@ -230,7 +228,7 @@ pub extern "C" fn set_mesh_data(desc: MeshDescriptor) {
 
     let blas = match result {
         Ok(val) => val,
-        Err(str) => return,
+        Err(_) => return,
     };
 
     let entry = blas.entries.get(0).unwrap();
@@ -252,9 +250,9 @@ pub extern "C" fn set_mesh_data(desc: MeshDescriptor) {
 
 #[no_mangle]
 pub extern "C" fn bake(raw_slice: ImageSlice) {
-    let mut guard = app.lock().unwrap();
+    let mut guard = APP.lock().unwrap();
     let runtime = guard.as_mut().unwrap();
-    let context = &runtime.context;
+    let context = &mut runtime.context;
 
     println!("\n============================================================");
     println!("                   🚀 Lightmapper 🚀                           ");
@@ -262,7 +260,7 @@ pub extern "C" fn bake(raw_slice: ImageSlice) {
 
     let init_size = (512, 512);
 
-    let mut scene = match &runtime.scene {
+    let scene = match &runtime.scene {
         Some(val) => val,
         None => panic!("No scene provided before bake()"),
     };

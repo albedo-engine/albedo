@@ -8,10 +8,10 @@
  * Layout 0.
  */
 
-layout (set = 0, binding = 0, std430) readonly buffer RayBuffer {
+layout(set = 0, binding = 0, std430) readonly buffer RayBuffer {
   RayPayload rays[];
 };
-layout (set = 0, binding = 1) uniform GlobalUniformBuffer {
+layout(set = 0, binding = 1) uniform GlobalUniformBuffer {
   GlobalUniforms global;
 };
 layout(set = 0, binding = 2, rgba32f) uniform image2D uRenderTarget;
