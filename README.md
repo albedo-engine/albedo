@@ -46,5 +46,11 @@ The library comes with the [albedo_lightmapper_native](./crates/albedo_lightmapp
 
 For now, the lightmapper only generate an ambient occlusion map, but it will soon generate RGB lightmaps.
 
-![Ambient Occlusion Map](./screenshots/ao.png)
-![Ambient Occlusion Map](./screenshots/ao_helmet.png)
+<p align="center">
+  <img src="./screenshots/ao.png" style="margin: auto; max-width: 320px"></img>
+  <img src="./screenshots/ao_helmet.png" style="margin: auto; max-width: 320px"></img>
+</p>
+
+<p align="center">
+
+</p>
