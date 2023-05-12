@@ -45,3 +45,6 @@ The [Albedo Pathtracer application](https://github.com/DavidPeicho/albedo) is on
 The library comes with the [albedo_lightmapper_native](./crates/albedo_lightmapper_native) crate used to generate lightmaps for a mesh.
 
 For now, the lightmapper only generate an ambient occlusion map, but it will soon generate RGB lightmaps.
+
+![Ambient Occlusion Map](./screenshots/ao.png)
+![Ambient Occlusion Map](./screenshots/ao_helmet.png)
