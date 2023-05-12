@@ -39,3 +39,9 @@ The [albedo_rtx](./crates/albedo_rtx) exposes GPU software Raytracing. You can u
 The [Albedo Pathtracer application](https://github.com/DavidPeicho/albedo) is one example of what you can achieve with the [albedo_rtx](./crates/albedo_rtx) crate:
 
 ![Pathtracing Example](https://github.com/DavidPeicho/albedo/raw/master/screenshots/initial_result.gif)
+
+### Lightmapper
+
+The library comes with the [albedo_lightmapper_native](./crates/albedo_lightmapper_native) crate used to generate lightmaps for a mesh.
+
+For now, the lightmapper only generate an ambient occlusion map, but it will soon generate RGB lightmaps.
