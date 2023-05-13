@@ -1,5 +1,8 @@
 #version 450
 
+#extension GL_EXT_samplerless_texture_functions : enable
+#extension GL_GOOGLE_include_directive : enable
+
 // @todo: split global uniforms.
 #include "structures.glsl"
 #include "utils/colorspace.glsl"
@@ -26,7 +29,8 @@ vec3 ACESFilmTonemapping(vec3 x)
 }
 
 void main() {
-  outColor = texture(sampler2D(uTexture, uTextureSampler), vUv).rgba / float(global.frame);
+  vec2 uv = vUv * vec2(global.dimensions) / vec2(textureSize(uTexture, 0));
+  outColor = texture(sampler2D(uTexture, uTextureSampler), uv).rgba / float(global.frame);
   outColor.rgb = ACESFilmTonemapping(outColor.rgb);
   outColor.rgb = linearTosRGB(outColor.rgb);
   outColor.a = 1.0;

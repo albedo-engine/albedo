@@ -7,6 +7,7 @@ struct GlobalUniforms
   uint seed;
   uint bounces;
   uint padding;
+  uvec2 dimensions;
 };
 
 struct Instance

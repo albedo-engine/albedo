@@ -143,6 +143,7 @@ pub struct PerDrawUniforms {
     pub seed: u32,
     pub bounces: u32,
     pub padding: u32,
+    pub dimensions: [u32; 2],
 }
 
 impl PerDrawUniforms {
