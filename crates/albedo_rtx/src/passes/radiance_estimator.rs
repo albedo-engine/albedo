@@ -209,6 +209,7 @@ impl ShadingPass {
     pub fn create_frame_bind_groups(
         &self,
         device: &wgpu::Device,
+        size: (u32, u32),
         out_rays: &gpu::Buffer<uniforms::Ray>,
         nodes: &wgpu::Buffer,
         intersections: &gpu::Buffer<uniforms::Intersection>,
@@ -224,13 +225,14 @@ impl ShadingPass {
         sampler_nearest: &wgpu::Sampler,
         sampler_linear: &wgpu::Sampler,
     ) -> wgpu::BindGroup {
+        let pixels_count: u64 = (size.0 * size.1) as u64;
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Radiance Estimator Base Bind Group"),
             layout: &self.bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: Self::RAY_BINDING,
-                    resource: out_rays.as_entire_binding(),
+                    resource: out_rays.as_sub_binding(pixels_count),
                 },
                 wgpu::BindGroupEntry {
                     binding: Self::NODE_BINDING,
@@ -238,7 +240,7 @@ impl ShadingPass {
                 },
                 wgpu::BindGroupEntry {
                     binding: Self::INTERSECTION_BINDING,
-                    resource: intersections.as_entire_binding(),
+                    resource: intersections.as_sub_binding(pixels_count),
                 },
                 wgpu::BindGroupEntry {
                     binding: Self::INSTANCE_BINDING,

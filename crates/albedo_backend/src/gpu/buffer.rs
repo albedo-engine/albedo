@@ -97,6 +97,14 @@ impl DynBuffer {
     pub fn as_entire_binding(&self) -> wgpu::BindingResource {
         self.inner.as_entire_binding()
     }
+
+    pub fn as_sub_binding(&self, element_count: u64) -> wgpu::BindingResource {
+        wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+            buffer: self.inner(),
+            offset: 0,
+            size: wgpu::BufferSize::new(element_count * self.byte_size),
+        })
+    }
 }
 
 pub struct Buffer<T: Pod> {
@@ -190,6 +198,10 @@ impl<T: Pod> Buffer<T> {
 
     pub fn as_entire_binding(&self) -> wgpu::BindingResource {
         self.inner.as_entire_binding()
+    }
+
+    pub fn as_sub_binding(&self, element_count: u64) -> wgpu::BindingResource {
+        self.inner.as_sub_binding(element_count)
     }
 }
 

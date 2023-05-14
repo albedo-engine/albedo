@@ -124,17 +124,19 @@ impl AccumulationPass {
     pub fn create_frame_bind_groups(
         &self,
         device: &wgpu::Device,
+        size: (u32, u32),
         in_rays: &gpu::Buffer<Ray>,
         global_uniforms: &gpu::Buffer<PerDrawUniforms>,
         view: &wgpu::TextureView,
     ) -> wgpu::BindGroup {
+        let pixels_count: u64 = (size.0 * size.1) as u64;
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Accumulation Bind Group"),
             layout: &self.bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: Self::RAY_BINDING,
-                    resource: in_rays.as_entire_binding(),
+                    resource: in_rays.as_sub_binding(pixels_count),
                 },
                 wgpu::BindGroupEntry {
                     binding: Self::TEXTURE_BINDING,

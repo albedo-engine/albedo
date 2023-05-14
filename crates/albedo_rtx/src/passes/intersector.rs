@@ -129,6 +129,7 @@ impl IntersectorPass {
     pub fn create_frame_bind_groups(
         &self,
         device: &wgpu::Device,
+        size: (u32, u32),
         out_intersections: &gpu::Buffer<uniforms::Intersection>,
         instances: &gpu::Buffer<uniforms::Instance>,
         nodes: &wgpu::Buffer,
@@ -137,6 +138,7 @@ impl IntersectorPass {
         lights: &gpu::Buffer<uniforms::Light>,
         rays: &gpu::Buffer<uniforms::Ray>,
     ) -> wgpu::BindGroup {
+        let pixels_count: u64 = (size.0 * size.1) as u64;
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Intersector Bind Group"),
             layout: &self.bind_group_layout,
@@ -163,11 +165,11 @@ impl IntersectorPass {
                 },
                 wgpu::BindGroupEntry {
                     binding: Self::RAY_BINDING,
-                    resource: rays.as_entire_binding(),
+                    resource: rays.as_sub_binding(pixels_count),
                 },
                 wgpu::BindGroupEntry {
                     binding: Self::INTERSECTION_BINDING,
-                    resource: out_intersections.as_entire_binding(),
+                    resource: out_intersections.as_sub_binding(pixels_count),
                 },
             ],
         })
