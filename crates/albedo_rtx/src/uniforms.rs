@@ -10,6 +10,18 @@ pub trait Uniform: Sized {
 }
 
 #[repr(C)]
+#[derive(Clone, Copy)]
+pub struct BVHNode {
+    pub min: [f32; 3],
+    pub next_node_index: u32,
+    pub max: [f32; 3],
+    pub primitive_index: u32,
+}
+unsafe impl bytemuck::Pod for BVHNode {}
+unsafe impl bytemuck::Zeroable for BVHNode {}
+impl Uniform for BVHNode {}
+
+#[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct Instance {
     pub model_to_world: glam::Mat4,

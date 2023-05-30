@@ -203,6 +203,22 @@ impl<T: Pod> Buffer<T> {
     pub fn as_sub_binding(&self, element_count: u64) -> wgpu::BindingResource {
         self.inner.as_sub_binding(element_count)
     }
+
+    pub fn as_uniform_slice<'a>(&'a self) -> Result<UniformBufferSlice<'a, T>, ()> {
+        if self.usage().contains(wgpu::BufferUsages::UNIFORM) {
+            Ok(UniformBufferSlice::new(self))
+        } else {
+            Err(())
+        }
+    }
+
+    pub fn as_storage_slice<'a>(&'a self) -> Result<StorageBufferSlice<'a, T>, ()> {
+        if self.usage().contains(wgpu::BufferUsages::STORAGE) {
+            Ok(StorageBufferSlice::new(self))
+        } else {
+            Err(())
+        }
+    }
 }
 
 pub enum IndexBuffer {
@@ -264,13 +280,19 @@ impl IndexBuffer {
     }
 }
 
-pub struct UniformBufferSlice<'a, T: Pod> {
-    inner: &'a Buffer<T>,
-}
+pub struct UniformBufferSlice<'a, T: Pod>(&'a Buffer<T>);
 
 impl<'a, T: Pod> UniformBufferSlice<'a, T> {
     pub fn new(buffer: &'a Buffer<T>) -> Self {
-        Self { inner: buffer }
+        Self { 0: buffer }
+    }
+}
+
+pub struct StorageBufferSlice<'a, T: Pod>(&'a Buffer<T>);
+
+impl<'a, T: Pod> StorageBufferSlice<'a, T> {
+    pub fn new(buffer: &'a Buffer<T>) -> Self {
+        Self { 0: buffer }
     }
 }
 
@@ -280,7 +302,29 @@ impl<'a, T: Pod> std::ops::Deref for UniformBufferSlice<'a, T> {
     type Target = Buffer<T>;
 
     fn deref(&self) -> &Self::Target {
-        self.inner
+        self.0
+    }
+}
+
+impl<'a, T: Pod> TryFrom<&'a Buffer<T>> for UniformBufferSlice<'a, T> {
+    type Error = ();
+    fn try_from(buffer: &'a Buffer<T>) -> Result<Self, Self::Error> {
+        buffer.as_uniform_slice()
+    }
+}
+
+impl<'a, T: Pod> std::ops::Deref for StorageBufferSlice<'a, T> {
+    type Target = Buffer<T>;
+
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}
+
+impl<'a, T: Pod> TryFrom<&'a Buffer<T>> for StorageBufferSlice<'a, T> {
+    type Error = ();
+    fn try_from(buffer: &'a Buffer<T>) -> Result<Self, Self::Error> {
+        buffer.as_storage_slice()
     }
 }
 
@@ -289,16 +333,5 @@ impl std::ops::Deref for DynBuffer {
 
     fn deref(&self) -> &Self::Target {
         self.inner()
-    }
-}
-
-impl<'a, T: Pod> TryFrom<&'a Buffer<T>> for UniformBufferSlice<'a, T> {
-    type Error = ();
-    fn try_from(buffer: &'a Buffer<T>) -> Result<Self, Self::Error> {
-        if buffer.usage().contains(wgpu::BufferUsages::UNIFORM) {
-            Ok(UniformBufferSlice::new(buffer))
-        } else {
-            Err(())
-        }
     }
 }
