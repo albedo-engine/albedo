@@ -132,7 +132,7 @@ impl RTSceneBindGroupLayout {
     pub fn create_bindgroup(
         &self,
         device: &wgpu::Device,
-        nodes: gpu::StorageBufferSlice<uniforms::BVHNode>,
+        nodes: gpu::StorageBufferSlice<albedo_bvh::BVHNode>,
         instances: gpu::StorageBufferSlice<uniforms::Instance>,
         indices: gpu::StorageBufferSlice<u32>,
         vertices: gpu::StorageBufferSlice<uniforms::Vertex>,

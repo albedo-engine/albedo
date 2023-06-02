@@ -10,18 +10,6 @@ pub trait Uniform: Sized {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy)]
-pub struct BVHNode {
-    pub min: [f32; 3],
-    pub next_node_index: u32,
-    pub max: [f32; 3],
-    pub primitive_index: u32,
-}
-unsafe impl bytemuck::Pod for BVHNode {}
-unsafe impl bytemuck::Zeroable for BVHNode {}
-impl Uniform for BVHNode {}
-
-#[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct Instance {
     pub model_to_world: glam::Mat4,
@@ -65,8 +53,8 @@ impl Material {
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct Vertex {
-    position: [f32; 4],
-    normal: [f32; 4],
+    pub position: [f32; 4],
+    pub normal: [f32; 4],
 }
 unsafe impl bytemuck::Pod for Vertex {}
 unsafe impl bytemuck::Zeroable for Vertex {}
@@ -306,3 +294,5 @@ impl TextureInfo {
 unsafe impl bytemuck::Pod for TextureInfo {}
 unsafe impl bytemuck::Zeroable for TextureInfo {}
 impl Uniform for TextureInfo {}
+
+impl Uniform for albedo_bvh::BVHNode {}

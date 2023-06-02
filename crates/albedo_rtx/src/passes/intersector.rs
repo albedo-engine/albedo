@@ -14,7 +14,7 @@ impl IntersectorPass {
 
     pub fn new(
         device: &wgpu::Device,
-        scene_layout: &crate::SceneBindGroupLayout,
+        scene_layout: &crate::RTSceneBindGroupLayout,
         source: Option<wgpu::ShaderModuleDescriptor>,
     ) -> Self {
         let frame_bind_group_layout =

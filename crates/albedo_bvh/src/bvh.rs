@@ -4,34 +4,16 @@ use crate::INVALID_INDEX;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct FlatNode {
+pub struct BVHNode {
     pub min: [f32; 3],
     pub next_node_index: u32,
     pub max: [f32; 3],
     pub primitive_index: u32,
 }
-unsafe impl bytemuck::Pod for FlatNode {}
-unsafe impl bytemuck::Zeroable for FlatNode {}
+unsafe impl bytemuck::Pod for BVHNode {}
+unsafe impl bytemuck::Zeroable for BVHNode {}
 
-impl FlatNode {
-    pub fn min(&self) -> &[f32; 3] {
-        &self.min
-    }
-
-    pub fn next(&self) -> u32 {
-        self.next_node_index
-    }
-
-    pub fn primitive(&self) -> u32 {
-        self.primitive_index
-    }
-
-    pub fn max(&self) -> &[f32; 3] {
-        &self.max
-    }
-}
-
-impl Default for FlatNode {
+impl Default for BVHNode {
     fn default() -> Self {
         Self {
             min: [std::f32::MAX, std::f32::MAX, std::f32::MAX],
@@ -112,22 +94,11 @@ impl Node {
     }
 }
 
-pub struct FlatBVH {
-    nodes: Vec<FlatNode>,
-}
-
-impl FlatBVH {
-    pub fn nodes(&self) -> &Vec<FlatNode> {
-        &self.nodes
-    }
-}
-
 pub struct BVH {
     // @todo: release from CPU if not needed after build.
     pub nodes: Vec<Node>,
     root: u32,
     primitives_count: u32,
-    pub(crate) flat: FlatBVH,
 }
 
 impl BVH {
@@ -142,21 +113,13 @@ impl BVH {
             nodes,
             primitives_count,
             root,
-            flat: FlatBVH {
-                nodes: Vec::with_capacity(count),
-            },
         }
     }
 
-    pub fn flatten(&mut self) {
-        self.flat.nodes.clear();
-        self.flat.nodes.reserve_exact(self.nodes.len());
-        flatten_bvh_rec(
-            &mut self.flat.nodes,
-            &self.nodes,
-            self.root as u32,
-            INVALID_INDEX,
-        );
+    pub fn flatten(&mut self) -> Vec<BVHNode> {
+        let mut result: Vec<BVHNode> = Vec::with_capacity(self.nodes.len());
+        flatten_bvh_rec(&mut result, &self.nodes, self.root as u32, INVALID_INDEX);
+        result
     }
 
     pub fn primitives_count(&self) -> u32 {
@@ -172,15 +135,14 @@ impl BVH {
     }
 }
 
-fn flatten_bvh_rec(out: &mut Vec<FlatNode>, nodes: &Vec<Node>, input_index: u32, miss_index: u32) {
-    let node = &nodes[input_index as usize];
-    out.push(FlatNode {
+fn flatten_bvh_rec(out: &mut Vec<BVHNode>, nodes: &Vec<Node>, input_index: u32, miss_index: u32) {
+    let node: &Node = &nodes[input_index as usize];
+    out.push(BVHNode {
         min: node.aabb().min.into(),
         max: node.aabb().max.into(),
         next_node_index: miss_index,
         primitive_index: node.primitive_index(),
     });
-
     // @todo: check that no overflow occurs
     let curr_count = out.len() as u32;
 

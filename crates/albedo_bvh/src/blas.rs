@@ -1,5 +1,5 @@
 use crate::builders::BVHBuilder;
-use crate::{FlatNode, Mesh, BVH};
+use crate::{BVHNode, Mesh};
 
 /// Node, vertex, and index offset of an entry
 ///
@@ -24,14 +24,17 @@ pub struct BLASArray<Vert: bytemuck::Pod> {
     /// Node, vertex, and index offset for each entry
     pub entries: Vec<BLASEntryDescriptor>,
     /// List of nodes of all entries
-    pub nodes: Vec<FlatNode>,
+    pub nodes: Vec<BVHNode>,
     /// List of vertices of all entries
     pub vertices: Vec<Vert>,
     /// List of indices of all entries
     pub indices: Vec<u32>,
 }
 
-impl<Vert: bytemuck::Pod> BLASArray<Vert> {
+impl<Vert> BLASArray<Vert>
+where
+    Vert: bytemuck::Pod,
+{
     pub fn new<Builder: BVHBuilder>(
         meshes: &[impl Mesh<Vert>],
         builder: &mut Builder,
@@ -40,15 +43,14 @@ impl<Vert: bytemuck::Pod> BLASArray<Vert> {
         let mut vertex_count = 0;
         let mut index_count = 0;
 
-        let bvhs: Vec<BVH> = meshes
+        let bvhs: Vec<Vec<BVHNode>> = meshes
             .iter()
-            .map(|mesh| -> Result<BVH, &'static str> {
+            .map(|mesh| -> Result<Vec<BVHNode>, &'static str> {
                 // @todo: allow user to choose builder.
                 let mut bvh = builder.build(mesh)?;
-                bvh.flatten();
-                Ok(bvh)
+                Ok(bvh.flatten())
             })
-            .collect::<Result<Vec<BVH>, &'static str>>()?;
+            .collect::<Result<Vec<Vec<BVHNode>>, &'static str>>()?;
 
         let mut entries: Vec<BLASEntryDescriptor> = Vec::with_capacity(bvhs.len());
         for i in 0..bvhs.len() {
@@ -60,21 +62,20 @@ impl<Vert: bytemuck::Pod> BLASArray<Vert> {
                 index: index_count,
             });
             // @todo: check for u32 overflow.
-            node_count += bvh.nodes.len() as u32;
+            node_count += bvh.len() as u32;
             index_count += mesh.index_count();
             vertex_count += mesh.vertex_count();
         }
 
         // @todo: parallel for.
-        let mut nodes: Vec<FlatNode> = Vec::with_capacity(node_count as usize);
+        let mut nodes: Vec<BVHNode> = Vec::with_capacity(node_count as usize);
         let mut vertices: Vec<Vert> = Vec::with_capacity(vertex_count as usize);
         let mut indices: Vec<u32> = Vec::with_capacity(index_count as usize);
 
         for i in 0..bvhs.len() {
-            let bvh = &bvhs[i];
             let mesh = &meshes[i];
 
-            nodes.extend(bvh.flat.nodes());
+            nodes.extend(&bvhs[i]);
 
             // @todo: optimized: replace by memcpy when possible.
             for ii in 0..mesh.index_count() {

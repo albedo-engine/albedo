@@ -1,7 +1,7 @@
 use crate::get_dispatch_size;
 use crate::macros::path_separator;
 use crate::uniforms;
-use crate::SceneBindGroupLayout;
+use crate::RTSceneBindGroupLayout;
 use albedo_backend::gpu;
 
 pub struct ShadingPass {
@@ -17,7 +17,7 @@ impl ShadingPass {
     const INTERSECTION_BINDING: u32 = 1;
     const PER_DRAW_STRUCT_BINDING: u32 = 2;
 
-    pub fn new(device: &wgpu::Device, scene_layout: &SceneBindGroupLayout) -> Self {
+    pub fn new(device: &wgpu::Device, scene_layout: &RTSceneBindGroupLayout) -> Self {
         let frame_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("Radiance View Bind Group Layout"),
