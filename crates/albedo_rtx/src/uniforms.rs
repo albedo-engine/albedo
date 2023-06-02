@@ -53,8 +53,8 @@ impl Material {
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct Vertex {
-    position: [f32; 4],
-    normal: [f32; 4],
+    pub position: [f32; 4],
+    pub normal: [f32; 4],
 }
 unsafe impl bytemuck::Pod for Vertex {}
 unsafe impl bytemuck::Zeroable for Vertex {}
@@ -294,3 +294,5 @@ impl TextureInfo {
 unsafe impl bytemuck::Pod for TextureInfo {}
 unsafe impl bytemuck::Zeroable for TextureInfo {}
 impl Uniform for TextureInfo {}
+
+impl Uniform for albedo_bvh::BVHNode {}

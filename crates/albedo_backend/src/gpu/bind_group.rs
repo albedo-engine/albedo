@@ -1,6 +1,6 @@
 pub struct BindGroupLayoutBuilder<'a> {
     entries: Vec<wgpu::BindGroupLayoutEntry>,
-    label: Option<wgpu::Label<'a>>,
+    label: wgpu::Label<'a>,
 }
 
 impl<'a> BindGroupLayoutBuilder<'a> {
@@ -13,13 +13,13 @@ impl<'a> BindGroupLayoutBuilder<'a> {
 
     pub fn build(self, device: &wgpu::Device) -> wgpu::BindGroupLayout {
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("Radiance Estimator Base Layout"),
+            label: self.label,
             entries: self.entries.as_ref(),
         })
     }
 
     pub fn label(mut self, label: wgpu::Label<'a>) -> Self {
-        self.label = Some(label);
+        self.label = label;
         self
     }
 

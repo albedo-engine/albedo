@@ -1,8 +1,10 @@
+pub mod layouts;
 pub mod macros;
 pub mod passes;
 pub mod texture;
 pub mod uniforms;
 
+pub use layouts::*;
 pub use uniforms::*;
 
 pub fn get_dispatch_size(

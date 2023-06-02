@@ -25,12 +25,12 @@ layout (set = 0, binding = 4, std430) readonly buffer LightBuffer {
   Light lights[];
 };
 
-layout (set = 0, binding = 5, std430) readonly buffer RayBuffer {
+layout (set = 1, binding = 0, std430) readonly buffer RayBuffer {
   RayPayload rays[];
 };
 
 // @todo: use writeonly when WGPU supports it.
-layout (set = 0, binding = 6, std430) buffer IntersectionBuffer {
+layout (set = 1, binding = 1, std430) buffer IntersectionBuffer {
   Intersection intersections[];
 };
 
