@@ -19,21 +19,12 @@ pub struct Vertex3D {
     normal: [f32; 4],
 }
 
-impl Default for Vertex3D {
-    fn default() -> Self {
-        Self {
-            position: [0.0, 0.0, 0.0, 1.0],
-            normal: Default::default(),
-        }
-    }
-}
-
 unsafe impl bytemuck::Pod for Vertex3D {}
 unsafe impl bytemuck::Zeroable for Vertex3D {}
 
 impl AsVertexFormat for Vertex3D {
     fn as_vertex_formats() -> &'static [AttributeDescriptor] {
-        static AttributeDescriptor: [AttributeDescriptor; 2] = [
+        static ATTRIBUTE_DESCRIPTORS: [AttributeDescriptor; 2] = [
             AttributeDescriptor {
                 id: AttributeId::POSITION,
                 format: wgpu::VertexFormat::Float32x4,
@@ -43,16 +34,7 @@ impl AsVertexFormat for Vertex3D {
                 format: wgpu::VertexFormat::Float32x4,
             },
         ];
-        &AttributeDescriptor
-    }
-}
-
-impl Vertex for Vertex3D {
-    fn set_position(&mut self, pos: &[f32; 3]) {
-        self.position[..3].copy_from_slice(&pos[..3])
-    }
-    fn set_normal(&mut self, normal: &[f32; 3]) {
-        self.normal[..3].copy_from_slice(&normal[..3])
+        &ATTRIBUTE_DESCRIPTORS
     }
 }
 
@@ -85,7 +67,15 @@ impl Example for PickingExample {
                 source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("shader.wgsl"))),
             });
 
-        let primitive = shapes::Cube::new(1.0).to_interleaved_primitive::<Vertex3D>();
+        let cube_data = shapes::Cube::new(1.0).data();
+        let mut primitive =
+            Primitive::interleaved_with_count(cube_data.count(), Vertex3D::as_vertex_formats());
+        let mut positions = primitive.attribute::<[f32; 4]>(0).unwrap();
+        positions.set(&cube_data.positions);
+        let mut normals = primitive.attribute::<[f32; 4]>(1).unwrap();
+        normals.set(&cube_data.normals);
+        primitive.set_indices(cube_data.indices);
+
         let vertex_buffer_layout = primitive.as_vertex_buffer_layout();
 
         let pipeline_layout = app
@@ -125,14 +115,14 @@ impl Example for PickingExample {
         let mut rand_val = || rng.generate::<f32>() * 10.0 - 10.0;
         let mut uniforms_data: Vec<Uniforms> = Vec::with_capacity(NB_INSTANCES);
         for i in 0..NB_INSTANCES {
-            let localToWorld = glam::Mat4::from_translation(glam::Vec3::new(
+            let local_to_world = glam::Mat4::from_translation(glam::Vec3::new(
                 rand_val(),
                 rand_val(),
                 rand_val() - 10.0,
             ));
             uniforms_data.push(Uniforms {
                 transform: glam::Mat4::perspective_rh_gl(0.38, aspect_ratio, 0.01, 100.0)
-                    * localToWorld,
+                    * local_to_world,
             });
         }
 
@@ -154,9 +144,8 @@ impl Example for PickingExample {
         }
     }
 
-    fn resize(&mut self, app: &example::App) {}
-
-    fn update(&mut self, event: winit::event::WindowEvent) {}
+    fn resize(&mut self, _app: &example::App) {}
+    fn update(&mut self, _event: winit::event::WindowEvent) {}
 
     fn render(&mut self, app: &example::App, view: &wgpu::TextureView) {
         let mut encoder = app

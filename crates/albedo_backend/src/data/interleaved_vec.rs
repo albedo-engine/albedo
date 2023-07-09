@@ -25,6 +25,15 @@ impl InterleavedVec {
         }
     }
 
+    pub fn with_count(count: usize, sizes: Vec<usize>) -> Self {
+        let stride = compute_stride(&sizes);
+        Self {
+            data: vec![0; count * stride],
+            stride,
+            sizes,
+        }
+    }
+
     pub fn with_capacity(count: usize, sizes: Vec<usize>) -> Self {
         let stride = compute_stride(&sizes);
         Self {

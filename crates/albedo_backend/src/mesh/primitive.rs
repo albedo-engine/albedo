@@ -5,7 +5,7 @@ use bytemuck::Pod;
 use crate::data::InterleavedVec;
 use crate::gpu;
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, PartialEq)]
 pub struct AttributeId(&'static str);
 
 impl AttributeId {
@@ -49,7 +49,6 @@ impl AttributeDescriptor {
 enum AttributeData {
     SoA(Vec<Vec<u8>>),
     Interleaved(InterleavedVec),
-    Chunk(Vec<u8>),
 }
 
 pub enum IndexData {
@@ -74,41 +73,41 @@ impl Primitive {
             .map(|v| v.size() as usize)
             .collect();
         Self {
-            data: AttributeData::Interleaved(InterleavedVec::with_capacity(count as usize, sizes)),
+            data: AttributeData::Interleaved(InterleavedVec::with_count(count as usize, sizes)),
             attribute_formats,
             attribute_ids,
             index_data: None,
         }
     }
 
-    pub fn set<T: Pod>(&mut self, index: usize, element: T) -> &mut Self {
-        match &mut self.data {
-            AttributeData::Interleaved(data) => data.set(index, element),
-            _ => panic!(),
-        };
-        self
+    pub fn soa_with_count(count: u64, descriptors: &[AttributeDescriptor]) -> Self {
+        let attribute_ids = descriptors.iter().map(|v| v.id).collect();
+        let attribute_formats: Vec<wgpu::VertexFormat> =
+            descriptors.iter().map(|v| v.format).collect();
+        let data: Vec<Vec<u8>> = attribute_formats
+            .iter()
+            .map(|v| Vec::with_capacity(v.size() as usize * count as usize))
+            .collect();
+        Self {
+            data: AttributeData::SoA(data),
+            attribute_formats,
+            attribute_ids,
+            index_data: None,
+        }
     }
 
-    pub fn push<T: Pod>(&mut self, element: T) -> &mut Self {
-        match &mut self.data {
-            AttributeData::Interleaved(data) => data.push(element),
-            _ => panic!(),
-        };
-        self
-    }
-
-    pub fn attribute_slice<'a, T: Pod>(
+    pub fn attribute<'a, T: Pod>(
         &'a mut self,
-        attribute_id: usize,
+        attribute: usize,
     ) -> Result<AttributeSlice<'a, T>, ()> {
-        let byte_size = self.attribute_formats[attribute_id].size() as usize;
+        let byte_size = self.attribute_formats[attribute].size() as usize;
         if std::mem::size_of::<T>() != byte_size {
             return Err(());
         }
         Ok(match &mut self.data {
             AttributeData::Interleaved(v) => {
                 let stride = v.stride();
-                let byte_offset = v.byte_offset_for(attribute_id);
+                let byte_offset = v.byte_offset_for(attribute);
                 let byte_end = v.data().len();
                 AttributeSlice {
                     data: v.data_mut(),
@@ -118,13 +117,10 @@ impl Primitive {
                     _phantom_data: PhantomData,
                 }
             }
-            AttributeData::Chunk(_v) => {
-                todo!("unimplemented")
-            }
             AttributeData::SoA(ref mut soa) => {
-                let byte_end = soa[attribute_id].len();
+                let byte_end = soa[attribute].len();
                 AttributeSlice {
-                    data: soa[attribute_id].as_mut(),
+                    data: soa[attribute].as_mut(),
                     stride: byte_size,
                     byte_offset: 0,
                     byte_end,
@@ -134,12 +130,20 @@ impl Primitive {
         })
     }
 
+    pub fn attribute_id(&self, id: AttributeId) -> Option<usize> {
+        self.attribute_ids.iter().position(|&val| val == id)
+    }
+
     pub fn attribute_count(&self) -> usize {
         self.attribute_formats.len()
     }
 
     pub fn attribute_format(&self, index: usize) -> wgpu::VertexFormat {
         self.attribute_formats[index]
+    }
+
+    pub fn set_indices(&mut self, data: IndexData) {
+        self.index_data = Some(data);
     }
 
     pub fn set_indices_u16(&mut self, data: Vec<u16>) {
@@ -153,9 +157,6 @@ impl Primitive {
     pub fn count(&self) -> usize {
         match &self.data {
             AttributeData::Interleaved(ref v) => v.count(),
-            AttributeData::Chunk(_v) => {
-                todo!("unimplemented")
-            }
             AttributeData::SoA(ref v) => {
                 todo!("unimplemented")
             }
@@ -179,8 +180,32 @@ impl<'a, T: Pod> AttributeSlice<'a, T> {
         }
     }
 
+    pub fn set<V: Pod>(&mut self, data: &[V]) {
+        let other_stride = std::mem::size_of::<V>();
+        if other_stride > std::mem::size_of::<T>() {
+            panic!(
+                "`data` type is {} bytes, but slice format expected at most {} bytes",
+                std::mem::size_of::<V>(),
+                std::mem::size_of::<T>()
+            );
+        }
+
+        let count = data.len();
+        if count > self.len() {
+            panic!("`data` is larger than the attribute slice");
+        }
+
+        let bytes: &[u8] = bytemuck::cast_slice(data);
+        for i in 0..count {
+            let dst_start = self.byte_offset + self.stride * i;
+            let src_start = i * other_stride;
+            self.data[dst_start..dst_start + other_stride]
+                .copy_from_slice(&bytes[src_start..src_start + other_stride]);
+        }
+    }
+
     fn len(&self) -> usize {
-        (self.byte_end - self.byte_offset) / self.stride
+        self.data.len() / self.stride
     }
 }
 
@@ -281,9 +306,6 @@ impl<'a> gpu::ResourceBuilder for PrimitiveResourceBuilder<'a> {
         attributes.push(match &self.primitive.data {
             AttributeData::Interleaved(v) => {
                 gpu::DynBuffer::new_with_data(device, v.data(), v.count() as u64, Some(descriptor))
-            }
-            AttributeData::Chunk(_v) => {
-                todo!("unimplemented")
             }
             AttributeData::SoA(ref _soa) => {
                 todo!("unimplemented")
