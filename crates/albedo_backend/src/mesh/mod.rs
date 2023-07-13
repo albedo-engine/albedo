@@ -1,5 +1,3 @@
-use bytemuck::Pod;
-
 pub mod shapes;
 
 mod primitive;

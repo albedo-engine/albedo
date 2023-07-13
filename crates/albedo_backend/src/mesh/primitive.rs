@@ -4,8 +4,24 @@ use std::marker::PhantomData;
 
 use bytemuck::Pod;
 
-use crate::data::InterleavedVec;
 use crate::gpu;
+
+fn compute_stride(formats: &[wgpu::VertexFormat]) -> usize {
+    let mut stride = 0;
+    for format in formats {
+        stride += format.size();
+    }
+    stride as usize
+}
+
+fn byte_offset_for(formats: &[wgpu::VertexFormat], element: usize) -> usize {
+    // Compute the original byte offset.
+    let mut byte_offset = 0;
+    for i in 0..element {
+        byte_offset += formats[i].size();
+    }
+    byte_offset as usize
+}
 
 fn is_vertex_format_float(format: &wgpu::VertexFormat) -> bool {
     match format {
@@ -84,7 +100,7 @@ impl AttributeDescriptor {
 
 enum AttributeData {
     SoA(Vec<Vec<u8>>),
-    Interleaved(InterleavedVec),
+    Interleaved(Vec<u8>),
 }
 
 #[derive(Clone)]
@@ -137,8 +153,9 @@ impl Primitive {
             .iter()
             .map(|v| v.size() as usize)
             .collect();
+        let byte_count = count as usize * compute_stride(&attribute_formats);
         Self {
-            data: AttributeData::Interleaved(InterleavedVec::with_count(count as usize, sizes)),
+            data: AttributeData::Interleaved(vec![0; byte_count]),
             attribute_formats,
             attribute_ids,
             index_data: None,
@@ -171,18 +188,13 @@ impl Primitive {
             );
         }
         match &mut self.data {
-            AttributeData::Interleaved(v) => {
-                let stride = v.stride();
-                let byte_offset = v.byte_offset_for(attribute);
-                let byte_end = v.data().len();
-                AttributeSlice {
-                    data: v.data_mut(),
-                    stride: stride,
-                    byte_offset,
-                    byte_end,
-                    _phantom_data: PhantomData,
-                }
-            }
+            AttributeData::Interleaved(v) => AttributeSlice {
+                byte_end: v.len(),
+                stride: compute_stride(&self.attribute_formats),
+                byte_offset: byte_offset_for(&self.attribute_formats, attribute),
+                data: v,
+                _phantom_data: PhantomData,
+            },
             AttributeData::SoA(ref mut soa) => {
                 let byte_end = soa[attribute].len();
                 AttributeSlice {
@@ -236,10 +248,8 @@ impl Primitive {
 
     pub fn count(&self) -> usize {
         match &self.data {
-            AttributeData::Interleaved(ref v) => v.count(),
-            AttributeData::SoA(ref v) => {
-                todo!("unimplemented")
-            }
+            AttributeData::Interleaved(ref v) => v.len() / compute_stride(&self.attribute_formats),
+            AttributeData::SoA(ref v) => v[0].len() / self.attribute_formats[0].size() as usize,
         }
     }
 }
@@ -384,9 +394,11 @@ impl<'a> gpu::ResourceBuilder for PrimitiveResourceBuilder<'a> {
             gpu::BufferInitDescriptor::new(Some("Primitive Buffer"), wgpu::BufferUsages::VERTEX)
         };
 
+        let count: usize = self.primitive.count();
+
         attributes.push(match &self.primitive.data {
             AttributeData::Interleaved(v) => {
-                gpu::DynBuffer::new_with_data(device, v.data(), v.count() as u64, Some(descriptor))
+                gpu::DynBuffer::new_with_data(device, v, count as u64, Some(descriptor))
             }
             AttributeData::SoA(ref _soa) => {
                 todo!("unimplemented")
