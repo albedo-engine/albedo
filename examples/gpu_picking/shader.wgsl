@@ -16,19 +16,11 @@ fn vs_main(
     @location(1) normal: vec4<f32>,
 ) -> VertexOutput {
     var result: VertexOutput;
-    result.position = uniforms.mvpMatrix[idx] * uniforms.projection * position;
+    result.position = uniforms.mvpMatrix[idx] * uniforms.projection * vec4(position.xyz, 1.0);
     return result;
 }
 
 @fragment
 fn fs_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
-
-    var camPos = vec3<f32>(0.0, 0.0, 0.0);
-    var lightDir = normalize(vec3(-1.0, -1.0, -1.0));
-
-    // Virtual lighting.
-
-    var cosTheta = dot(lightDir, camPos - vertex.position.xyz);
-
-    return vec4<f32>(vec3<f32>(cosTheta), 1.0);
+    return vec4<f32>(vec3<f32>(1.0, 0.0, 0.0), 1.0);
 }
