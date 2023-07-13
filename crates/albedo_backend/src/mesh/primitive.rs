@@ -1,9 +1,44 @@
+use core::panic;
 use std::marker::PhantomData;
 
 use bytemuck::Pod;
 
 use crate::data::InterleavedVec;
 use crate::gpu;
+
+fn is_vertex_format_float(format: &wgpu::VertexFormat) -> bool {
+    match format {
+        wgpu::VertexFormat::Float32
+        | wgpu::VertexFormat::Float64
+        | wgpu::VertexFormat::Float16x2
+        | wgpu::VertexFormat::Float16x4
+        | wgpu::VertexFormat::Float32x2
+        | wgpu::VertexFormat::Float32x3
+        | wgpu::VertexFormat::Float32x4
+        | wgpu::VertexFormat::Float64x2
+        | wgpu::VertexFormat::Float64x3
+        | wgpu::VertexFormat::Float64x4 => true,
+        _ => false,
+    }
+}
+
+fn is_vertex_format_unsigned(format: &wgpu::VertexFormat) -> bool {
+    match format {
+        wgpu::VertexFormat::Uint8x2
+        | wgpu::VertexFormat::Uint8x4
+        | wgpu::VertexFormat::Uint16x2
+        | wgpu::VertexFormat::Uint16x4
+        | wgpu::VertexFormat::Uint32
+        | wgpu::VertexFormat::Uint32x2
+        | wgpu::VertexFormat::Uint32x3
+        | wgpu::VertexFormat::Uint32x4
+        | wgpu::VertexFormat::Unorm8x2
+        | wgpu::VertexFormat::Unorm8x4
+        | wgpu::VertexFormat::Unorm16x2
+        | wgpu::VertexFormat::Unorm16x4 => true,
+        _ => false,
+    }
+}
 
 #[derive(Clone, Copy, Default, PartialEq)]
 pub struct AttributeId(&'static str);
@@ -56,6 +91,34 @@ pub enum IndexData {
     U32(Vec<u32>),
 }
 
+// Macro to generate a method to lookup an attribute on a
+// Primitive.
+macro_rules! float_slice_attribute {
+    ($name:tt, $type:ty) => {
+        pub fn $name<'a>(&'a mut self, index: usize) -> AttributeSlice<'a, $type> {
+            let format = self.attribute_format(index);
+            if !is_vertex_format_float(&format) {
+                panic!("attribute format isn't float"); // @todo: implement Display for VertexFormat
+            }
+            self.attribute::<$type>(index)
+        }
+    };
+}
+
+// Macro to generate a method to lookup an attribute on a
+// Primitive.
+macro_rules! unsigned_slice_attribute {
+    ($name:tt, $type:ty) => {
+        pub fn $name<'a>(&'a mut self, index: usize) -> AttributeSlice<'a, $type> {
+            let format = self.attribute_format(index);
+            if !is_vertex_format_unsigned(&format) {
+                panic!("attribute format isn't unsigned"); // @todo: implement Display for VertexFormat
+            }
+            self.attribute::<$type>(index)
+        }
+    };
+}
+
 pub struct Primitive {
     data: AttributeData,
     attribute_formats: Vec<wgpu::VertexFormat>,
@@ -96,15 +159,16 @@ impl Primitive {
         }
     }
 
-    pub fn attribute<'a, T: Pod>(
-        &'a mut self,
-        attribute: usize,
-    ) -> Result<AttributeSlice<'a, T>, ()> {
+    pub fn attribute<'a, T: Pod>(&'a mut self, attribute: usize) -> AttributeSlice<'a, T> {
         let byte_size = self.attribute_formats[attribute].size() as usize;
-        if std::mem::size_of::<T>() != byte_size {
-            return Err(());
+        let request_byte_size = std::mem::size_of::<T>();
+        if request_byte_size > byte_size {
+            panic!(
+                "attribute contains element of {} bytes, but a slice of {} was requested",
+                byte_size, request_byte_size
+            );
         }
-        Ok(match &mut self.data {
+        match &mut self.data {
             AttributeData::Interleaved(v) => {
                 let stride = v.stride();
                 let byte_offset = v.byte_offset_for(attribute);
@@ -127,12 +191,26 @@ impl Primitive {
                     _phantom_data: PhantomData,
                 }
             }
-        })
+        }
     }
 
-    pub fn attribute_id(&self, id: AttributeId) -> Option<usize> {
+    pub fn attribute_index(&self, id: AttributeId) -> Option<usize> {
         self.attribute_ids.iter().position(|&val| val == id)
     }
+
+    float_slice_attribute!(attribute_f32, f32);
+    float_slice_attribute!(attribute_f32x2, [f32; 2]);
+    float_slice_attribute!(attribute_f32x3, [f32; 3]);
+    float_slice_attribute!(attribute_f32x4, [f32; 4]);
+    float_slice_attribute!(attribute_f64, f64);
+    float_slice_attribute!(attribute_f64x2, [f64; 2]);
+    float_slice_attribute!(attribute_f64x3, [f64; 3]);
+    float_slice_attribute!(attribute_f64x4, [f64; 4]);
+    unsigned_slice_attribute!(attribute_u32, u32);
+    unsigned_slice_attribute!(attribute_u32x2, [u32; 2]);
+    unsigned_slice_attribute!(attribute_u32x3, [u32; 3]);
+    unsigned_slice_attribute!(attribute_u32x4, [u32; 4]);
+    // @todo: implement missing attributes
 
     pub fn attribute_count(&self) -> usize {
         self.attribute_formats.len()

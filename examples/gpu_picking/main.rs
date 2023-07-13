@@ -71,10 +71,10 @@ impl Example for PickingExample {
         let mut primitive =
             Primitive::interleaved_with_count(cube_data.count(), Vertex3D::as_vertex_formats());
         primitive.set_indices(cube_data.indices);
-        let mut positions = primitive.attribute::<[f32; 4]>(0).unwrap();
+        let mut positions = primitive.attribute_f32x3(0);
         positions.set(&cube_data.positions);
 
-        let mut normals = primitive.attribute::<[f32; 4]>(1).unwrap();
+        let mut normals = primitive.attribute::<[f32; 4]>(1);
         normals.set(&cube_data.normals);
 
         let vertex_buffer_layout = primitive.as_vertex_buffer_layout();
