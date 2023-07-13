@@ -16,7 +16,7 @@ fn vs_main(
     @location(1) normal: vec4<f32>,
 ) -> VertexOutput {
     var result: VertexOutput;
-    result.position = uniforms.mvpMatrix[idx] * uniforms.projection * position;
+    result.position = uniforms.mvpMatrix[idx] * uniforms.projection * vec4(position.xyz, 1.0);
     return result;
 }
 

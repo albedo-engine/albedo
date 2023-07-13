@@ -164,6 +164,8 @@ impl Primitive {
     }
 }
 
+// @todo: add non-mutable slice.
+
 pub struct AttributeSlice<'a, T: Pod> {
     data: &'a mut [u8],
     byte_offset: usize,
@@ -204,7 +206,7 @@ impl<'a, T: Pod> AttributeSlice<'a, T> {
         }
     }
 
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.data.len() / self.stride
     }
 }

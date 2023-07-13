@@ -70,11 +70,12 @@ impl Example for PickingExample {
         let cube_data = shapes::Cube::new(1.0).data();
         let mut primitive =
             Primitive::interleaved_with_count(cube_data.count(), Vertex3D::as_vertex_formats());
+        primitive.set_indices(cube_data.indices);
         let mut positions = primitive.attribute::<[f32; 4]>(0).unwrap();
         positions.set(&cube_data.positions);
+
         let mut normals = primitive.attribute::<[f32; 4]>(1).unwrap();
         normals.set(&cube_data.normals);
-        primitive.set_indices(cube_data.indices);
 
         let vertex_buffer_layout = primitive.as_vertex_buffer_layout();
 
@@ -110,9 +111,10 @@ impl Example for PickingExample {
 
         let aspect_ratio = app.surface_config.width as f32 / app.surface_config.height as f32;
 
+        let cam_transform = glam::Mat4::perspective_rh_gl(0.38, aspect_ratio, 0.01, 100.0);
         const NB_INSTANCES: usize = 100;
         let mut rng = nanorand::WyRand::new_seed(42);
-        let mut rand_val = || rng.generate::<f32>() * 10.0 - 10.0;
+        let mut rand_val = || rng.generate::<f32>() * 10.0 - 5.0;
         let mut uniforms_data: Vec<Uniforms> = Vec::with_capacity(NB_INSTANCES);
         for i in 0..NB_INSTANCES {
             let local_to_world = glam::Mat4::from_translation(glam::Vec3::new(
@@ -121,8 +123,7 @@ impl Example for PickingExample {
                 rand_val() - 10.0,
             ));
             uniforms_data.push(Uniforms {
-                transform: glam::Mat4::perspective_rh_gl(0.38, aspect_ratio, 0.01, 100.0)
-                    * local_to_world,
+                transform: cam_transform * local_to_world,
             });
         }
 
