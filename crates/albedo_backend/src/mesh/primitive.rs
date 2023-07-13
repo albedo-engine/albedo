@@ -1,4 +1,5 @@
 use core::panic;
+use std::fmt::Debug;
 use std::marker::PhantomData;
 
 use bytemuck::Pod;
@@ -86,6 +87,7 @@ enum AttributeData {
     Interleaved(InterleavedVec),
 }
 
+#[derive(Clone)]
 pub enum IndexData {
     U16(Vec<u16>),
     U32(Vec<u32>),
@@ -128,7 +130,7 @@ pub struct Primitive {
 
 impl Primitive {
     pub fn interleaved_with_count(count: u64, descriptors: &[AttributeDescriptor]) -> Self {
-        let attribute_ids = descriptors.iter().map(|v| v.id).collect();
+        let attribute_ids: Vec<AttributeId> = descriptors.iter().map(|v| v.id).collect();
         let attribute_formats: Vec<wgpu::VertexFormat> =
             descriptors.iter().map(|v| v.format).collect();
         let sizes: Vec<usize> = attribute_formats
@@ -194,10 +196,6 @@ impl Primitive {
         }
     }
 
-    pub fn attribute_index(&self, id: AttributeId) -> Option<usize> {
-        self.attribute_ids.iter().position(|&val| val == id)
-    }
-
     float_slice_attribute!(attribute_f32, f32);
     float_slice_attribute!(attribute_f32x2, [f32; 2]);
     float_slice_attribute!(attribute_f32x3, [f32; 3]);
@@ -212,12 +210,16 @@ impl Primitive {
     unsigned_slice_attribute!(attribute_u32x4, [u32; 4]);
     // @todo: implement missing attributes
 
-    pub fn attribute_count(&self) -> usize {
-        self.attribute_formats.len()
+    pub fn attribute_index(&self, id: AttributeId) -> Option<usize> {
+        self.attribute_ids.iter().position(|&val| val == id)
     }
 
     pub fn attribute_format(&self, index: usize) -> wgpu::VertexFormat {
         self.attribute_formats[index]
+    }
+
+    pub fn attribute_count(&self) -> usize {
+        self.attribute_formats.len()
     }
 
     pub fn set_indices(&mut self, data: IndexData) {
@@ -243,7 +245,6 @@ impl Primitive {
 }
 
 // @todo: add non-mutable slice.
-
 pub struct AttributeSlice<'a, T: Pod> {
     data: &'a mut [u8],
     byte_offset: usize,
@@ -253,7 +254,7 @@ pub struct AttributeSlice<'a, T: Pod> {
 }
 
 impl<'a, T: Pod> AttributeSlice<'a, T> {
-    fn iter(&'a self) -> AttributeSliceIter<'a, T> {
+    pub fn iter(&'a self) -> AttributeSliceIter<'a, T> {
         AttributeSliceIter {
             slice: self,
             index: 0,
@@ -402,5 +403,14 @@ impl<'a> gpu::ResourceBuilder for PrimitiveResourceBuilder<'a> {
             attributes,
             indices,
         })
+    }
+}
+
+impl Debug for IndexData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::U16(arg0) => f.debug_list().entries(arg0).finish(),
+            Self::U32(arg0) => f.debug_list().entries(arg0).finish(),
+        }
     }
 }
