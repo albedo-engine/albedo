@@ -50,6 +50,7 @@ struct PickingExample {
 #[derive(Clone, Copy, Default)]
 struct Uniforms {
     transform: glam::Mat4,
+    color: glam::Vec4,
 }
 unsafe impl bytemuck::Pod for Uniforms {}
 unsafe impl bytemuck::Zeroable for Uniforms {}
@@ -57,7 +58,10 @@ unsafe impl bytemuck::Zeroable for Uniforms {}
 impl Example for PickingExample {
     fn new(app: &example::App) -> Self {
         let bgl = gpu::BindGroupLayoutBuilder::new_with_size(1)
-            .storage_buffer(wgpu::ShaderStages::VERTEX, true)
+            .storage_buffer(
+                wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                true,
+            )
             .build(&app.device);
 
         let shader = app
@@ -98,7 +102,6 @@ impl Example for PickingExample {
         let primitive_gpu = PrimitiveResourceBuilder::new(&primitive)
             .descriptor(gpu::BufferInitDescriptor::new(
                 Some("Primtive Buffers"),
-                // wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::STORAGE,
                 wgpu::BufferUsages::VERTEX,
             ))
             .build(&app.device)
@@ -109,16 +112,17 @@ impl Example for PickingExample {
         let cam_transform = glam::Mat4::perspective_rh_gl(0.38, aspect_ratio, 0.01, 100.0);
         const NB_INSTANCES: usize = 100;
         let mut rng = nanorand::WyRand::new_seed(42);
-        let mut rand_val = || rng.generate::<f32>() * 10.0 - 5.0;
+        let mut rand_val = |len: f32| rng.generate::<f32>() * len - 0.5 * len;
         let mut uniforms_data: Vec<Uniforms> = Vec::with_capacity(NB_INSTANCES);
-        for i in 0..NB_INSTANCES {
+        for _ in 0..NB_INSTANCES {
             let local_to_world = glam::Mat4::from_translation(glam::Vec3::new(
-                rand_val(),
-                rand_val(),
-                rand_val() - 10.0,
+                rand_val(20.0),
+                rand_val(20.0),
+                rand_val(10.0) - 40.0,
             ));
             uniforms_data.push(Uniforms {
                 transform: cam_transform * local_to_world,
+                color: glam::Vec4::new(rand_val(1.0), rand_val(1.0), rand_val(1.0), 1.0),
             });
         }
 
