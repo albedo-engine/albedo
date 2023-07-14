@@ -1,3 +1,4 @@
+pub mod data;
 pub mod gpu;
 pub mod mesh;
 

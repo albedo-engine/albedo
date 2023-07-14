@@ -4,7 +4,10 @@ use std::marker::PhantomData;
 
 use bytemuck::Pod;
 
+use crate::data::reinterpret_vec;
 use crate::gpu;
+
+use super::AsVertexFormat;
 
 fn compute_stride(formats: &[wgpu::VertexFormat]) -> usize {
     let mut stride = 0;
@@ -145,37 +148,38 @@ pub struct Primitive {
 }
 
 impl Primitive {
-    pub fn interleaved_with_count(count: u64, descriptors: &[AttributeDescriptor]) -> Self {
+    fn new(data: AttributeData, descriptors: &[AttributeDescriptor]) -> Self {
         let attribute_ids: Vec<AttributeId> = descriptors.iter().map(|v| v.id).collect();
         let attribute_formats: Vec<wgpu::VertexFormat> =
             descriptors.iter().map(|v| v.format).collect();
-        let sizes: Vec<usize> = attribute_formats
-            .iter()
-            .map(|v| v.size() as usize)
-            .collect();
-        let byte_count = count as usize * compute_stride(&attribute_formats);
         Self {
-            data: AttributeData::Interleaved(vec![0; byte_count]),
+            data,
             attribute_formats,
             attribute_ids,
             index_data: None,
         }
     }
 
+    pub fn interleaved<V: Pod + AsVertexFormat>(data: Vec<V>) -> Self {
+        let data_u8 = reinterpret_vec(data);
+        Self::new(AttributeData::Interleaved(data_u8), V::as_vertex_formats())
+    }
+
+    pub fn interleaved_with_count(count: u64, descriptors: &[AttributeDescriptor]) -> Self {
+        let attribute_formats: Vec<wgpu::VertexFormat> =
+            descriptors.iter().map(|v| v.format).collect();
+        let byte_count = count as usize * compute_stride(&attribute_formats);
+        Self::new(AttributeData::Interleaved(vec![0; byte_count]), descriptors)
+    }
+
     pub fn soa_with_count(count: u64, descriptors: &[AttributeDescriptor]) -> Self {
-        let attribute_ids = descriptors.iter().map(|v| v.id).collect();
         let attribute_formats: Vec<wgpu::VertexFormat> =
             descriptors.iter().map(|v| v.format).collect();
         let data: Vec<Vec<u8>> = attribute_formats
             .iter()
             .map(|v| Vec::with_capacity(v.size() as usize * count as usize))
             .collect();
-        Self {
-            data: AttributeData::SoA(data),
-            attribute_formats,
-            attribute_ids,
-            index_data: None,
-        }
+        Self::new(AttributeData::SoA(data), descriptors)
     }
 
     pub fn attribute<'a, T: Pod>(&'a mut self, attribute: usize) -> AttributeSlice<'a, T> {
@@ -222,6 +226,9 @@ impl Primitive {
     unsigned_slice_attribute!(attribute_u32x4, [u32; 4]);
     // @todo: implement missing attributes
 
+    // @todo: add overload to move a Vec ownership into
+    // the primtive when using SOA.
+
     pub fn attribute_index(&self, id: AttributeId) -> Option<usize> {
         self.attribute_ids.iter().position(|&val| val == id)
     }
@@ -250,6 +257,13 @@ impl Primitive {
         match &self.data {
             AttributeData::Interleaved(ref v) => v.len() / compute_stride(&self.attribute_formats),
             AttributeData::SoA(ref v) => v[0].len() / self.attribute_formats[0].size() as usize,
+        }
+    }
+
+    pub fn is_interleaved(&self) -> bool {
+        match self.data {
+            AttributeData::Interleaved(_) => true,
+            _ => false,
         }
     }
 }
