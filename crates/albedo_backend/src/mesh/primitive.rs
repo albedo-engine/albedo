@@ -1,9 +1,64 @@
+use core::panic;
+use std::fmt::Debug;
 use std::marker::PhantomData;
 
 use bytemuck::Pod;
 
-use crate::data::InterleavedVec;
+use crate::data::reinterpret_vec;
 use crate::gpu;
+
+use super::AsVertexFormat;
+
+fn compute_stride(formats: &[wgpu::VertexFormat]) -> usize {
+    let mut stride = 0;
+    for format in formats {
+        stride += format.size();
+    }
+    stride as usize
+}
+
+fn byte_offset_for(formats: &[wgpu::VertexFormat], element: usize) -> usize {
+    // Compute the original byte offset.
+    let mut byte_offset = 0;
+    for i in 0..element {
+        byte_offset += formats[i].size();
+    }
+    byte_offset as usize
+}
+
+fn is_vertex_format_float(format: &wgpu::VertexFormat) -> bool {
+    match format {
+        wgpu::VertexFormat::Float32
+        | wgpu::VertexFormat::Float64
+        | wgpu::VertexFormat::Float16x2
+        | wgpu::VertexFormat::Float16x4
+        | wgpu::VertexFormat::Float32x2
+        | wgpu::VertexFormat::Float32x3
+        | wgpu::VertexFormat::Float32x4
+        | wgpu::VertexFormat::Float64x2
+        | wgpu::VertexFormat::Float64x3
+        | wgpu::VertexFormat::Float64x4 => true,
+        _ => false,
+    }
+}
+
+fn is_vertex_format_unsigned(format: &wgpu::VertexFormat) -> bool {
+    match format {
+        wgpu::VertexFormat::Uint8x2
+        | wgpu::VertexFormat::Uint8x4
+        | wgpu::VertexFormat::Uint16x2
+        | wgpu::VertexFormat::Uint16x4
+        | wgpu::VertexFormat::Uint32
+        | wgpu::VertexFormat::Uint32x2
+        | wgpu::VertexFormat::Uint32x3
+        | wgpu::VertexFormat::Uint32x4
+        | wgpu::VertexFormat::Unorm8x2
+        | wgpu::VertexFormat::Unorm8x4
+        | wgpu::VertexFormat::Unorm16x2
+        | wgpu::VertexFormat::Unorm16x4 => true,
+        _ => false,
+    }
+}
 
 #[derive(Clone, Copy, Default, PartialEq)]
 pub struct AttributeId(&'static str);
@@ -48,12 +103,41 @@ impl AttributeDescriptor {
 
 enum AttributeData {
     SoA(Vec<Vec<u8>>),
-    Interleaved(InterleavedVec),
+    Interleaved(Vec<u8>),
 }
 
+#[derive(Clone)]
 pub enum IndexData {
     U16(Vec<u16>),
     U32(Vec<u32>),
+}
+
+// Macro to generate a method to lookup an attribute on a
+// Primitive.
+macro_rules! float_slice_attribute {
+    ($name:tt, $type:ty) => {
+        pub fn $name<'a>(&'a mut self, index: usize) -> AttributeSlice<'a, $type> {
+            let format = self.attribute_format(index);
+            if !is_vertex_format_float(&format) {
+                panic!("attribute format isn't float"); // @todo: implement Display for VertexFormat
+            }
+            self.attribute::<$type>(index)
+        }
+    };
+}
+
+// Macro to generate a method to lookup an attribute on a
+// Primitive.
+macro_rules! unsigned_slice_attribute {
+    ($name:tt, $type:ty) => {
+        pub fn $name<'a>(&'a mut self, index: usize) -> AttributeSlice<'a, $type> {
+            let format = self.attribute_format(index);
+            if !is_vertex_format_unsigned(&format) {
+                panic!("attribute format isn't unsigned"); // @todo: implement Display for VertexFormat
+            }
+            self.attribute::<$type>(index)
+        }
+    };
 }
 
 pub struct Primitive {
@@ -64,59 +148,57 @@ pub struct Primitive {
 }
 
 impl Primitive {
-    pub fn interleaved_with_count(count: u64, descriptors: &[AttributeDescriptor]) -> Self {
-        let attribute_ids = descriptors.iter().map(|v| v.id).collect();
+    fn new(data: AttributeData, descriptors: &[AttributeDescriptor]) -> Self {
+        let attribute_ids: Vec<AttributeId> = descriptors.iter().map(|v| v.id).collect();
         let attribute_formats: Vec<wgpu::VertexFormat> =
             descriptors.iter().map(|v| v.format).collect();
-        let sizes: Vec<usize> = attribute_formats
-            .iter()
-            .map(|v| v.size() as usize)
-            .collect();
         Self {
-            data: AttributeData::Interleaved(InterleavedVec::with_count(count as usize, sizes)),
+            data,
             attribute_formats,
             attribute_ids,
             index_data: None,
         }
     }
 
+    pub fn interleaved<V: Pod + AsVertexFormat>(data: Vec<V>) -> Self {
+        let data_u8 = reinterpret_vec(data);
+        Self::new(AttributeData::Interleaved(data_u8), V::as_vertex_formats())
+    }
+
+    pub fn interleaved_with_count(count: u64, descriptors: &[AttributeDescriptor]) -> Self {
+        let attribute_formats: Vec<wgpu::VertexFormat> =
+            descriptors.iter().map(|v| v.format).collect();
+        let byte_count = count as usize * compute_stride(&attribute_formats);
+        Self::new(AttributeData::Interleaved(vec![0; byte_count]), descriptors)
+    }
+
     pub fn soa_with_count(count: u64, descriptors: &[AttributeDescriptor]) -> Self {
-        let attribute_ids = descriptors.iter().map(|v| v.id).collect();
         let attribute_formats: Vec<wgpu::VertexFormat> =
             descriptors.iter().map(|v| v.format).collect();
         let data: Vec<Vec<u8>> = attribute_formats
             .iter()
             .map(|v| Vec::with_capacity(v.size() as usize * count as usize))
             .collect();
-        Self {
-            data: AttributeData::SoA(data),
-            attribute_formats,
-            attribute_ids,
-            index_data: None,
-        }
+        Self::new(AttributeData::SoA(data), descriptors)
     }
 
-    pub fn attribute<'a, T: Pod>(
-        &'a mut self,
-        attribute: usize,
-    ) -> Result<AttributeSlice<'a, T>, ()> {
+    pub fn attribute<'a, T: Pod>(&'a mut self, attribute: usize) -> AttributeSlice<'a, T> {
         let byte_size = self.attribute_formats[attribute].size() as usize;
-        if std::mem::size_of::<T>() != byte_size {
-            return Err(());
+        let request_byte_size = std::mem::size_of::<T>();
+        if request_byte_size > byte_size {
+            panic!(
+                "attribute contains element of {} bytes, but a slice of {} was requested",
+                byte_size, request_byte_size
+            );
         }
-        Ok(match &mut self.data {
-            AttributeData::Interleaved(v) => {
-                let stride = v.stride();
-                let byte_offset = v.byte_offset_for(attribute);
-                let byte_end = v.data().len();
-                AttributeSlice {
-                    data: v.data_mut(),
-                    stride: stride,
-                    byte_offset,
-                    byte_end,
-                    _phantom_data: PhantomData,
-                }
-            }
+        match &mut self.data {
+            AttributeData::Interleaved(v) => AttributeSlice {
+                byte_end: v.len(),
+                stride: compute_stride(&self.attribute_formats),
+                byte_offset: byte_offset_for(&self.attribute_formats, attribute),
+                data: v,
+                _phantom_data: PhantomData,
+            },
             AttributeData::SoA(ref mut soa) => {
                 let byte_end = soa[attribute].len();
                 AttributeSlice {
@@ -127,19 +209,36 @@ impl Primitive {
                     _phantom_data: PhantomData,
                 }
             }
-        })
+        }
     }
 
-    pub fn attribute_id(&self, id: AttributeId) -> Option<usize> {
+    float_slice_attribute!(attribute_f32, f32);
+    float_slice_attribute!(attribute_f32x2, [f32; 2]);
+    float_slice_attribute!(attribute_f32x3, [f32; 3]);
+    float_slice_attribute!(attribute_f32x4, [f32; 4]);
+    float_slice_attribute!(attribute_f64, f64);
+    float_slice_attribute!(attribute_f64x2, [f64; 2]);
+    float_slice_attribute!(attribute_f64x3, [f64; 3]);
+    float_slice_attribute!(attribute_f64x4, [f64; 4]);
+    unsigned_slice_attribute!(attribute_u32, u32);
+    unsigned_slice_attribute!(attribute_u32x2, [u32; 2]);
+    unsigned_slice_attribute!(attribute_u32x3, [u32; 3]);
+    unsigned_slice_attribute!(attribute_u32x4, [u32; 4]);
+    // @todo: implement missing attributes
+
+    // @todo: add overload to move a Vec ownership into
+    // the primtive when using SOA.
+
+    pub fn attribute_index(&self, id: AttributeId) -> Option<usize> {
         self.attribute_ids.iter().position(|&val| val == id)
-    }
-
-    pub fn attribute_count(&self) -> usize {
-        self.attribute_formats.len()
     }
 
     pub fn attribute_format(&self, index: usize) -> wgpu::VertexFormat {
         self.attribute_formats[index]
+    }
+
+    pub fn attribute_count(&self) -> usize {
+        self.attribute_formats.len()
     }
 
     pub fn set_indices(&mut self, data: IndexData) {
@@ -156,16 +255,20 @@ impl Primitive {
 
     pub fn count(&self) -> usize {
         match &self.data {
-            AttributeData::Interleaved(ref v) => v.count(),
-            AttributeData::SoA(ref v) => {
-                todo!("unimplemented")
-            }
+            AttributeData::Interleaved(ref v) => v.len() / compute_stride(&self.attribute_formats),
+            AttributeData::SoA(ref v) => v[0].len() / self.attribute_formats[0].size() as usize,
+        }
+    }
+
+    pub fn is_interleaved(&self) -> bool {
+        match self.data {
+            AttributeData::Interleaved(_) => true,
+            _ => false,
         }
     }
 }
 
 // @todo: add non-mutable slice.
-
 pub struct AttributeSlice<'a, T: Pod> {
     data: &'a mut [u8],
     byte_offset: usize,
@@ -175,7 +278,7 @@ pub struct AttributeSlice<'a, T: Pod> {
 }
 
 impl<'a, T: Pod> AttributeSlice<'a, T> {
-    fn iter(&'a self) -> AttributeSliceIter<'a, T> {
+    pub fn iter(&'a self) -> AttributeSliceIter<'a, T> {
         AttributeSliceIter {
             slice: self,
             index: 0,
@@ -305,9 +408,11 @@ impl<'a> gpu::ResourceBuilder for PrimitiveResourceBuilder<'a> {
             gpu::BufferInitDescriptor::new(Some("Primitive Buffer"), wgpu::BufferUsages::VERTEX)
         };
 
+        let count: usize = self.primitive.count();
+
         attributes.push(match &self.primitive.data {
             AttributeData::Interleaved(v) => {
-                gpu::DynBuffer::new_with_data(device, v.data(), v.count() as u64, Some(descriptor))
+                gpu::DynBuffer::new_with_data(device, v, count as u64, Some(descriptor))
             }
             AttributeData::SoA(ref _soa) => {
                 todo!("unimplemented")
@@ -324,5 +429,14 @@ impl<'a> gpu::ResourceBuilder for PrimitiveResourceBuilder<'a> {
             attributes,
             indices,
         })
+    }
+}
+
+impl Debug for IndexData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::U16(arg0) => f.debug_list().entries(arg0).finish(),
+            Self::U32(arg0) => f.debug_list().entries(arg0).finish(),
+        }
     }
 }

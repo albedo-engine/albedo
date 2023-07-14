@@ -1,5 +1,6 @@
-use super::IndexData;
+use super::{AttributeDescriptor, AttributeId, IndexData, Primitive};
 
+#[derive(Debug, Clone)]
 pub struct ShapeData {
     pub positions: Vec<[f32; 3]>,
     pub normals: Vec<[f32; 3]>,
@@ -9,6 +10,24 @@ pub struct ShapeData {
 impl ShapeData {
     pub fn count(&self) -> u64 {
         self.positions.len() as u64
+    }
+
+    pub fn to_primitive(self, layout: &[AttributeDescriptor]) -> Result<Primitive, ()> {
+        let mut primitive = Primitive::interleaved_with_count(self.count(), layout);
+        primitive.set_indices(self.indices);
+
+        match primitive.attribute_index(AttributeId::POSITION) {
+            Some(index) => {
+                primitive.attribute_f32x3(index).set(&self.positions);
+            }
+            _ => return Err({}),
+        };
+
+        if let Some(index) = primitive.attribute_index(AttributeId::NORMAL) {
+            primitive.attribute_f32x3(index).set(&self.normals);
+        };
+
+        Ok(primitive)
     }
 }
 

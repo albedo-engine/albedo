@@ -67,15 +67,10 @@ impl Example for PickingExample {
                 source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("shader.wgsl"))),
             });
 
-        let cube_data = shapes::Cube::new(1.0).data();
-        let mut primitive =
-            Primitive::interleaved_with_count(cube_data.count(), Vertex3D::as_vertex_formats());
-        primitive.set_indices(cube_data.indices);
-        let mut positions = primitive.attribute::<[f32; 4]>(0).unwrap();
-        positions.set(&cube_data.positions);
-
-        let mut normals = primitive.attribute::<[f32; 4]>(1).unwrap();
-        normals.set(&cube_data.normals);
+        let primitive = shapes::Cube::new(1.0)
+            .data()
+            .to_primitive(Vertex3D::as_vertex_formats())
+            .unwrap();
 
         let vertex_buffer_layout = primitive.as_vertex_buffer_layout();
 
