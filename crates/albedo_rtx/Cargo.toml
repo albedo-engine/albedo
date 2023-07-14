@@ -12,7 +12,7 @@ keywords = ["raytracing", "graphics" ]
 accumulate_read_write = []
 
 [dependencies]
-bytemuck = "1.4.1"
+bytemuck = { version = "1.7.2", features = ["derive"] }
 glam = "0.20.2"
 guillotiere = "0.6.2"
 wgpu = { version = "0.15.0", features = ["spirv"] }

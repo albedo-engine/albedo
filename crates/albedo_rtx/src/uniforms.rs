@@ -10,7 +10,7 @@ pub trait Uniform: Sized {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Instance {
     pub model_to_world: glam::Mat4,
     pub world_to_model: glam::Mat4,
@@ -20,8 +20,6 @@ pub struct Instance {
     pub vertex_root_index: u32,
     pub index_root_index: u32,
 }
-unsafe impl bytemuck::Pod for Instance {}
-unsafe impl bytemuck::Zeroable for Instance {}
 impl Uniform for Instance {}
 
 #[repr(C)]
