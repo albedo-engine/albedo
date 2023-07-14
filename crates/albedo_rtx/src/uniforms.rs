@@ -1,4 +1,4 @@
-use albedo_backend::gpu;
+use albedo_backend::mesh;
 use std::convert::TryInto;
 
 pub static INVALID_INDEX: u32 = std::u32::MAX;
@@ -73,6 +73,22 @@ impl Vertex {
 
     pub fn position(&self) -> &[f32; 3] {
         self.position[0..3].try_into().unwrap()
+    }
+}
+
+impl mesh::AsVertexFormat for Vertex {
+    fn as_vertex_formats() -> &'static [mesh::AttributeDescriptor] {
+        static ATTRIBUTE_DESCRIPTORS: [mesh::AttributeDescriptor; 2] = [
+            mesh::AttributeDescriptor {
+                id: mesh::AttributeId::POSITION,
+                format: wgpu::VertexFormat::Float32x4,
+            },
+            mesh::AttributeDescriptor {
+                id: mesh::AttributeId::NORMAL,
+                format: wgpu::VertexFormat::Float32x4,
+            },
+        ];
+        &ATTRIBUTE_DESCRIPTORS
     }
 }
 

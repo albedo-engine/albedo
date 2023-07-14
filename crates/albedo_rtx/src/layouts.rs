@@ -129,6 +129,43 @@ impl RTSceneBindGroupLayout {
         Self { 0: inner }
     }
 
+    pub fn create_geometry_bindgroup(
+        &self,
+        device: &wgpu::Device,
+        nodes: gpu::StorageBufferSlice<albedo_bvh::BVHNode>,
+        instances: gpu::StorageBufferSlice<uniforms::Instance>,
+        indices: gpu::StorageBufferSlice<u32>,
+        vertices: gpu::StorageBufferSlice<uniforms::Vertex>,
+        lights: gpu::StorageBufferSlice<uniforms::Light>,
+    ) -> wgpu::BindGroup {
+        device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Radiance Estimator Base Bind Group"),
+            layout: &self.0,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: Self::NODE_BINDING,
+                    resource: nodes.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: Self::INSTANCE_BINDING,
+                    resource: instances.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: Self::INDEX_BINDING,
+                    resource: indices.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: Self::VERTEX_BINDING,
+                    resource: vertices.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: Self::LIGHT_BINDING,
+                    resource: lights.as_entire_binding(),
+                },
+            ],
+        })
+    }
+
     pub fn create_bindgroup(
         &self,
         device: &wgpu::Device,

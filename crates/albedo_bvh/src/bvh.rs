@@ -108,7 +108,6 @@ impl BVH {
     }
 
     pub(crate) fn new(nodes: Vec<Node>, primitives_count: u32, root: u32) -> BVH {
-        let count = nodes.len();
         BVH {
             nodes,
             primitives_count,

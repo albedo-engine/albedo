@@ -50,6 +50,7 @@ name = "albedo"
 version = "0.0.1-beta.0"
 dependencies = [
  "albedo_backend",
+ "albedo_bvh",
  "albedo_rtx",
  "async-executor",
  "bytemuck",

@@ -35,6 +35,7 @@ pub struct App {
     pub executor: Spawner<'static>,
     #[cfg(target_arch = "wasm32")]
     pub executor: Spawner,
+    pub mouse: glam::Vec2,
 }
 
 pub async fn initialize<E>(title: &str) -> (EventLoop, App) {
@@ -112,6 +113,7 @@ pub async fn initialize<E>(title: &str) -> (EventLoop, App) {
         surface_config,
         queue,
         executor: Spawner::new(),
+        mouse: glam::Vec2::new(0.0, 0.0),
     };
     (event_loop, app)
 }
@@ -123,13 +125,15 @@ pub trait Example: 'static + Sized {
 
     fn new(app: &App) -> Self;
     fn resize(&mut self, platform: &App);
-    fn update(&mut self, event: winit::event::WindowEvent);
+    fn event(&mut self, platform: &App, _event: winit::event::WindowEvent);
+    fn update(&mut self, platform: &App);
     fn render(&mut self, platform: &App, view: &wgpu::TextureView);
 }
 
 fn run<E: Example>(event_loop: EventLoop, app: App) {
     let mut example = E::new(&app);
     let mut app = app;
+
     event_loop.run(move |event, _, control_flow| {
         *control_flow = if cfg!(feature = "metal-auto-capture") {
             ControlFlow::Exit
@@ -151,28 +155,26 @@ fn run<E: Example>(event_loop: EventLoop, app: App) {
                     },
                 ..
             } => {
-                log!("Resizing to {:?}", size);
                 app.surface_config.width = size.width.max(1);
                 app.surface_config.height = size.height.max(1);
                 example.resize(&app);
                 app.surface.configure(&app.device, &app.surface_config);
             }
+            event::Event::WindowEvent {
+                event: WindowEvent::CursorMoved { position, .. },
+                ..
+            } => {
+                app.mouse = glam::Vec2::new(
+                    position.x as f32 / app.surface_config.width as f32,
+                    position.y as f32 / app.surface_config.height as f32,
+                ) * 2.0
+                    - 1.0
+            }
             event::Event::WindowEvent { event, .. } => match event {
-                WindowEvent::KeyboardInput {
-                    input:
-                        event::KeyboardInput {
-                            virtual_keycode: Some(event::VirtualKeyCode::Escape),
-                            state: event::ElementState::Pressed,
-                            ..
-                        },
-                    ..
-                }
-                | WindowEvent::CloseRequested => {
+                WindowEvent::CloseRequested => {
                     *control_flow = ControlFlow::Exit;
                 }
-                _ => {
-                    example.update(event);
-                }
+                _ => example.event(&app, event),
             },
             event::Event::RedrawRequested(_) => {
                 let frame = match app.surface.get_current_texture() {
@@ -188,6 +190,7 @@ fn run<E: Example>(event_loop: EventLoop, app: App) {
                     .texture
                     .create_view(&wgpu::TextureViewDescriptor::default());
 
+                example.update(&app);
                 example.render(&app, &view);
                 frame.present();
             }

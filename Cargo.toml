@@ -17,6 +17,7 @@ members = ["crates/*"]
 
 [dev-dependencies]
 albedo_backend = { path = "crates/albedo_backend" }
+albedo_bvh = { path = "crates/albedo_bvh" }
 albedo_rtx = { path = "crates/albedo_rtx" }
 bytemuck = "1.4.1"
 image = {version = "0.23", default-features = false, features = ["hdr"]}
