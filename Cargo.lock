@@ -83,6 +83,7 @@ dependencies = [
 name = "albedo_bvh"
 version = "0.0.1-beta.0"
 dependencies = [
+ "albedo_backend",
  "albedo_math",
  "bytemuck",
  "glam",

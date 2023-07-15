@@ -253,10 +253,22 @@ impl Primitive {
         self.index_data = Some(IndexData::U32(data));
     }
 
-    pub fn count(&self) -> usize {
+    pub fn indices(&self) -> Option<&IndexData> {
+        self.index_data.as_ref()
+    }
+
+    pub fn vertex_count(&self) -> usize {
         match &self.data {
             AttributeData::Interleaved(ref v) => v.len() / compute_stride(&self.attribute_formats),
             AttributeData::SoA(ref v) => v[0].len() / self.attribute_formats[0].size() as usize,
+        }
+    }
+
+    pub fn index_count(&self) -> usize {
+        match &self.index_data {
+            Some(IndexData::U16(v)) => v.len(),
+            Some(IndexData::U32(v)) => v.len(),
+            None => 0,
         }
     }
 
@@ -408,7 +420,7 @@ impl<'a> gpu::ResourceBuilder for PrimitiveResourceBuilder<'a> {
             gpu::BufferInitDescriptor::new(Some("Primitive Buffer"), wgpu::BufferUsages::VERTEX)
         };
 
-        let count: usize = self.primitive.count();
+        let count: usize = self.primitive.vertex_count();
 
         attributes.push(match &self.primitive.data {
             AttributeData::Interleaved(v) => {

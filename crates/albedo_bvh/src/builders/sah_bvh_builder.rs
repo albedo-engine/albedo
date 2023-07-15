@@ -25,7 +25,7 @@ impl SAHBuilder {
 }
 
 impl BVHBuilder for SAHBuilder {
-    fn build<V: bytemuck::Pod>(&mut self, mesh: &impl Mesh<V>) -> Result<BVH, &'static str> {
+    fn build(&mut self, mesh: &impl Mesh) -> Result<BVH, &'static str> {
         // @todo: support for quads.
         // @todo: support for u8 and u32.
         let nb_triangles = mesh.index_count() / 3;
@@ -43,9 +43,9 @@ impl BVHBuilder for SAHBuilder {
             let i0 = mesh.index(primitive_start).unwrap();
             let i1 = mesh.index(primitive_start + 1).unwrap();
             let i2 = mesh.index(primitive_start + 2).unwrap();
-            let v0_pos = mesh.position(*i0).unwrap();
-            let v1_pos = mesh.position(*i1).unwrap();
-            let v2_pos = mesh.position(*i2).unwrap();
+            let v0_pos = mesh.position(i0).unwrap();
+            let v1_pos = mesh.position(i1).unwrap();
+            let v2_pos = mesh.position(i2).unwrap();
 
             let mut aabb = AABB::make_empty();
             aabb.expand_mut(&Vec3::from(*v0_pos));
