@@ -1,4 +1,5 @@
-mod strided_slice;
+mod slice;
+pub use slice::*;
 
 use bytemuck::Pod;
 

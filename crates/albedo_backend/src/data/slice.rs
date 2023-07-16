@@ -1,6 +1,7 @@
 use bytemuck::Pod;
-use std::{marker::PhantomData, slice::SliceIndex};
+use std::marker::PhantomData;
 
+#[derive(Clone)]
 pub struct Slice<'a, T: Pod> {
     data: &'a [u8],
     stride: usize,
@@ -11,6 +12,16 @@ pub struct SliceMut<'a, T: Pod> {
     data: &'a mut [u8],
     stride: usize,
     _phantom_data: PhantomData<&'a T>,
+}
+
+pub struct SliceIterator<'a, T: Pod> {
+    slice: &'a Slice<'a, T>,
+    index: usize,
+}
+
+pub struct SliceMutIterator<'a, T: Pod> {
+    slice: SliceMut<'a, T>,
+    index: usize,
 }
 
 macro_rules! impl_slice {
@@ -64,15 +75,10 @@ macro_rules! impl_indexing {
             type Output = T;
 
             fn index(&self, index: usize) -> &Self::Output {
-                let start_byte = self.stride * index;
-                assert!(
-                    start_byte + std::mem::size_of::<T>() <= self.data.len(),
-                    "index ouf of bounds"
-                );
-                let cast: &[T] = bytemuck::cast_slice(
-                    &self.data[start_byte..start_byte + std::mem::size_of::<T>()],
-                );
-                &cast[0]
+                let start = self.stride * index;
+                let end = start + std::mem::size_of::<T>();
+                assert!(end <= self.data.len(), "index ouf of bounds");
+                bytemuck::from_bytes(&self.data[start..end])
             }
         }
     };
@@ -86,14 +92,32 @@ where
     T: Pod,
 {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        let start_byte = self.stride * index;
-        assert!(
-            start_byte + std::mem::size_of::<T>() <= self.data.len(),
-            "index ouf of bounds"
-        );
-        let cast: &mut [T] = bytemuck::cast_slice_mut(
-            &mut self.data[start_byte..start_byte + std::mem::size_of::<T>()],
-        );
-        &mut cast[0]
+        let start = self.stride * index;
+        let end = start + std::mem::size_of::<T>();
+        assert!(end <= self.data.len(), "index ouf of bounds");
+        bytemuck::from_bytes_mut(&mut self.data[start..end])
+    }
+}
+
+impl<'a, T: Pod> Iterator for Slice<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.data.len() == 0 {
+            return None;
+        }
+        let result: &T = bytemuck::from_bytes(&self.data[0..std::mem::size_of::<T>()]);
+        self.data = &self.data[self.stride..];
+        Some(result)
+    }
+}
+
+impl<'a, T: Pod> Iterator for SliceIterator<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let index = self.index;
+        self.index = index + 1;
+        Some(&self.slice[index])
     }
 }
