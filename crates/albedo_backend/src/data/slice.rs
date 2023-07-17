@@ -23,26 +23,24 @@ pub struct SliceMut<'a, T: Pod> {
     data: *mut u8,
     count: usize,
     stride: usize,
-    _phantom_data: PhantomData<&'a T>,
+    _phantom_data: PhantomData<&'a mut T>,
 }
 
 macro_rules! impl_slice {
     ($ty:ident, $iter_name:ident) => {
         impl<'a, T: Pod> $ty<'a, T> {
-            pub fn new<V: Pod>(data: &[V]) -> Self {
-                let data: &[u8] = bytemuck::cast_slice(data);
-                let stride = std::mem::size_of::<V>();
+            pub fn new(data: &[u8], count: usize, stride: usize) -> Self {
                 Self {
                     data: data.as_ptr() as *mut u8,
-                    count: data.len() / stride,
+                    count,
                     stride,
                     _phantom_data: PhantomData,
                 }
             }
 
             pub fn new_with_offset<V: Pod>(data: &[V], offset: usize) -> Self {
-                let data: &[u8] = bytemuck::cast_slice(data);
-                Self::new(&data[offset..])
+                let bytes: &[u8] = bytemuck::cast_slice(data);
+                Self::new(&bytes[offset..], data.len(), std::mem::size_of::<V>())
             }
 
             pub fn len(&self) -> usize {
@@ -154,7 +152,7 @@ pub struct SliceIterator<'a, T: Pod> {
     data: *const u8,
     end: *const u8,
     stride: usize,
-    _phantom_data: PhantomData<&'a mut T>,
+    _phantom_data: PhantomData<&'a T>,
 }
 
 pub struct SliceMutIterator<'a, T: Pod> {
@@ -250,6 +248,7 @@ mod tests {
     #[test]
     fn mutable_indexing() {
         let mut vertices = data();
+
         let mut slice: SliceMut<[f32; 3]> = SliceMut::from_slice(&mut vertices);
         assert_eq!(slice[0], [1.0, -1.0, 1.0]);
         assert_eq!(slice[1], [-1.0, 1.0, 0.0]);
