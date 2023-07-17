@@ -1,3 +1,5 @@
+use albedo_backend::mesh::IndexDataSlice;
+
 use crate::builders::BVHBuilder;
 use crate::{BVHNode, Mesh};
 
@@ -75,8 +77,8 @@ impl BLASArray {
             });
             // @todo: check for u32 overflow.
             node_count += bvh.len() as u32;
-            index_count += mesh.index_count();
-            vertex_count += mesh.vertex_count();
+            index_count += mesh.indices().unwrap().len() as u32;
+            vertex_count += mesh.positions().unwrap().len() as u32;
         }
 
         // @todo: parallel for.
@@ -87,9 +89,19 @@ impl BLASArray {
             let mesh = &meshes[i];
             nodes.extend(&bvhs[i]);
             // @todo: optimized: replace by memcpy when possible.
-            for ii in 0..mesh.index_count() {
-                indices.push(mesh.index(ii).unwrap());
-            }
+            let slice = mesh.indices().unwrap();
+            match slice {
+                IndexDataSlice::U16(v) => {
+                    for i in v.iter() {
+                        indices.push(*i as u32);
+                    }
+                }
+                IndexDataSlice::U32(v) => {
+                    for i in v.iter() {
+                        indices.push(*i);
+                    }
+                }
+            };
         }
 
         Ok(BLASArray {

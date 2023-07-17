@@ -18,13 +18,13 @@ impl ShapeData {
 
         match primitive.attribute_index(AttributeId::POSITION) {
             Some(index) => {
-                primitive.attribute_f32x3(index).set(&self.positions);
+                primitive.attribute_f32x3_mut(index).set(&self.positions);
             }
             _ => return Err({}),
         };
 
         if let Some(index) = primitive.attribute_index(AttributeId::NORMAL) {
-            primitive.attribute_f32x3(index).set(&self.normals);
+            primitive.attribute_f32x3_mut(index).set(&self.normals);
         };
 
         Ok(primitive)
