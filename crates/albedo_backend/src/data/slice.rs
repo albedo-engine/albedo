@@ -97,8 +97,8 @@ impl<'a, T: Pod> SliceMut<'a, T> {
             let src_start = i * other_stride;
             unsafe {
                 // @todo: Document non-overlapping.
-                ptr.offset(src_start as isize)
-                    .copy_from_nonoverlapping(other_ptr.offset(dst_start as isize), other_stride);
+                ptr.offset(dst_start as isize)
+                    .copy_from_nonoverlapping(other_ptr.offset(src_start as isize), other_stride);
             }
         }
     }
