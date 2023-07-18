@@ -10,5 +10,5 @@ keywords = ["rendering", "graphics", "wgpu" ]
 resolver = "2"
 
 [dependencies]
-bytemuck = "1.4.1"
+bytemuck = { version = "1.7.2", features = ["derive"] }
 wgpu = "0.15.0"

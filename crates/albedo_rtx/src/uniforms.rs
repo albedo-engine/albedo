@@ -1,4 +1,4 @@
-use albedo_backend::gpu;
+use albedo_backend::mesh;
 use std::convert::TryInto;
 
 pub static INVALID_INDEX: u32 = std::u32::MAX;
@@ -10,7 +10,7 @@ pub trait Uniform: Sized {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Instance {
     pub model_to_world: glam::Mat4,
     pub world_to_model: glam::Mat4,
@@ -20,8 +20,6 @@ pub struct Instance {
     pub vertex_root_index: u32,
     pub index_root_index: u32,
 }
-unsafe impl bytemuck::Pod for Instance {}
-unsafe impl bytemuck::Zeroable for Instance {}
 impl Uniform for Instance {}
 
 #[repr(C)]
@@ -73,6 +71,22 @@ impl Vertex {
 
     pub fn position(&self) -> &[f32; 3] {
         self.position[0..3].try_into().unwrap()
+    }
+}
+
+impl mesh::AsVertexFormat for Vertex {
+    fn as_vertex_formats() -> &'static [mesh::AttributeDescriptor] {
+        static ATTRIBUTE_DESCRIPTORS: [mesh::AttributeDescriptor; 2] = [
+            mesh::AttributeDescriptor {
+                id: mesh::AttributeId::POSITION,
+                format: wgpu::VertexFormat::Float32x4,
+            },
+            mesh::AttributeDescriptor {
+                id: mesh::AttributeId::NORMAL,
+                format: wgpu::VertexFormat::Float32x4,
+            },
+        ];
+        &ATTRIBUTE_DESCRIPTORS
     }
 }
 

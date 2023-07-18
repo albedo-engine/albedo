@@ -1,3 +1,6 @@
+mod slice;
+pub use slice::*;
+
 use bytemuck::Pod;
 
 pub fn reinterpret_vec<T: Pod>(mut v: Vec<T>) -> Vec<u8> {

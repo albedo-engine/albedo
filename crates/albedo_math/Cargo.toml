@@ -9,4 +9,4 @@ license = "MIT"
 keywords = ["raytracing", "graphics" ]
 
 [dependencies]
-glam = "0.20.2"
+glam = { version = "0.20.2", features = ["bytemuck"] }

@@ -1,3 +1,4 @@
+use albedo_backend::mesh::IndexDataSlice;
 use albedo_math::{clamp, AABB};
 use glam::Vec3;
 
@@ -25,10 +26,12 @@ impl SAHBuilder {
 }
 
 impl BVHBuilder for SAHBuilder {
-    fn build<V: bytemuck::Pod>(&mut self, mesh: &impl Mesh<V>) -> Result<BVH, &'static str> {
+    fn build(&mut self, mesh: &impl Mesh) -> Result<BVH, &'static str> {
+        let indices = mesh.indices().unwrap();
+        let positions = mesh.positions().unwrap();
+
         // @todo: support for quads.
-        // @todo: support for u8 and u32.
-        let nb_triangles = mesh.index_count() / 3;
+        let nb_triangles = indices.len() / 3;
         if nb_triangles == 0 {
             return Err("todo");
         }
@@ -40,22 +43,31 @@ impl BVHBuilder for SAHBuilder {
         // Creates all leaf nodes.
         for i in 0..nb_triangles {
             let primitive_start = i * 3;
-            let i0 = mesh.index(primitive_start).unwrap();
-            let i1 = mesh.index(primitive_start + 1).unwrap();
-            let i2 = mesh.index(primitive_start + 2).unwrap();
-            let v0_pos = mesh.position(*i0).unwrap();
-            let v1_pos = mesh.position(*i1).unwrap();
-            let v2_pos = mesh.position(*i2).unwrap();
+            let index = match &indices {
+                IndexDataSlice::U16(v) => (
+                    v[primitive_start] as u32,
+                    v[primitive_start + 1] as u32,
+                    v[primitive_start + 2] as u32,
+                ),
+                IndexDataSlice::U32(v) => (
+                    v[primitive_start],
+                    v[primitive_start + 1],
+                    v[primitive_start + 2],
+                ),
+            };
+            let v0_pos = positions[index.0 as usize];
+            let v1_pos = positions[index.1 as usize];
+            let v2_pos = positions[index.2 as usize];
 
             let mut aabb = AABB::make_empty();
-            aabb.expand_mut(&Vec3::from(*v0_pos));
-            aabb.expand_mut(&Vec3::from(*v1_pos));
-            aabb.expand_mut(&Vec3::from(*v2_pos));
-            nodes.push(Node::make_leaf(aabb, primitive_start));
+            aabb.expand_mut(&Vec3::from(v0_pos));
+            aabb.expand_mut(&Vec3::from(v1_pos));
+            aabb.expand_mut(&Vec3::from(v2_pos));
+            nodes.push(Node::make_leaf(aabb, primitive_start as u32));
         }
 
-        let root = rec_build(&mut nodes, &mut self._bins, 0, nb_triangles as usize);
-        Ok(BVH::new(nodes, nb_triangles, root as u32))
+        let root = rec_build(&mut nodes, &mut self._bins, 0, nb_triangles);
+        Ok(BVH::new(nodes, nb_triangles as u32, root as u32))
     }
 }
 

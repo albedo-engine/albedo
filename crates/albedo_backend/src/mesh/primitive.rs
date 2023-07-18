@@ -1,10 +1,9 @@
 use core::panic;
 use std::fmt::Debug;
-use std::marker::PhantomData;
 
 use bytemuck::Pod;
 
-use crate::data::reinterpret_vec;
+use crate::data::{reinterpret_vec, Slice, SliceMut};
 use crate::gpu;
 
 use super::AsVertexFormat;
@@ -112,11 +111,28 @@ pub enum IndexData {
     U32(Vec<u32>),
 }
 
+#[derive(Clone)]
+pub enum IndexDataSlice<'a> {
+    U16(Slice<'a, u16>),
+    U32(Slice<'a, u32>),
+}
+
+impl<'a> IndexDataSlice<'a> {
+    pub fn len(&self) -> usize {
+        match &self {
+            IndexDataSlice::U16(s) => s.len(),
+            IndexDataSlice::U32(s) => s.len(),
+        }
+    }
+}
+
+// @todo: Refactor those macros together if possible
+
 // Macro to generate a method to lookup an attribute on a
 // Primitive.
 macro_rules! float_slice_attribute {
-    ($name:tt, $type:ty) => {
-        pub fn $name<'a>(&'a mut self, index: usize) -> AttributeSlice<'a, $type> {
+    ($name:ident, $type:ty) => {
+        pub fn $name<'a>(&'a self, index: usize) -> Slice<'a, $type> {
             let format = self.attribute_format(index);
             if !is_vertex_format_float(&format) {
                 panic!("attribute format isn't float"); // @todo: implement Display for VertexFormat
@@ -125,12 +141,24 @@ macro_rules! float_slice_attribute {
         }
     };
 }
-
+// Macro to generate a method to lookup an attribute on a
+// Primitive.
+macro_rules! float_slice_attribute_mut {
+    ($name:ident, $type:ty) => {
+        pub fn $name<'a>(&'a mut self, index: usize) -> SliceMut<'a, $type> {
+            let format = self.attribute_format(index);
+            if !is_vertex_format_float(&format) {
+                panic!("attribute format isn't float"); // @todo: implement Display for VertexFormat
+            }
+            self.attribute_mut::<$type>(index)
+        }
+    };
+}
 // Macro to generate a method to lookup an attribute on a
 // Primitive.
 macro_rules! unsigned_slice_attribute {
     ($name:tt, $type:ty) => {
-        pub fn $name<'a>(&'a mut self, index: usize) -> AttributeSlice<'a, $type> {
+        pub fn $name<'a>(&'a mut self, index: usize) -> Slice<'a, $type> {
             let format = self.attribute_format(index);
             if !is_vertex_format_unsigned(&format) {
                 panic!("attribute format isn't unsigned"); // @todo: implement Display for VertexFormat
@@ -182,33 +210,27 @@ impl Primitive {
         Self::new(AttributeData::SoA(data), descriptors)
     }
 
-    pub fn attribute<'a, T: Pod>(&'a mut self, attribute: usize) -> AttributeSlice<'a, T> {
-        let byte_size = self.attribute_formats[attribute].size() as usize;
-        let request_byte_size = std::mem::size_of::<T>();
-        if request_byte_size > byte_size {
-            panic!(
-                "attribute contains element of {} bytes, but a slice of {} was requested",
-                byte_size, request_byte_size
-            );
+    pub fn attribute<'a, T: Pod>(&'a self, attribute: usize) -> Slice<'a, T> {
+        let byte_size: usize = self.attribute_formats[attribute].size() as usize;
+        match &self.data {
+            AttributeData::Interleaved(v) => Slice::new(
+                v,
+                compute_stride(&self.attribute_formats),
+                byte_offset_for(&self.attribute_formats, attribute),
+            ),
+            AttributeData::SoA(ref soa) => Slice::new(&soa[attribute], byte_size, 0),
         }
+    }
+
+    pub fn attribute_mut<'a, T: Pod>(&'a mut self, attribute: usize) -> SliceMut<'a, T> {
+        let byte_size: usize = self.attribute_formats[attribute].size() as usize;
         match &mut self.data {
-            AttributeData::Interleaved(v) => AttributeSlice {
-                byte_end: v.len(),
-                stride: compute_stride(&self.attribute_formats),
-                byte_offset: byte_offset_for(&self.attribute_formats, attribute),
-                data: v,
-                _phantom_data: PhantomData,
-            },
-            AttributeData::SoA(ref mut soa) => {
-                let byte_end = soa[attribute].len();
-                AttributeSlice {
-                    data: soa[attribute].as_mut(),
-                    stride: byte_size,
-                    byte_offset: 0,
-                    byte_end,
-                    _phantom_data: PhantomData,
-                }
-            }
+            AttributeData::Interleaved(v) => SliceMut::new(
+                v,
+                compute_stride(&self.attribute_formats),
+                byte_offset_for(&self.attribute_formats, attribute),
+            ),
+            AttributeData::SoA(ref mut soa) => SliceMut::new(&mut soa[attribute], byte_size, 0),
         }
     }
 
@@ -220,6 +242,16 @@ impl Primitive {
     float_slice_attribute!(attribute_f64x2, [f64; 2]);
     float_slice_attribute!(attribute_f64x3, [f64; 3]);
     float_slice_attribute!(attribute_f64x4, [f64; 4]);
+
+    float_slice_attribute_mut!(attribute_f32_mut, f32);
+    float_slice_attribute_mut!(attribute_f32x2_mut, [f32; 2]);
+    float_slice_attribute_mut!(attribute_f32x3_mut, [f32; 3]);
+    float_slice_attribute_mut!(attribute_f32x4_mut, [f32; 4]);
+    float_slice_attribute_mut!(attribute_f64_mut, f64);
+    float_slice_attribute_mut!(attribute_f64x2_mut, [f64; 2]);
+    float_slice_attribute_mut!(attribute_f64x3_mut, [f64; 3]);
+    float_slice_attribute_mut!(attribute_f64x4_mut, [f64; 4]);
+
     unsigned_slice_attribute!(attribute_u32, u32);
     unsigned_slice_attribute!(attribute_u32x2, [u32; 2]);
     unsigned_slice_attribute!(attribute_u32x3, [u32; 3]);
@@ -253,10 +285,22 @@ impl Primitive {
         self.index_data = Some(IndexData::U32(data));
     }
 
-    pub fn count(&self) -> usize {
+    pub fn indices(&self) -> Option<&IndexData> {
+        self.index_data.as_ref()
+    }
+
+    pub fn vertex_count(&self) -> usize {
         match &self.data {
             AttributeData::Interleaved(ref v) => v.len() / compute_stride(&self.attribute_formats),
             AttributeData::SoA(ref v) => v[0].len() / self.attribute_formats[0].size() as usize,
+        }
+    }
+
+    pub fn index_count(&self) -> usize {
+        match &self.index_data {
+            Some(IndexData::U16(v)) => v.len(),
+            Some(IndexData::U32(v)) => v.len(),
+            None => 0,
         }
     }
 
@@ -265,106 +309,6 @@ impl Primitive {
             AttributeData::Interleaved(_) => true,
             _ => false,
         }
-    }
-}
-
-// @todo: add non-mutable slice.
-pub struct AttributeSlice<'a, T: Pod> {
-    data: &'a mut [u8],
-    byte_offset: usize,
-    byte_end: usize,
-    stride: usize,
-    _phantom_data: PhantomData<&'a T>,
-}
-
-impl<'a, T: Pod> AttributeSlice<'a, T> {
-    pub fn iter(&'a self) -> AttributeSliceIter<'a, T> {
-        AttributeSliceIter {
-            slice: self,
-            index: 0,
-        }
-    }
-
-    pub fn set<V: Pod>(&mut self, data: &[V]) {
-        let other_stride = std::mem::size_of::<V>();
-        if other_stride > std::mem::size_of::<T>() {
-            panic!(
-                "`data` type is {} bytes, but slice format expected at most {} bytes",
-                std::mem::size_of::<V>(),
-                std::mem::size_of::<T>()
-            );
-        }
-
-        let count = data.len();
-        if count > self.len() {
-            panic!("`data` is larger than the attribute slice");
-        }
-
-        let bytes: &[u8] = bytemuck::cast_slice(data);
-        for i in 0..count {
-            let dst_start = self.byte_offset + self.stride * i;
-            let src_start = i * other_stride;
-            self.data[dst_start..dst_start + other_stride]
-                .copy_from_slice(&bytes[src_start..src_start + other_stride]);
-        }
-    }
-
-    pub fn len(&self) -> usize {
-        self.data.len() / self.stride
-    }
-}
-
-impl<'a, T> std::ops::Index<usize> for AttributeSlice<'a, T>
-where
-    T: Pod,
-{
-    type Output = T;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        let start_byte = self.byte_offset + self.stride * index;
-        if start_byte >= self.byte_end {
-            panic!("index ouf of bounds");
-        }
-        let cast: &[T] =
-            bytemuck::cast_slice(&self.data[start_byte..start_byte + std::mem::size_of::<T>()]);
-        &cast[0]
-    }
-}
-
-impl<'a, T> std::ops::IndexMut<usize> for AttributeSlice<'a, T>
-where
-    T: Pod,
-{
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        let start_byte = self.byte_offset + self.stride * index;
-        if start_byte >= self.byte_end {
-            panic!("index ouf of bounds");
-        }
-        let cast: &mut [T] = bytemuck::cast_slice_mut(
-            &mut self.data[start_byte..start_byte + std::mem::size_of::<T>()],
-        );
-        &mut cast[0]
-    }
-}
-
-pub struct AttributeSliceIter<'a, T: Pod> {
-    slice: &'a AttributeSlice<'a, T>,
-    index: usize,
-}
-
-impl<'a, T> Iterator for AttributeSliceIter<'a, T>
-where
-    T: Pod,
-{
-    type Item = T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.index >= self.slice.len() {
-            return None;
-        }
-        let index = self.index;
-        self.index = self.index + 1;
-        Some(self.slice[index])
     }
 }
 
@@ -408,7 +352,7 @@ impl<'a> gpu::ResourceBuilder for PrimitiveResourceBuilder<'a> {
             gpu::BufferInitDescriptor::new(Some("Primitive Buffer"), wgpu::BufferUsages::VERTEX)
         };
 
-        let count: usize = self.primitive.count();
+        let count: usize = self.primitive.vertex_count();
 
         attributes.push(match &self.primitive.data {
             AttributeData::Interleaved(v) => {

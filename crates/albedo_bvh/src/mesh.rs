@@ -1,15 +1,27 @@
-//pub trait Vertex: Sized + bytemuck::Pod {}
+use albedo_backend::{
+    data::Slice,
+    mesh::{AttributeId, IndexData, IndexDataSlice},
+};
 
-// @todo: how to improve separation of mesh and primitives?
-// If BVH could handled sub-primitive that would be awesome.
-pub trait Mesh<V: bytemuck::Pod> {
-    // @todo: would it be possible to allow references here in every cases?
-    // What about the case where the data canno't be decayed to a &[f32; 3]?
-    // @todo: make the iterator generic instead of dyn.
-    fn index(&self, index: u32) -> Option<&u32>;
-    fn position(&self, index: u32) -> Option<&[f32; 3]>;
-    fn vertex(&self, index: u32) -> V;
+pub trait Mesh {
+    fn indices(&self) -> Option<IndexDataSlice>;
+    fn positions(&self) -> Option<Slice<[f32; 3]>>;
+}
 
-    fn vertex_count(&self) -> u32;
-    fn index_count(&self) -> u32;
+impl Mesh for albedo_backend::mesh::Primitive {
+    fn indices(&self) -> Option<IndexDataSlice> {
+        match &self.indices() {
+            Some(IndexData::U16(v)) => Some(IndexDataSlice::U16(Slice::from_slice(v))),
+            Some(IndexData::U32(v)) => Some(IndexDataSlice::U32(Slice::from_slice(v))),
+            _ => None,
+        }
+    }
+
+    fn positions(&self) -> Option<Slice<[f32; 3]>> {
+        if let Some(index) = self.attribute_index(AttributeId::POSITION) {
+            Some(self.attribute_f32x3(index))
+        } else {
+            None
+        }
+    }
 }
