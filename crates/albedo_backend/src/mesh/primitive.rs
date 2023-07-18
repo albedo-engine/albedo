@@ -261,6 +261,20 @@ impl Primitive {
     // @todo: add overload to move a Vec ownership into
     // the primtive when using SOA.
 
+    pub fn cast<T: Pod>(&self) -> Option<&[T]> {
+        match &self.data {
+            AttributeData::Interleaved(v) => Some(bytemuck::cast_slice(&v)),
+            _ => None,
+        }
+    }
+
+    pub fn cast_mut<T: Pod>(&mut self) -> Option<&mut [T]> {
+        match &mut self.data {
+            AttributeData::Interleaved(v) => Some(bytemuck::cast_slice_mut(v)),
+            _ => None,
+        }
+    }
+
     pub fn attribute_index(&self, id: AttributeId) -> Option<usize> {
         self.attribute_ids.iter().position(|&val| val == id)
     }

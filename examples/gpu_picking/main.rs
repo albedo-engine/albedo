@@ -1,6 +1,10 @@
 #[path = "../example/mod.rs"]
 mod example;
-use albedo_rtx::uniforms;
+use albedo_bvh::{builders::SAHBuilder, BLASArray};
+use albedo_rtx::{
+    uniforms::{Intersection, Ray, Vertex},
+    Instance,
+};
 use example::Example;
 
 use nanorand::Rng;
@@ -14,10 +18,10 @@ use albedo_backend::mesh::shapes::Shape;
 use albedo_backend::mesh::*;
 
 struct SceneGpu {
-    pub instance_buffer: gpu::Buffer<albedo_rtx::Instance>,
+    pub instance_buffer: gpu::Buffer<Instance>,
     pub bvh_buffer: gpu::Buffer<albedo_bvh::BVHNode>,
     pub index_buffer: gpu::Buffer<u32>,
-    pub vertex_buffer: gpu::Buffer<albedo_rtx::Vertex>,
+    pub vertex_buffer: gpu::Buffer<Vertex>,
     pub light_buffer: gpu::Buffer<albedo_rtx::Light>,
 }
 
@@ -26,9 +30,11 @@ struct PickingExample {
     bind_group: wgpu::BindGroup,
     primitive_gpu: gpu::Primitive,
     uniforms_data: Vec<Uniforms>,
-    scene_bgl: albedo_rtx::RTSceneBindGroupLayout,
-    // scene_gpu: SceneGpu,
-    // intersection_pass_bg: wgpu::BindGroup,
+    ray_buffer: gpu::Buffer<Ray>,
+    intersection_buffer: gpu::Buffer<Intersection>,
+    scene_bindgroup: wgpu::BindGroup,
+    scene_gpu: SceneGpu,
+    intersection_pass_bg: wgpu::BindGroup,
     intersection_pass: albedo_rtx::passes::IntersectorPass,
 }
 
@@ -60,7 +66,7 @@ impl Example for PickingExample {
 
         let primitive = shapes::Cube::new(1.0)
             .data()
-            .to_primitive(uniforms::Vertex::as_vertex_formats())
+            .to_primitive(Vertex::as_vertex_formats())
             .unwrap();
 
         let vertex_buffer_layout = primitive.as_vertex_buffer_layout();
@@ -96,6 +102,8 @@ impl Example for PickingExample {
 
         let aspect_ratio = app.surface_config.width as f32 / app.surface_config.height as f32;
 
+        let mut instances: Vec<Instance> = Vec::with_capacity(NB_INSTANCES);
+
         let cam_transform = glam::Mat4::perspective_rh_gl(0.38, aspect_ratio, 0.01, 100.0);
         const NB_INSTANCES: usize = 100;
         let mut rng = nanorand::WyRand::new_seed(42);
@@ -107,6 +115,7 @@ impl Example for PickingExample {
                 rand_val(20.0),
                 rand_val(10.0) - 40.0,
             ));
+            instances.push(Instance::from_transform(local_to_world.clone()));
             uniforms_data.push(Uniforms {
                 transform: cam_transform * local_to_world,
                 color: glam::Vec4::new(rand_val(1.0), rand_val(1.0), rand_val(1.0), 1.0),
@@ -127,7 +136,49 @@ impl Example for PickingExample {
         let scene_bgl = albedo_rtx::RTSceneBindGroupLayout::new(&app.device);
 
         // Create scene containing bvh, vertices, etc...
-        // let instances = Vec::with_capacity(NB_INSTANCES);
+
+        let mut builder = SAHBuilder::new();
+        let blas = BLASArray::new(std::slice::from_ref(&primitive), &mut builder).unwrap();
+
+        let scene_gpu = SceneGpu {
+            instance_buffer: gpu::Buffer::new_storage_with_data(&app.device, &instances, None),
+            bvh_buffer: gpu::Buffer::new_storage_with_data(&app.device, &blas.nodes, None),
+            index_buffer: gpu::Buffer::new_storage_with_data(
+                &app.device,
+                &blas.indices,
+                Some(gpu::BufferInitDescriptor {
+                    label: None,
+                    usage: wgpu::BufferUsages::INDEX,
+                }),
+            ),
+            vertex_buffer: gpu::Buffer::new_storage_with_data(
+                &app.device,
+                primitive.cast::<Vertex>().unwrap(),
+                None,
+            ),
+            light_buffer: gpu::Buffer::dummy_storage(&app.device),
+        };
+
+        let ray_buffer = gpu::Buffer::new_storage(&app.device, 1, None);
+        let intersection_buffer = gpu::Buffer::new_storage(&app.device, 1, None);
+
+        let intersection_pass =
+            albedo_rtx::passes::IntersectorPass::new(&app.device, &scene_bgl, None);
+        let intersection_pass_bg = intersection_pass.create_frame_bind_groups(
+            &app.device,
+            (1, 1),
+            &intersection_buffer,
+            &ray_buffer,
+        );
+
+        let scene_bindgroup = scene_bgl.create_geometry_bindgroup(
+            &app.device,
+            scene_gpu.bvh_buffer.as_storage_slice().unwrap(),
+            scene_gpu.instance_buffer.as_storage_slice().unwrap(),
+            scene_gpu.index_buffer.as_storage_slice().unwrap(),
+            scene_gpu.vertex_buffer.as_storage_slice().unwrap(),
+            scene_gpu.light_buffer.as_storage_slice().unwrap(),
+        );
 
         PickingExample {
             pipeline,
@@ -135,19 +186,13 @@ impl Example for PickingExample {
             primitive_gpu,
             uniforms_data,
 
-            // scene_gpu: SceneGpu {
-            //     instance_buffer:
-            //     bvh_buffer:
-            //     index_buffer:
-            //     vertex_buffer:
-            //     light_buffer:
-            // },
-            intersection_pass: albedo_rtx::passes::IntersectorPass::new(
-                &app.device,
-                &scene_bgl,
-                None,
-            ),
-            scene_bgl,
+            scene_gpu,
+
+            ray_buffer,
+            intersection_buffer,
+            intersection_pass,
+            intersection_pass_bg,
+            scene_bindgroup,
         }
     }
 
@@ -160,8 +205,12 @@ impl Example for PickingExample {
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
-        // self.intersection_pass
-        //     .dispatch(&mut encoder, &self.intersection_pass_bg, (1, 1, 1));
+        self.intersection_pass.dispatch(
+            &mut encoder,
+            &self.scene_bindgroup,
+            &self.intersection_pass_bg,
+            (1, 1, 1),
+        );
 
         {
             let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -188,6 +237,7 @@ impl Example for PickingExample {
                 self.primitive_gpu.indices.inner().slice(..),
                 wgpu::IndexFormat::Uint16,
             );
+            // @todo: Will be the same for all primitives.
             for i in 0..self.primitive_gpu.attributes.len() {
                 rpass.set_vertex_buffer(
                     i as u32,

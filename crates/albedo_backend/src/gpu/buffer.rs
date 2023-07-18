@@ -113,6 +113,14 @@ pub struct Buffer<T: Pod> {
 }
 
 impl<T: Pod> Buffer<T> {
+    pub fn dummy(device: &wgpu::Device, options: Option<BufferInitDescriptor>) -> Self {
+        Self::new(device, 1, options)
+    }
+
+    pub fn dummy_storage(device: &wgpu::Device) -> Self {
+        Self::new_storage(device, 1, None)
+    }
+
     pub fn new(device: &wgpu::Device, count: u64, options: Option<BufferInitDescriptor>) -> Self {
         let byte_size = std::mem::size_of::<T>() as u64;
         let inner = DynBuffer::new(device, byte_size, count, options);
@@ -122,7 +130,7 @@ impl<T: Pod> Buffer<T> {
         }
     }
 
-    pub fn new_with_data<'a>(
+    pub fn new_with_data(
         device: &wgpu::Device,
         content: &[T],
         options: Option<BufferInitDescriptor>,
@@ -159,7 +167,7 @@ impl<T: Pod> Buffer<T> {
         Buffer::new(device, count, Some(options))
     }
 
-    pub fn new_storage_with_data<'a>(
+    pub fn new_storage_with_data(
         device: &wgpu::Device,
         content: &[T],
         options: Option<BufferInitDescriptor>,
@@ -169,7 +177,7 @@ impl<T: Pod> Buffer<T> {
         Buffer::new_with_data(device, content, Some(options))
     }
 
-    pub fn new_vertex_with_data<'a>(
+    pub fn new_vertex_with_data(
         device: &wgpu::Device,
         content: &[T],
         options: Option<BufferInitDescriptor>,
