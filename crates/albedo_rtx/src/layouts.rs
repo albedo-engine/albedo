@@ -3,24 +3,18 @@ use std::ops::Deref;
 use crate::uniforms;
 use albedo_backend::gpu;
 
-pub struct RTSceneBindGroupLayout(wgpu::BindGroupLayout);
+pub struct RTGeometryBindGroupLayout(wgpu::BindGroupLayout);
 
-impl RTSceneBindGroupLayout {
+impl RTGeometryBindGroupLayout {
     const INSTANCE_BINDING: u32 = 0;
     const NODE_BINDING: u32 = 1;
     const INDEX_BINDING: u32 = 2;
     const VERTEX_BINDING: u32 = 3;
     const LIGHT_BINDING: u32 = 4;
-    const MATERIAL_BINDING: u32 = 5;
-    const TEXTURE_PROBE_BINDING: u32 = 6;
-    const TEXTURE_INFO_BINDING: u32 = 7;
-    const TEXTURE_ATLAS_BINDING: u32 = 8;
-    const SAMPLER_BINDING: u32 = 9;
-    const SAMPLER_LINEAR_BINDING: u32 = 10;
 
     pub fn new(device: &wgpu::Device) -> Self {
         let inner = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("Radiance Estimator Base Layout"),
+            label: Some("RT Geometry Bind Group Layout"),
             entries: &[
                 wgpu::BindGroupLayoutEntry {
                     binding: Self::NODE_BINDING,
@@ -72,6 +66,63 @@ impl RTSceneBindGroupLayout {
                     },
                     count: None,
                 },
+            ],
+        });
+        Self { 0: inner }
+    }
+
+    pub fn create_bindgroup(
+        &self,
+        device: &wgpu::Device,
+        nodes: gpu::StorageBufferSlice<albedo_bvh::BVHNode>,
+        instances: gpu::StorageBufferSlice<uniforms::Instance>,
+        indices: gpu::StorageBufferSlice<u32>,
+        vertices: gpu::StorageBufferSlice<uniforms::Vertex>,
+        lights: gpu::StorageBufferSlice<uniforms::Light>,
+    ) -> wgpu::BindGroup {
+        device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Geometry Bind Group"),
+            layout: &self.0,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: Self::NODE_BINDING,
+                    resource: nodes.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: Self::INSTANCE_BINDING,
+                    resource: instances.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: Self::INDEX_BINDING,
+                    resource: indices.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: Self::VERTEX_BINDING,
+                    resource: vertices.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: Self::LIGHT_BINDING,
+                    resource: lights.as_entire_binding(),
+                },
+            ],
+        })
+    }
+}
+
+pub struct RTSurfaceBindGroupLayout(wgpu::BindGroupLayout);
+
+impl RTSurfaceBindGroupLayout {
+    const MATERIAL_BINDING: u32 = 0;
+    const TEXTURE_PROBE_BINDING: u32 = 1;
+    const TEXTURE_INFO_BINDING: u32 = 2;
+    const TEXTURE_ATLAS_BINDING: u32 = 3;
+    const SAMPLER_BINDING: u32 = 4;
+    const SAMPLER_LINEAR_BINDING: u32 = 5;
+
+    pub fn new(device: &wgpu::Device) -> Self {
+        let inner = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("RT Surface Bind Group Layout"),
+            entries: &[
                 wgpu::BindGroupLayoutEntry {
                     binding: Self::MATERIAL_BINDING,
                     visibility: wgpu::ShaderStages::COMPUTE,
@@ -129,51 +180,9 @@ impl RTSceneBindGroupLayout {
         Self { 0: inner }
     }
 
-    pub fn create_geometry_bindgroup(
-        &self,
-        device: &wgpu::Device,
-        nodes: gpu::StorageBufferSlice<albedo_bvh::BVHNode>,
-        instances: gpu::StorageBufferSlice<uniforms::Instance>,
-        indices: gpu::StorageBufferSlice<u32>,
-        vertices: gpu::StorageBufferSlice<uniforms::Vertex>,
-        lights: gpu::StorageBufferSlice<uniforms::Light>,
-    ) -> wgpu::BindGroup {
-        device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Radiance Estimator Base Bind Group"),
-            layout: &self.0,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: Self::NODE_BINDING,
-                    resource: nodes.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: Self::INSTANCE_BINDING,
-                    resource: instances.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: Self::INDEX_BINDING,
-                    resource: indices.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: Self::VERTEX_BINDING,
-                    resource: vertices.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: Self::LIGHT_BINDING,
-                    resource: lights.as_entire_binding(),
-                },
-            ],
-        })
-    }
-
     pub fn create_bindgroup(
         &self,
         device: &wgpu::Device,
-        nodes: gpu::StorageBufferSlice<albedo_bvh::BVHNode>,
-        instances: gpu::StorageBufferSlice<uniforms::Instance>,
-        indices: gpu::StorageBufferSlice<u32>,
-        vertices: gpu::StorageBufferSlice<uniforms::Vertex>,
-        lights: gpu::StorageBufferSlice<uniforms::Light>,
         materials: gpu::StorageBufferSlice<uniforms::Material>,
         probe: &wgpu::TextureView,
         textures_info: &wgpu::TextureView,
@@ -182,29 +191,9 @@ impl RTSceneBindGroupLayout {
         sampler_linear: &wgpu::Sampler,
     ) -> wgpu::BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Radiance Estimator Base Bind Group"),
+            label: Some("Surface Bind Group"),
             layout: &self.0,
             entries: &[
-                wgpu::BindGroupEntry {
-                    binding: Self::NODE_BINDING,
-                    resource: nodes.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: Self::INSTANCE_BINDING,
-                    resource: instances.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: Self::INDEX_BINDING,
-                    resource: indices.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: Self::VERTEX_BINDING,
-                    resource: vertices.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: Self::LIGHT_BINDING,
-                    resource: lights.as_entire_binding(),
-                },
                 wgpu::BindGroupEntry {
                     binding: Self::MATERIAL_BINDING,
                     resource: materials.as_entire_binding(),
@@ -238,10 +227,18 @@ impl RTSceneBindGroupLayout {
     }
 }
 
-impl Deref for RTSceneBindGroupLayout {
+impl Deref for RTGeometryBindGroupLayout {
     type Target = wgpu::BindGroupLayout;
 
     fn deref(&self) -> &Self::Target {
-        self.inner()
+        &self.0
+    }
+}
+
+impl Deref for RTSurfaceBindGroupLayout {
+    type Target = wgpu::BindGroupLayout;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }

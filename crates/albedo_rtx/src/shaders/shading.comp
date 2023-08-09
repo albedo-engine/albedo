@@ -49,29 +49,29 @@ layout(set = 0, binding = 4, std430) readonly buffer LightBuffer {
   Light lights[];
 };
 
-layout(set = 0, binding = 5, std430) readonly buffer MaterialBuffer {
+layout(set = 1, binding = 0, std430) readonly buffer MaterialBuffer {
   Material materials[];
 };
 
-layout(set = 0, binding = 6) uniform texture2D Probe;
+layout(set = 1, binding = 1) uniform texture2D Probe;
 
-layout(set = 0, binding = 7) uniform utexture1D textureInfo;
+layout(set = 1, binding = 2) uniform utexture1D textureInfo;
 
-layout(set = 0, binding = 8) uniform texture2DArray textureAtlas;
+layout(set = 1, binding = 3) uniform texture2DArray textureAtlas;
 
-layout(set = 0, binding = 9) uniform sampler samplerNearest;
+layout(set = 1, binding = 4) uniform sampler samplerNearest;
 
-layout(set = 0, binding = 10) uniform sampler samplerLinear;
+layout(set = 1, binding = 5) uniform sampler samplerLinear;
 
-layout(set = 1, binding = 0, std430) buffer RayBuffer {
+layout(set = 2, binding = 0, std430) buffer RayBuffer {
   RayPayload rays[];
 };
 
-layout(set = 1, binding = 1, std430) readonly buffer IntersectionBuffer {
+layout(set = 2, binding = 1, std430) readonly buffer IntersectionBuffer {
   Intersection intersections[];
 };
 
-layout(set = 1, binding = 2) uniform GlobalUniformBuffer {
+layout(set = 2, binding = 2) uniform GlobalUniformBuffer {
   GlobalUniforms global;
 };
 

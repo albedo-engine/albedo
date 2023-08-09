@@ -22,6 +22,17 @@ pub struct Instance {
 }
 impl Uniform for Instance {}
 
+impl Instance {
+    pub fn from_transform(model_to_world: glam::Mat4) -> Self {
+        let world_to_model = model_to_world.inverse();
+        Self {
+            model_to_world,
+            world_to_model,
+            ..Default::default()
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct Material {

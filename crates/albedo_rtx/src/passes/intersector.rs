@@ -14,7 +14,7 @@ impl IntersectorPass {
 
     pub fn new(
         device: &wgpu::Device,
-        scene_layout: &crate::RTSceneBindGroupLayout,
+        geometry_layout: &crate::RTGeometryBindGroupLayout,
         source: Option<wgpu::ShaderModuleDescriptor>,
     ) -> Self {
         let frame_bind_group_layout =
@@ -46,7 +46,7 @@ impl IntersectorPass {
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Intersector Pipeline Layout"),
-            bind_group_layouts: &[scene_layout.inner(), &frame_bind_group_layout],
+            bind_group_layouts: &[geometry_layout, &frame_bind_group_layout],
             push_constant_ranges: &[],
         });
 
