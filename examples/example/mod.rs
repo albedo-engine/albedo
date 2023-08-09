@@ -167,8 +167,9 @@ fn run<E: Example>(event_loop: EventLoop, app: App) {
                 app.mouse = glam::Vec2::new(
                     position.x as f32 / app.surface_config.width as f32,
                     position.y as f32 / app.surface_config.height as f32,
-                ) * 2.0
-                    - 1.0
+                );
+                app.mouse.y = 1.0 - app.mouse.y;
+                app.mouse = app.mouse * 2.0 - 1.0
             }
             event::Event::WindowEvent { event, .. } => match event {
                 WindowEvent::CloseRequested => {

@@ -6,6 +6,13 @@ use crate::mesh::IndexData;
 
 // @todo: Add a buffer builder.
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ReadBufferOptions {
+    pub src_offset: u64,
+    pub dst_offset: u64,
+    pub count: u64,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct BufferInitDescriptor<'a> {
     /// Debug label of a buffer. This will show up in graphics debuggers for easy identification.

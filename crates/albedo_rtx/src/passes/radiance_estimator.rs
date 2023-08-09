@@ -1,7 +1,8 @@
 use crate::get_dispatch_size;
 use crate::macros::path_separator;
 use crate::uniforms;
-use crate::RTSceneBindGroupLayout;
+use crate::RTGeometryBindGroupLayout;
+use crate::RTSurfaceBindGroupLayout;
 use albedo_backend::gpu;
 
 pub struct ShadingPass {
@@ -17,7 +18,11 @@ impl ShadingPass {
     const INTERSECTION_BINDING: u32 = 1;
     const PER_DRAW_STRUCT_BINDING: u32 = 2;
 
-    pub fn new(device: &wgpu::Device, scene_layout: &RTSceneBindGroupLayout) -> Self {
+    pub fn new(
+        device: &wgpu::Device,
+        geometry_layout: &RTGeometryBindGroupLayout,
+        surface_layout: &RTSurfaceBindGroupLayout,
+    ) -> Self {
         let frame_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("Radiance View Bind Group Layout"),
@@ -57,7 +62,7 @@ impl ShadingPass {
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Radiance Estimator Pipeline Layout"),
-            bind_group_layouts: &[scene_layout.inner(), &frame_bind_group_layout],
+            bind_group_layouts: &[geometry_layout, surface_layout, &frame_bind_group_layout],
             push_constant_ranges: &[],
         });
 
@@ -127,7 +132,8 @@ impl ShadingPass {
     pub fn dispatch(
         &self,
         encoder: &mut wgpu::CommandEncoder,
-        scene_bind_group: &wgpu::BindGroup,
+        geometry_bindgroup: &wgpu::BindGroup,
+        surface_bindgroup: &wgpu::BindGroup,
         frame_bind_groups: &wgpu::BindGroup,
         size: (u32, u32, u32),
     ) {
@@ -136,8 +142,9 @@ impl ShadingPass {
         });
         let workgroups = get_dispatch_size(size, Self::WORKGROUP_SIZE);
         pass.set_pipeline(&self.pipeline);
-        pass.set_bind_group(0, scene_bind_group, &[]);
-        pass.set_bind_group(1, frame_bind_groups, &[]);
+        pass.set_bind_group(0, geometry_bindgroup, &[]);
+        pass.set_bind_group(1, surface_bindgroup, &[]);
+        pass.set_bind_group(2, frame_bind_groups, &[]);
         pass.dispatch_workgroups(workgroups.0, workgroups.1, workgroups.2);
     }
 }

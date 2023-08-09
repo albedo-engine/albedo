@@ -17,6 +17,18 @@ use albedo_backend::gpu::{self, ResourceBuilder};
 use albedo_backend::mesh::shapes::Shape;
 use albedo_backend::mesh::*;
 
+struct Camera {
+    perspective: glam::Mat4,
+}
+
+impl Camera {
+    pub fn new(aspect_ratio: f32) -> Self {
+        Self {
+            perspective: glam::Mat4::perspective_rh_gl(0.38, aspect_ratio, 0.01, 100.0),
+        }
+    }
+}
+
 struct SceneGpu {
     pub instance_buffer: gpu::Buffer<Instance>,
     pub bvh_buffer: gpu::Buffer<albedo_bvh::BVHNode>,
@@ -26,6 +38,8 @@ struct SceneGpu {
 }
 
 struct PickingExample {
+    camera: Camera,
+    depth_view: wgpu::TextureView,
     pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
     primitive_gpu: gpu::Primitive,
@@ -50,11 +64,27 @@ unsafe impl bytemuck::Zeroable for Uniforms {}
 
 impl Example for PickingExample {
     fn new(app: &example::App) -> Self {
-        let bgl = gpu::BindGroupLayoutBuilder::new_with_size(1)
+        let depth_texture = app.device.create_texture(&wgpu::TextureDescriptor {
+            size: wgpu::Extent3d {
+                width: app.surface_config.width,
+                height: app.surface_config.height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Depth24Plus,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            label: None,
+            view_formats: &[],
+        });
+
+        let bgl = gpu::BindGroupLayoutBuilder::new_with_size(2)
             .storage_buffer(
                 wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                 true,
             )
+            .storage_buffer(wgpu::ShaderStages::FRAGMENT, true)
             .build(&app.device);
 
         let shader = app
@@ -79,18 +109,35 @@ impl Example for PickingExample {
                 push_constant_ranges: &[],
             });
 
-        let pipeline = gpu::RenderPipelineBuilder::new(wgpu::VertexState {
-            module: &shader,
-            entry_point: "vs_main",
-            buffers: &[vertex_buffer_layout.build(None)],
-        })
-        .layout(&pipeline_layout)
-        .fragment(Some(wgpu::FragmentState {
-            module: &shader,
-            entry_point: "fs_main",
-            targets: &[Some(app.surface_config.format.into())],
-        }))
-        .build(&app.device);
+        let pipeline = app
+            .device
+            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: "vs_main",
+                    buffers: &[vertex_buffer_layout.build(None)],
+                },
+                label: None,
+                layout: Some(&pipeline_layout),
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: "fs_main",
+                    targets: &[Some(app.surface_config.format.into())],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    cull_mode: Some(wgpu::Face::Back),
+                    ..Default::default()
+                },
+                multisample: wgpu::MultisampleState::default(),
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: wgpu::TextureFormat::Depth24Plus,
+                    depth_write_enabled: true,
+                    depth_compare: wgpu::CompareFunction::LessEqual,
+                    stencil: wgpu::StencilState::default(),
+                    bias: wgpu::DepthBiasState::default(),
+                }),
+                multiview: None,
+            });
 
         let primitive_gpu = PrimitiveResourceBuilder::new(&primitive)
             .descriptor(gpu::BufferInitDescriptor::new(
@@ -101,10 +148,10 @@ impl Example for PickingExample {
             .unwrap();
 
         let aspect_ratio = app.surface_config.width as f32 / app.surface_config.height as f32;
+        let camera = Camera::new(aspect_ratio);
 
         let mut instances: Vec<Instance> = Vec::with_capacity(NB_INSTANCES);
 
-        let cam_transform = glam::Mat4::perspective_rh_gl(0.38, aspect_ratio, 0.01, 100.0);
         const NB_INSTANCES: usize = 100;
         let mut rng = nanorand::WyRand::new_seed(42);
         let mut rand_val = |len: f32| rng.generate::<f32>() * len - 0.5 * len;
@@ -117,23 +164,31 @@ impl Example for PickingExample {
             ));
             instances.push(Instance::from_transform(local_to_world.clone()));
             uniforms_data.push(Uniforms {
-                transform: cam_transform * local_to_world,
+                transform: camera.perspective * local_to_world,
                 color: glam::Vec4::new(rand_val(1.0), rand_val(1.0), rand_val(1.0), 1.0),
             });
         }
 
+        let ray_buffer = gpu::Buffer::new_storage(&app.device, 1, None);
+        let intersection_buffer = gpu::Buffer::new_storage(&app.device, 1, None);
         let uniform_buffer = gpu::Buffer::new_storage_with_data(&app.device, &uniforms_data, None);
 
         let bind_group = app.device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &bgl,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: uniform_buffer.as_entire_binding(),
-            }],
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: uniform_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: intersection_buffer.as_entire_binding(),
+                },
+            ],
             label: Some("Bind Group"),
         });
 
-        let scene_bgl = albedo_rtx::RTSceneBindGroupLayout::new(&app.device);
+        let scene_bgl = albedo_rtx::RTGeometryBindGroupLayout::new(&app.device);
 
         // Create scene containing bvh, vertices, etc...
 
@@ -159,9 +214,6 @@ impl Example for PickingExample {
             light_buffer: gpu::Buffer::dummy_storage(&app.device),
         };
 
-        let ray_buffer = gpu::Buffer::new_storage(&app.device, 1, None);
-        let intersection_buffer = gpu::Buffer::new_storage(&app.device, 1, None);
-
         let intersection_pass =
             albedo_rtx::passes::IntersectorPass::new(&app.device, &scene_bgl, None);
         let intersection_pass_bg = intersection_pass.create_frame_bind_groups(
@@ -171,7 +223,7 @@ impl Example for PickingExample {
             &ray_buffer,
         );
 
-        let scene_bindgroup = scene_bgl.create_geometry_bindgroup(
+        let scene_bindgroup = scene_bgl.create_bindgroup(
             &app.device,
             scene_gpu.bvh_buffer.as_storage_slice().unwrap(),
             scene_gpu.instance_buffer.as_storage_slice().unwrap(),
@@ -181,6 +233,9 @@ impl Example for PickingExample {
         );
 
         PickingExample {
+            camera,
+
+            depth_view: depth_texture.create_view(&wgpu::TextureViewDescriptor::default()),
             pipeline,
             bind_group,
             primitive_gpu,
@@ -197,13 +252,24 @@ impl Example for PickingExample {
     }
 
     fn resize(&mut self, _app: &example::App) {}
-    fn event(&mut self, _: &example::App, _: winit::event::WindowEvent) {}
+    fn event(&mut self, _: &example::App, _event: winit::event::WindowEvent) {}
     fn update(&mut self, _: &example::App) {}
 
     fn render(&mut self, app: &example::App, view: &wgpu::TextureView) {
         let mut encoder = app
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+
+        let mouse = glam::Vec3::new(app.mouse.x, app.mouse.y, 0.5);
+        let dir = self
+            .camera
+            .perspective
+            .inverse()
+            .project_point3(mouse)
+            .normalize();
+
+        let ray = Ray::from_origin_dir(&glam::Vec3::ZERO, dir);
+        self.ray_buffer.update(&app.queue, &[ray]);
 
         self.intersection_pass.dispatch(
             &mut encoder,
@@ -228,7 +294,14 @@ impl Example for PickingExample {
                         store: true,
                     },
                 })],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.depth_view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: false,
+                    }),
+                    stencil_ops: None,
+                }),
             });
             rpass.push_debug_group("Prepare data for draw.");
             rpass.set_pipeline(&self.pipeline);
