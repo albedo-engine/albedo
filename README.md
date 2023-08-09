@@ -50,3 +50,13 @@ For now, the lightmapper only generate an ambient occlusion map, but it will soo
   <img src="./screenshots/ao.png" style="margin: auto; width: 320px"></img>
   <img src="./screenshots/ao_helmet.png" style="margin: auto; width: 320px"></img>
 </p>
+
+## Examples
+
+### GPU Picking
+
+While picking is doable using a rasterized G-Buffer of IDs, this example shows how it can be done using the raytracing crate.
+
+https://github.com/albedo-engine/albedo/assets/8783766/9a4b07e5-d6c3-4be1-9535-15cd1e3235e1
+
+
