@@ -196,6 +196,7 @@ impl AccumulationPass {
     ) {
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some("Accumulation Pass"),
+            timestamp_writes: None,
         });
         let workgroups = get_dispatch_size(size, Self::WORKGROUP_SIZE);
         pass.set_pipeline(&self.pipeline);

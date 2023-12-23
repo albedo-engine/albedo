@@ -22,8 +22,8 @@ albedo_rtx = { path = "crates/albedo_rtx" }
 bytemuck = "1.4.1"
 image = {version = "0.23", default-features = false, features = ["hdr"]}
 enumflags2 = "0.7.1"
-winit = "0.28.0"
-wgpu = "0.15.0"
+winit = "0.28.7"
+wgpu = "0.18.0"
 glam = "0.20.2"
 gltf = "0.15.2"
 pollster = "0.2"

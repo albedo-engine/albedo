@@ -139,6 +139,7 @@ impl ShadingPass {
     ) {
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some("Shading Pass"),
+            timestamp_writes: None,
         });
         let workgroups = get_dispatch_size(size, Self::WORKGROUP_SIZE);
         pass.set_pipeline(&self.pipeline);

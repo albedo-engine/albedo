@@ -6,8 +6,6 @@ use winit::{
 mod async_exec;
 use async_exec::Spawner;
 
-pub mod meshes;
-
 #[cfg(not(target_arch = "wasm32"))]
 macro_rules! log {
     ( $( $t:tt )* ) => {
@@ -60,9 +58,13 @@ pub async fn initialize<E>(title: &str) -> (EventLoop, App) {
     }
 
     let dx12_shader_compiler = wgpu::util::dx12_shader_compiler_from_env().unwrap_or_default();
+    let gles_minor_version = wgpu::util::gles_minor_version_from_env().unwrap_or_default();
+
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
         backends: wgpu::Backends::PRIMARY,
         dx12_shader_compiler,
+        gles_minor_version,
+        flags: wgpu::InstanceFlags::from_build_config().with_env(),
     });
     let surface = unsafe { instance.create_surface(&window) }.unwrap();
     let adapter = instance
@@ -124,9 +126,9 @@ pub trait Example: 'static + Sized {
     }
 
     fn new(app: &App) -> Self;
-    fn resize(&mut self, platform: &App);
-    fn event(&mut self, platform: &App, _event: winit::event::WindowEvent);
-    fn update(&mut self, platform: &App);
+    fn resize(&mut self, _: &App) {}
+    fn event(&mut self, _: &App, _: winit::event::WindowEvent) {}
+    fn update(&mut self, _: &App) {}
     fn render(&mut self, platform: &App, view: &wgpu::TextureView);
 }
 

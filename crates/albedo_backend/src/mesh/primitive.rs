@@ -326,6 +326,10 @@ impl Primitive {
     }
 }
 
+pub trait ToPrimitive {
+    fn to_primitive(&self, layout: &[AttributeDescriptor]) -> Result<Primitive, ()>;
+}
+
 impl gpu::AsVertexBufferLayout for Primitive {
     fn as_vertex_buffer_layout(&self) -> gpu::VertexBufferLayoutBuilder {
         let mut builder = gpu::VertexBufferLayoutBuilder::new(self.attribute_count());

@@ -1,21 +1,17 @@
 #[path = "../example/mod.rs"]
 mod example;
+use albedo_backend::gpu::{self, AsVertexBufferLayout, ResourceBuilder};
+use albedo_backend::mesh::{shapes, AsVertexFormat, ToPrimitive};
 use albedo_bvh::{builders::SAHBuilder, BLASArray};
 use albedo_rtx::{
-    uniforms::{Intersection, Ray, Vertex},
+    uniforms::{Ray, Vertex},
     Instance,
 };
-use example::Example;
 
 use nanorand::Rng;
-
 use std::borrow::Cow;
 
-use albedo_backend::gpu::AsVertexBufferLayout;
-use albedo_backend::gpu::{self, ResourceBuilder};
-
-use albedo_backend::mesh::shapes::Shape;
-use albedo_backend::mesh::*;
+use example::Example;
 
 struct Camera {
     perspective: glam::Mat4,
@@ -29,14 +25,6 @@ impl Camera {
     }
 }
 
-struct SceneGpu {
-    pub instance_buffer: gpu::Buffer<Instance>,
-    pub bvh_buffer: gpu::Buffer<albedo_bvh::BVHNode>,
-    pub index_buffer: gpu::Buffer<u32>,
-    pub vertex_buffer: gpu::Buffer<Vertex>,
-    pub light_buffer: gpu::Buffer<albedo_rtx::Light>,
-}
-
 struct PickingExample {
     camera: Camera,
     depth_view: wgpu::TextureView,
@@ -45,9 +33,7 @@ struct PickingExample {
     primitive_gpu: gpu::Primitive,
     uniforms_data: Vec<Uniforms>,
     ray_buffer: gpu::Buffer<Ray>,
-    intersection_buffer: gpu::Buffer<Intersection>,
     scene_bindgroup: wgpu::BindGroup,
-    scene_gpu: SceneGpu,
     intersection_pass_bg: wgpu::BindGroup,
     intersection_pass: albedo_rtx::passes::IntersectorPass,
 }
@@ -95,7 +81,6 @@ impl Example for PickingExample {
             });
 
         let primitive = shapes::Cube::new(1.0)
-            .data()
             .to_primitive(Vertex::as_vertex_formats())
             .unwrap();
 
@@ -139,7 +124,7 @@ impl Example for PickingExample {
                 multiview: None,
             });
 
-        let primitive_gpu = PrimitiveResourceBuilder::new(&primitive)
+        let primitive_gpu = albedo_backend::mesh::PrimitiveResourceBuilder::new(&primitive)
             .descriptor(gpu::BufferInitDescriptor::new(
                 Some("Primtive Buffers"),
                 wgpu::BufferUsages::VERTEX,
@@ -147,12 +132,11 @@ impl Example for PickingExample {
             .build(&app.device)
             .unwrap();
 
-        let aspect_ratio = app.surface_config.width as f32 / app.surface_config.height as f32;
-        let camera = Camera::new(aspect_ratio);
-
-        let mut instances: Vec<Instance> = Vec::with_capacity(NB_INSTANCES);
+        let camera =
+            Camera::new(app.surface_config.width as f32 / app.surface_config.height as f32);
 
         const NB_INSTANCES: usize = 100;
+        let mut instances: Vec<Instance> = Vec::with_capacity(NB_INSTANCES);
         let mut rng = nanorand::WyRand::new_seed(42);
         let mut rand_val = |len: f32| rng.generate::<f32>() * len - 0.5 * len;
         let mut uniforms_data: Vec<Uniforms> = Vec::with_capacity(NB_INSTANCES);
@@ -190,29 +174,25 @@ impl Example for PickingExample {
 
         let scene_bgl = albedo_rtx::RTGeometryBindGroupLayout::new(&app.device);
 
-        // Create scene containing bvh, vertices, etc...
-
         let mut builder = SAHBuilder::new();
         let blas = BLASArray::new(std::slice::from_ref(&primitive), &mut builder).unwrap();
 
-        let scene_gpu = SceneGpu {
-            instance_buffer: gpu::Buffer::new_storage_with_data(&app.device, &instances, None),
-            bvh_buffer: gpu::Buffer::new_storage_with_data(&app.device, &blas.nodes, None),
-            index_buffer: gpu::Buffer::new_storage_with_data(
-                &app.device,
-                &blas.indices,
-                Some(gpu::BufferInitDescriptor {
-                    label: None,
-                    usage: wgpu::BufferUsages::INDEX,
-                }),
-            ),
-            vertex_buffer: gpu::Buffer::new_storage_with_data(
-                &app.device,
-                primitive.cast::<Vertex>().unwrap(),
-                None,
-            ),
-            light_buffer: gpu::Buffer::dummy_storage(&app.device),
-        };
+        let instance_buffer = gpu::Buffer::new_storage_with_data(&app.device, &instances, None);
+        let bvh_buffer = gpu::Buffer::new_storage_with_data(&app.device, &blas.nodes, None);
+        let index_buffer = gpu::Buffer::new_storage_with_data(
+            &app.device,
+            &blas.indices,
+            Some(gpu::BufferInitDescriptor {
+                label: None,
+                usage: wgpu::BufferUsages::INDEX,
+            }),
+        );
+        let vertex_buffer = gpu::Buffer::new_storage_with_data(
+            &app.device,
+            primitive.cast::<Vertex>().unwrap(),
+            None,
+        );
+        let light_buffer = gpu::Buffer::dummy_storage(&app.device);
 
         let intersection_pass =
             albedo_rtx::passes::IntersectorPass::new(&app.device, &scene_bgl, None);
@@ -225,11 +205,11 @@ impl Example for PickingExample {
 
         let scene_bindgroup = scene_bgl.create_bindgroup(
             &app.device,
-            scene_gpu.bvh_buffer.as_storage_slice().unwrap(),
-            scene_gpu.instance_buffer.as_storage_slice().unwrap(),
-            scene_gpu.index_buffer.as_storage_slice().unwrap(),
-            scene_gpu.vertex_buffer.as_storage_slice().unwrap(),
-            scene_gpu.light_buffer.as_storage_slice().unwrap(),
+            bvh_buffer.as_storage_slice().unwrap(),
+            instance_buffer.as_storage_slice().unwrap(),
+            index_buffer.as_storage_slice().unwrap(),
+            vertex_buffer.as_storage_slice().unwrap(),
+            light_buffer.as_storage_slice().unwrap(),
         );
 
         PickingExample {
@@ -241,19 +221,12 @@ impl Example for PickingExample {
             primitive_gpu,
             uniforms_data,
 
-            scene_gpu,
-
             ray_buffer,
-            intersection_buffer,
             intersection_pass,
             intersection_pass_bg,
             scene_bindgroup,
         }
     }
-
-    fn resize(&mut self, _app: &example::App) {}
-    fn event(&mut self, _: &example::App, _event: winit::event::WindowEvent) {}
-    fn update(&mut self, _: &example::App) {}
 
     fn render(&mut self, app: &example::App, view: &wgpu::TextureView) {
         let mut encoder = app
@@ -291,19 +264,20 @@ impl Example for PickingExample {
                             b: 0.3,
                             a: 1.0,
                         }),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     },
                 })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: &self.depth_view,
                     depth_ops: Some(wgpu::Operations {
                         load: wgpu::LoadOp::Clear(1.0),
-                        store: false,
+                        store: wgpu::StoreOp::Discard,
                     }),
                     stencil_ops: None,
                 }),
+                timestamp_writes: None,
+                occlusion_query_set: None,
             });
-            rpass.push_debug_group("Prepare data for draw.");
             rpass.set_pipeline(&self.pipeline);
             rpass.set_bind_group(0, &self.bind_group, &[]);
             rpass.set_index_buffer(
@@ -317,8 +291,6 @@ impl Example for PickingExample {
                     self.primitive_gpu.attributes[i].inner().slice(..),
                 );
             }
-            rpass.pop_debug_group();
-            rpass.insert_debug_marker("Draw!");
             rpass.draw_indexed(
                 0..self.primitive_gpu.indices.count() as u32,
                 0,

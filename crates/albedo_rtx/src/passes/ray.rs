@@ -118,6 +118,7 @@ impl RayPass {
     ) {
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some("Ray Generator Pass"),
+            timestamp_writes: None,
         });
         let workgroups = get_dispatch_size(dispatch_size, Self::WORKGROUP_SIZE);
         pass.set_pipeline(&self.pipeline);

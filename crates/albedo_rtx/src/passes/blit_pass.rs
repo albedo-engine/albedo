@@ -1,5 +1,5 @@
 use albedo_backend::gpu;
-use wgpu::{BindGroup, BindingType};
+use wgpu::{BindGroup, BindingType, StoreOp};
 
 use crate::macros::path_separator;
 use crate::uniforms;
@@ -147,10 +147,12 @@ impl BlitPass {
                         b: 0.3,
                         a: 1.0,
                     }),
-                    store: true,
+                    store: StoreOp::Store,
                 },
             })],
             depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
         });
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, bind_group, &[]);
