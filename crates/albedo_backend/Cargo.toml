@@ -7,8 +7,7 @@ description = "Provides GPU backend utils for the albedo components"
 repository = "https://github.com/albedo-engine/albedo"
 license = "MIT"
 keywords = ["rendering", "graphics", "wgpu" ]
-resolver = "2"
 
 [dependencies]
-bytemuck = { version = "1.7.2", features = ["derive"] }
-wgpu = "0.18.0"
+bytemuck = { workspace = true }
+wgpu = { workspace = true }

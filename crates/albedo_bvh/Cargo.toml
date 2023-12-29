@@ -8,12 +8,8 @@ repository = "https://github.com/albedo-engine/albedo"
 license = "MIT"
 keywords = ["bvh", "graphics", "intersection", "triangle" ]
 
-# [features]
-# albedo_backend = ["dep:albedo_backend"]
-
 [dependencies]
-# albedo_backend = { path = "../albedo_backend", optional = true }
-albedo_backend = { path = "../albedo_backend" }
+albedo_backend = { path = "../albedo_backend", version = "0.0.1-beta.0" }
 albedo_math = { path = "../albedo_math", version = "0.0.1-beta.0" }
-bytemuck = { version = "1.7.2", features = ["derive"] }
+bytemuck = { workspace = true }
 glam = { version = "0.20.2", features = ["bytemuck"] }
