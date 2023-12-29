@@ -1,7 +1,6 @@
 #define PI_F 3.14159265359
 #define TWO_PI 6.28318530718
 #define TO_RAD_F (PI_F / 180.0)
-#define MAX_FLOAT 3.402823466e+38
 
 #define VEC3_UP vec3(0.0, 0.999999995, 0.0001)
 
