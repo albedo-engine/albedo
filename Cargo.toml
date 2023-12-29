@@ -16,7 +16,7 @@ resolver = "2"
 members = ["crates/*"]
 
 [dev-dependencies]
-albedo_backend = { path = "crates/albedo_backend", fe = ["albedo_backend"] }
+albedo_backend = { path = "crates/albedo_backend" }
 albedo_bvh = { path = "crates/albedo_bvh" }
 albedo_rtx = { path = "crates/albedo_rtx" }
 bytemuck = "1.4.1"

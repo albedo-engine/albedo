@@ -4,6 +4,7 @@
 #extension GL_GOOGLE_include_directive : enable
 
 #include "structures.glsl"
+#include "utils/common.glsl"
 #include "utils/colorspace.glsl"
 
 struct TextureInfo

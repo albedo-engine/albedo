@@ -1,5 +1,5 @@
 use albedo_backend::gpu;
-use wgpu::{BindGroup, BindingType};
+use wgpu::BindGroup;
 
 use crate::macros::path_separator;
 use crate::uniforms;

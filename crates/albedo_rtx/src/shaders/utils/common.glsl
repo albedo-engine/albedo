@@ -5,7 +5,8 @@
 #define NEG_EPSILON -0.00000001
 #define EPSILON1 1.0001
 
-#define MAX_FLOAT 3.402823466e+38
+// +37 because WGSL has a different maximum value.
+#define MAX_FLOAT 3.402823466e+37
 
 #define MAX_UINT 0xFFFFFFFF
 #define INVALID_UINT MAX_UINT
