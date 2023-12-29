@@ -6,19 +6,6 @@ use winit::{
 mod async_exec;
 use async_exec::Spawner;
 
-#[cfg(not(target_arch = "wasm32"))]
-macro_rules! log {
-    ( $( $t:tt )* ) => {
-        println!($( $t )*);
-    }
-}
-#[cfg(target_arch = "wasm32")]
-macro_rules! log {
-    ( $( $t:tt )* ) => {
-        web_sys::console::log_1(&format!( $( $t )* ).into());
-    }
-}
-
 type EventLoop = winit::event_loop::EventLoop<()>;
 
 pub struct App {
