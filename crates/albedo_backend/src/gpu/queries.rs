@@ -15,6 +15,7 @@ pub struct QueriesOptions {
 }
 
 impl QueriesOptions {
+    /// Create a new set of options with defaults and `max_count`.
     pub fn new(max_count: u32) -> Self {
         QueriesOptions {
             max_count,
@@ -34,36 +35,31 @@ impl Default for QueriesOptions {
 
 /// Per frame data
 struct PerFrame {
+    /// Per frame query set.
+    /// It's possible to share a single set for all frames. However,
+    /// it looks like the current wgpu Metal implementation doesn't like that.
+    /// @todo: Attempt to share the query set for all frames
+    set: wgpu::QuerySet,
     /// CPU buffer for read back
     staging_buffer: wgpu::Buffer,
     /// Byte offset in the destination GPU buffer
     buffer_offset: u64,
-    /// Index offset of the first query in the query set
-    query_offset: u32,
     /// `true` if the frame is pending, `false` otherwise
     pending: Arc<AtomicBool>,
-    timestamp_count: usize,
+    /// Current query index
+    query_index: u32,
 }
 
 impl PerFrame {
-    pub fn query_range(&self) -> std::ops::Range<u32> {
-        let count = self.timestamp_count as u32;
-        self.query_offset..self.query_offset + count
-    }
-    pub fn write(&mut self, set: &wgpu::QuerySet, encoder: &mut wgpu::CommandEncoder) {
-        let query_index = self.query_index();
-        encoder.write_timestamp(set, query_index);
-        self.timestamp_count += 1;
-    }
-    fn query_index(&self) -> u32 {
-        self.query_offset + self.timestamp_count as u32
+    pub fn write(&mut self, encoder: &mut wgpu::CommandEncoder) {
+        encoder.write_timestamp(&self.set, self.query_index);
+        self.query_index += 1;
     }
 }
 
 /// Set of queries to profile GPU commands.
 /// @todo: Make thread safe
 pub struct Queries {
-    set: wgpu::QuerySet,
     resolve_buffer: wgpu::Buffer,
     timestamp_count: u32,
 
@@ -73,7 +69,7 @@ pub struct Queries {
 
     values: Vec<f64>,
     labels: Vec<String>,
-    last_resolved_count: usize,
+    resolved_queries_count: u32,
 }
 
 fn align_resolve_size(unaligned: u64) -> u64 {
@@ -81,6 +77,26 @@ fn align_resolve_size(unaligned: u64) -> u64 {
     (unaligned + POW2_ALIGNENT) & !(POW2_ALIGNENT)
 }
 
+fn queries_bytes(timestamp_count: u32) -> u64 {
+    timestamp_count as u64 * wgpu::QUERY_SIZE as u64
+}
+
+/// # Example
+///
+/// ```
+/// let queries = Queries::new(QueriesOptions::new(1));
+///
+/// let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+/// queries.start_frame(queue.get_timestamp_period());
+///
+/// queries.start("pass", &mut encoder);
+/// // Dispatch compute passes or start render pass.
+/// queries.end();
+///
+/// queue.submit(encoder.finish());
+///
+/// queries.end_frame(queue.get_timestamp_period());
+/// ```
 impl Queries {
     pub fn new(device: &wgpu::Device, opts: QueriesOptions) -> Self {
         let timestamp_count = opts.max_count * 2;
@@ -90,6 +106,11 @@ impl Queries {
         // Since frames are popped, reverse push to always get a null offset for the first frame.
         for i in (0..opts.max_frames_in_flight).rev() {
             free_frames.push(PerFrame {
+                set: device.create_query_set(&wgpu::QuerySetDescriptor {
+                    label: Some("Timestamp query set"),
+                    count: timestamp_count,
+                    ty: wgpu::QueryType::Timestamp,
+                }),
                 staging_buffer: device.create_buffer(&wgpu::BufferDescriptor {
                     label: Some("Query staging buffer"),
                     size: bytes_per_query_set,
@@ -97,17 +118,11 @@ impl Queries {
                     mapped_at_creation: false,
                 }),
                 buffer_offset: align_resolve_size(i as u64 * bytes_per_query_set),
-                query_offset: i as u32 * timestamp_count,
                 pending: Arc::new(AtomicBool::new(false)),
-                timestamp_count: 0,
+                query_index: 0,
             });
         }
         Queries {
-            set: device.create_query_set(&wgpu::QuerySetDescriptor {
-                label: Some("Timestamp query set"),
-                count: timestamp_count * opts.max_frames_in_flight as u32,
-                ty: wgpu::QueryType::Timestamp,
-            }),
             resolve_buffer: device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some("Query resolve buffer"),
                 size: align_resolve_size(opts.max_frames_in_flight as u64 * bytes_per_query_set),
@@ -123,20 +138,22 @@ impl Queries {
 
             values: vec![0.0; opts.max_count as usize],
             labels: (0..opts.max_count).map(|_| String::new()).collect(),
-            last_resolved_count: 0,
+            resolved_queries_count: 0,
         }
     }
 
+    /// Should be called at the beginning of a frame.
+    ///
+    /// `period` must be set to `queue.get_timestamp_period()`.
     pub fn start_frame(&mut self, period: f32) {
         if self.free_frames.len() == 0 {
-            // let new_frame = self.used_frames.pop().unwrap();
-            // new_frame.staging_buffer.unmap();
-            // self.free_frames.push(new_frame);
+            // It would be possible to unmap the newest buffer as well. On Metal,
+            // doing so didn't bring anything compared to dropping frames.
             return;
         }
 
         let mut frame = self.free_frames.pop().unwrap();
-        frame.timestamp_count = 0;
+        frame.query_index = 0;
         frame
             .pending
             .store(true, std::sync::atomic::Ordering::Relaxed);
@@ -146,41 +163,60 @@ impl Queries {
         self.try_read_state(period);
     }
 
+    /// Start a new timer.
+    ///
+    /// This method must be followed by a called to [end].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let queries = Queries::new(QueriesOptions::new(1));
+    /// queries.start("my-query", encoder);
+    /// // Do something with the encoder
+    /// queries.end();
+    /// ```
     pub fn start<T: ToString>(&mut self, label: T, encoder: &mut wgpu::CommandEncoder) {
         if let Some(frame) = self.current_frame.as_mut() {
-            if frame.timestamp_count == self.timestamp_count as usize {
+            if frame.query_index == self.timestamp_count {
                 panic!("maximum querie enties reached");
             }
-            let index = frame.timestamp_count / 2;
-            self.labels[index] = label.to_string();
 
-            frame.write(&self.set, encoder);
+            let index = frame.query_index / 2;
+            self.labels[index as usize] = label.to_string();
+
+            frame.write(encoder);
         }
     }
 
+    /// End the timer started with [start].
     pub fn end(&mut self, encoder: &mut wgpu::CommandEncoder) {
         if let Some(frame) = self.current_frame.as_mut() {
-            frame.write(&self.set, encoder);
+            frame.write(encoder);
         }
     }
 
-    pub fn finish(&self, encoder: &mut wgpu::CommandEncoder) {
+    /// Resolve queries added since the beginning of the frame.
+    pub fn resolve(&self, encoder: &mut wgpu::CommandEncoder) {
         let Some(frame) = self.current_frame.as_ref() else {
             return;
         };
-        let buffer_size: u64 = self.bytes_per_set();
-        let range = frame.query_range();
 
-        encoder.resolve_query_set(&self.set, range, &self.resolve_buffer, frame.buffer_offset);
+        encoder.resolve_query_set(
+            &frame.set,
+            0..frame.query_index as u32,
+            &self.resolve_buffer,
+            frame.buffer_offset,
+        );
         encoder.copy_buffer_to_buffer(
             &self.resolve_buffer,
             frame.buffer_offset,
             &frame.staging_buffer,
             0,
-            buffer_size,
+            queries_bytes(self.timestamp_count),
         );
     }
 
+    /// Should be called once the frame is finished and the encoder is dropped.
     pub fn end_frame(&mut self, period: f32) {
         let current_frame = self.current_frame.take();
         if let Some(frame) = current_frame {
@@ -195,22 +231,20 @@ impl Queries {
         self.try_read_state(period);
     }
 
+    /// Latest resolved values.
+    ///
+    /// Indexing is kept in the order of calls to [start].
     pub fn values(&self) -> &[f64] {
-        let count = self.last_resolved_count / 2;
-        &self.values[0..count]
+        let count = self.resolved_queries_count / 2;
+        &self.values[0..count as usize]
     }
 
+    /// Latest resolved label, one for each value.
+    ///
+    /// Indexing is kept in the order of calls to [start].
     pub fn labels(&self) -> &[String] {
-        let count = self.last_resolved_count / 2;
-        &self.labels[0..count]
-    }
-
-    pub fn count(&self) -> u32 {
-        self.timestamp_count / 2
-    }
-
-    fn bytes_per_set(&self) -> u64 {
-        self.timestamp_count as u64 * wgpu::QUERY_SIZE as u64
+        let count = self.resolved_queries_count / 2;
+        &self.labels[0..count as usize]
     }
 
     fn try_read_state(&mut self, period: f32) {
@@ -223,7 +257,8 @@ impl Queries {
 
         let frame = self.used_frames.remove(0);
         {
-            let bytes = frame.timestamp_count as u64 * wgpu::QUERY_SIZE as u64;
+            let count = frame.query_index;
+            let bytes = count as u64 * wgpu::QUERY_SIZE as u64;
             let view = frame.staging_buffer.slice(..bytes).get_mapped_range();
             let timestamps: &[u64] = bytemuck::cast_slice(&view);
 
@@ -235,7 +270,7 @@ impl Queries {
                 let index = i / 2;
                 self.values[index] = delta;
             }
-            self.last_resolved_count = frame.timestamp_count;
+            self.resolved_queries_count = count;
         }
 
         frame.staging_buffer.unmap();
