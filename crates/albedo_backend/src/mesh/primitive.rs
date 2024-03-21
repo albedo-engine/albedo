@@ -1,10 +1,10 @@
 use core::panic;
 use std::fmt::Debug;
 
-use bytemuck::Pod;
-
-use crate::data::{reinterpret_vec, Slice, SliceMut};
+use crate::data::reinterpret_vec;
 use crate::gpu;
+use bytemuck::Pod;
+use strided_slice::{Slice, SliceMut};
 
 use super::AsVertexFormat;
 
@@ -215,8 +215,8 @@ impl Primitive {
         match &self.data {
             AttributeData::Interleaved(v) => Slice::new(
                 v,
-                compute_stride(&self.attribute_formats),
                 byte_offset_for(&self.attribute_formats, attribute),
+                compute_stride(&self.attribute_formats),
             ),
             AttributeData::SoA(ref soa) => Slice::new(&soa[attribute], byte_size, 0),
         }
@@ -227,10 +227,10 @@ impl Primitive {
         match &mut self.data {
             AttributeData::Interleaved(v) => SliceMut::new(
                 v,
-                compute_stride(&self.attribute_formats),
                 byte_offset_for(&self.attribute_formats, attribute),
+                compute_stride(&self.attribute_formats),
             ),
-            AttributeData::SoA(ref mut soa) => SliceMut::new(&mut soa[attribute], byte_size, 0),
+            AttributeData::SoA(ref mut soa) => SliceMut::new(&mut soa[attribute], 0, byte_size),
         }
     }
 
