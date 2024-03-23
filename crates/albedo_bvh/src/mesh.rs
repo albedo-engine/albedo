@@ -1,5 +1,5 @@
 use albedo_backend::mesh::{AttributeId, IndexData, IndexDataSlice};
-use strided_slice::Slice;
+use pas::Slice;
 
 pub trait Mesh {
     fn indices(&self) -> Option<IndexDataSlice>;
