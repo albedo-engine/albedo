@@ -1,7 +1,5 @@
-use albedo_backend::{
-    data::Slice,
-    mesh::{AttributeId, IndexData, IndexDataSlice},
-};
+use albedo_backend::mesh::{AttributeId, IndexData, IndexDataSlice};
+use pas::Slice;
 
 pub trait Mesh {
     fn indices(&self) -> Option<IndexDataSlice>;
@@ -11,8 +9,8 @@ pub trait Mesh {
 impl Mesh for albedo_backend::mesh::Primitive {
     fn indices(&self) -> Option<IndexDataSlice> {
         match &self.indices() {
-            Some(IndexData::U16(v)) => Some(IndexDataSlice::U16(Slice::from_slice(v))),
-            Some(IndexData::U32(v)) => Some(IndexDataSlice::U32(Slice::from_slice(v))),
+            Some(IndexData::U16(v)) => Some(IndexDataSlice::U16(Slice::native(v))),
+            Some(IndexData::U32(v)) => Some(IndexDataSlice::U32(Slice::native(v))),
             _ => None,
         }
     }

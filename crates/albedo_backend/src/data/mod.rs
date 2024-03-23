@@ -1,9 +1,4 @@
-mod slice;
-pub use slice::*;
-
-use bytemuck::Pod;
-
-pub fn reinterpret_vec<T: Pod>(mut v: Vec<T>) -> Vec<u8> {
+pub fn reinterpret_vec<T: bytemuck::Pod>(mut v: Vec<T>) -> Vec<u8> {
     unsafe {
         let p = v.as_mut_ptr();
         let count_bytes = v.len() * std::mem::size_of::<T>();

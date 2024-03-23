@@ -57,7 +57,7 @@ impl ToPrimitive for Cube {
                     [-1.0, -1.0, -1.0],
                     [1.0, -1.0, -1.0],
                 ];
-                primitive.attribute_f32x3_mut(index).set(&pos);
+                primitive.attribute_f32x3_mut(index).copy_from_slice(&pos);
             }
             _ => return Err({}),
         };
@@ -89,7 +89,9 @@ impl ToPrimitive for Cube {
                 [0.0, -1.0, 0.0],
                 [0.0, -1.0, 0.0],
             ];
-            primitive.attribute_f32x3_mut(index).set(&normals);
+            primitive
+                .attribute_f32x3_mut(index)
+                .copy_from_slice(&normals);
         };
 
         Ok(primitive)

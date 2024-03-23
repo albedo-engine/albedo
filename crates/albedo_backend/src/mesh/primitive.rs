@@ -1,10 +1,10 @@
 use core::panic;
 use std::fmt::Debug;
 
-use bytemuck::Pod;
-
-use crate::data::{reinterpret_vec, Slice, SliceMut};
+use crate::data::reinterpret_vec;
 use crate::gpu;
+use bytemuck::Pod;
+use pas::{Slice, SliceMut};
 
 use super::AsVertexFormat;
 
@@ -213,24 +213,24 @@ impl Primitive {
     pub fn attribute<'a, T: Pod>(&'a self, attribute: usize) -> Slice<'a, T> {
         let byte_size: usize = self.attribute_formats[attribute].size() as usize;
         match &self.data {
-            AttributeData::Interleaved(v) => Slice::new(
+            AttributeData::Interleaved(v) => Slice::raw(
                 v,
-                compute_stride(&self.attribute_formats),
                 byte_offset_for(&self.attribute_formats, attribute),
+                compute_stride(&self.attribute_formats),
             ),
-            AttributeData::SoA(ref soa) => Slice::new(&soa[attribute], byte_size, 0),
+            AttributeData::SoA(ref soa) => Slice::raw(&soa[attribute], byte_size, 0),
         }
     }
 
     pub fn attribute_mut<'a, T: Pod>(&'a mut self, attribute: usize) -> SliceMut<'a, T> {
         let byte_size: usize = self.attribute_formats[attribute].size() as usize;
         match &mut self.data {
-            AttributeData::Interleaved(v) => SliceMut::new(
+            AttributeData::Interleaved(v) => SliceMut::raw(
                 v,
-                compute_stride(&self.attribute_formats),
                 byte_offset_for(&self.attribute_formats, attribute),
+                compute_stride(&self.attribute_formats),
             ),
-            AttributeData::SoA(ref mut soa) => SliceMut::new(&mut soa[attribute], byte_size, 0),
+            AttributeData::SoA(ref mut soa) => SliceMut::raw(&mut soa[attribute], 0, byte_size),
         }
     }
 
