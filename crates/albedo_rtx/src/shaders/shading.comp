@@ -25,6 +25,11 @@ struct Material
   uint  mraTexture;
 };
 
+struct Parameters
+{
+  uint useNoiseTexture;
+};
+
 /**
  * Layout 0.
  */
@@ -63,6 +68,12 @@ layout(set = 1, binding = 3) uniform texture2DArray textureAtlas;
 layout(set = 1, binding = 4) uniform sampler samplerNearest;
 
 layout(set = 1, binding = 5) uniform sampler samplerLinear;
+
+layout(set = 1, binding = 6) uniform texture2D noiseTexture;
+
+layout(set = 1, binding = 7) uniform ParametersUniformBuffer {
+  Parameters parameters;
+};
 
 layout(set = 2, binding = 0, std430) buffer RayBuffer {
   RayPayload rays[];
@@ -140,15 +151,24 @@ interpolate(vec2 v0, vec2 v1, vec2 v2, vec3 barycentric)
 }
 
 RayPayload
-shade(RayPayload ray, Intersection intersection)
+shade(RayPayload ray, Intersection intersection, uvec2 workgroupSize)
 {
+  if (ray.terminated.x > 0u) return ray;
+
   uint randState = uint(
     gl_GlobalInvocationID.x * uint(1973)
     + gl_GlobalInvocationID.y * uint(9277)
     + uint(global.seed) * uint(26699)
   ) | uint(1);
 
-  if (ray.terminated.x > 0u) return ray;
+  if (parameters.useNoiseTexture > 0u) {
+    // vec2 texSize = vec2(256.0);
+    vec2 texSize = vec2(textureSize(noiseTexture, 0));
+    vec2 uv = mod(vec2(gl_GlobalInvocationID.xy) * 100.0, texSize);
+    uv = uv/texSize;
+    vec3 noise = texture(sampler2D(noiseTexture, samplerNearest), uv).rgb;
+    randState = uint(noise.x * 10.0) * uint(global.seed) * uint(26699);
+  }
 
   vec3 throughput = getThroughput(ray);
   if (abs(MAX_FLOAT - intersection.dist) < EPSILON)
@@ -232,6 +252,10 @@ main()
 
   RayPayload ray = rays[index];
   Intersection intersection = intersections[index];
+
   // Modified ray is written back to SSBO.
-  rays[index] = shade(ray, intersection);
+  //
+  // On Apple, the WorkGroupSize is an attribute, and it looks like accessing it outside of main
+  // means it's not forwarded.
+  rays[index] = shade(ray, intersection, gl_WorkGroupSize.xy);
 }

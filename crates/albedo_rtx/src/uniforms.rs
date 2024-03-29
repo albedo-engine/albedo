@@ -1,4 +1,5 @@
 use albedo_backend::mesh;
+use bytemuck::{Pod, Zeroable};
 use std::convert::TryInto;
 
 pub static INVALID_INDEX: u32 = std::u32::MAX;
@@ -319,5 +320,11 @@ impl TextureInfo {
 unsafe impl bytemuck::Pod for TextureInfo {}
 unsafe impl bytemuck::Zeroable for TextureInfo {}
 impl Uniform for TextureInfo {}
+
+#[repr(C)]
+#[derive(Clone, Copy, Default, Pod, Zeroable)]
+pub struct RadianceParameters {
+    pub use_noise_texture: u32,
+}
 
 impl Uniform for albedo_bvh::BVHNode {}

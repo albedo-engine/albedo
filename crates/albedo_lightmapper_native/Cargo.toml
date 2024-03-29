@@ -14,7 +14,7 @@ crate-type = ["lib", "cdylib", "staticlib"]
 [dependencies]
 bytemuck = { workspace = true }
 libc = "*"
-wgpu = "0.15.0"
+wgpu = { workspace = true }
 futures = "0.3"
 albedo_backend = { path = "../albedo_backend" }
 albedo_bvh = { path = "../albedo_bvh" }
