@@ -60,7 +60,7 @@ impl PerFrame {
 /// Set of queries to profile GPU commands.
 /// @todo: Make thread safe
 pub struct Queries {
-    resolve_buffer: wgpu::Buffer,
+    resolve_buffer: Option<wgpu::Buffer>,
     timestamp_count: u32,
 
     free_frames: Vec<PerFrame>,
@@ -102,6 +102,24 @@ impl Queries {
         let timestamp_count = opts.max_count * 2;
         let bytes_per_query_set: u64 = wgpu::QUERY_SIZE as u64 * timestamp_count as u64;
 
+        let values = vec![0.0; opts.max_count as usize];
+        let labels = (0..opts.max_count).map(|_| String::new()).collect();
+
+        if !device.features().contains(wgpu::Features::TIMESTAMP_QUERY) {
+            return Self {
+                resolve_buffer: None,
+                timestamp_count,
+
+                free_frames: Vec::new(),
+                used_frames: Vec::new(),
+                current_frame: None,
+
+                values,
+                labels,
+                resolved_queries_count: 0,
+            };
+        }
+
         let mut free_frames: Vec<PerFrame> = Vec::with_capacity(opts.max_frames_in_flight as usize);
         // Since frames are popped, reverse push to always get a null offset for the first frame.
         for i in (0..opts.max_frames_in_flight).rev() {
@@ -123,12 +141,12 @@ impl Queries {
             });
         }
         Queries {
-            resolve_buffer: device.create_buffer(&wgpu::BufferDescriptor {
+            resolve_buffer: Some(device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some("Query resolve buffer"),
                 size: align_resolve_size(opts.max_frames_in_flight as u64 * bytes_per_query_set),
                 usage: wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::QUERY_RESOLVE,
                 mapped_at_creation: false,
-            }),
+            })),
 
             timestamp_count,
 
@@ -136,8 +154,8 @@ impl Queries {
             used_frames: Vec::with_capacity(opts.max_frames_in_flight as usize),
             current_frame: None,
 
-            values: vec![0.0; opts.max_count as usize],
-            labels: (0..opts.max_count).map(|_| String::new()).collect(),
+            values,
+            labels,
             resolved_queries_count: 0,
         }
     }
@@ -204,11 +222,11 @@ impl Queries {
         encoder.resolve_query_set(
             &frame.set,
             0..frame.query_index as u32,
-            &self.resolve_buffer,
+            self.resolve_buffer.as_ref().unwrap(),
             frame.buffer_offset,
         );
         encoder.copy_buffer_to_buffer(
-            &self.resolve_buffer,
+            self.resolve_buffer.as_ref().unwrap(),
             frame.buffer_offset,
             &frame.staging_buffer,
             0,
