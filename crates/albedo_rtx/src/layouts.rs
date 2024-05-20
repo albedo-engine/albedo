@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use crate::uniforms;
+use crate::{uniforms, RadianceParameters};
 use albedo_backend::gpu;
 
 pub struct RTGeometryBindGroupLayout(wgpu::BindGroupLayout);
@@ -118,6 +118,8 @@ impl RTSurfaceBindGroupLayout {
     const TEXTURE_ATLAS_BINDING: u32 = 3;
     const SAMPLER_BINDING: u32 = 4;
     const SAMPLER_LINEAR_BINDING: u32 = 5;
+    const TEXTURE_NOISE_BINDING: u32 = 6;
+    const PARAMETERS_BINDING: u32 = 7;
 
     pub fn new(device: &wgpu::Device) -> Self {
         let inner = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -175,6 +177,26 @@ impl RTSurfaceBindGroupLayout {
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                     count: None,
                 },
+                wgpu::BindGroupLayoutEntry {
+                    binding: Self::TEXTURE_NOISE_BINDING,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Texture {
+                        multisampled: false,
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: Self::PARAMETERS_BINDING,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
             ],
         });
         Self { 0: inner }
@@ -189,6 +211,8 @@ impl RTSurfaceBindGroupLayout {
         texture_atlas: &wgpu::TextureView,
         sampler_nearest: &wgpu::Sampler,
         sampler_linear: &wgpu::Sampler,
+        texture_noise: &wgpu::TextureView,
+        parameters: gpu::UniformBufferSlice<uniforms::RadianceParameters>,
     ) -> wgpu::BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Surface Bind Group"),
@@ -217,6 +241,14 @@ impl RTSurfaceBindGroupLayout {
                 wgpu::BindGroupEntry {
                     binding: Self::SAMPLER_LINEAR_BINDING,
                     resource: wgpu::BindingResource::Sampler(sampler_linear),
+                },
+                wgpu::BindGroupEntry {
+                    binding: Self::TEXTURE_NOISE_BINDING,
+                    resource: wgpu::BindingResource::TextureView(texture_noise),
+                },
+                wgpu::BindGroupEntry {
+                    binding: Self::PARAMETERS_BINDING,
+                    resource: parameters.as_entire_binding(),
                 },
             ],
         })
