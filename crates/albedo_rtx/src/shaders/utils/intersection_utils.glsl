@@ -3,10 +3,54 @@
 
 #include "common.glsl"
 
+struct Primitive
+{
+  Vertex v0;
+  Vertex v1;
+  Vertex v2;
+};
+
 Vertex
 getVertex(uint vertexOffset, uint index)
 {
   return vertices[vertexOffset + indices[index]];
+}
+
+/**
+ * Retrieve the triangle from vertex offset and index
+ *
+ * @param instance Instance to extract the primitive from
+ * @param intersection Intersection data
+ */
+Primitive extractPrimitive(Instance instance, Intersection intersection)
+{
+  Primitive p;
+  p.v0 = getVertex(instance.vertexRootIndex, intersection.index);
+  p.v1 = getVertex(instance.vertexRootIndex, intersection.index + 1);
+  p.v2 = getVertex(instance.vertexRootIndex, intersection.index + 2);
+  return p;
+}
+
+vec2 interpolateBarycentric(vec2 v0, vec2 v1, vec2 v2, vec3 barycentric)
+{
+  return (
+    barycentric.x * v0 +
+    barycentric.y * v1 +
+    barycentric.z * v2
+  );
+}
+vec3 interpolateBarycentric(vec3 v0, vec3 v1, vec3 v2, vec3 barycentric)
+{
+  return (
+    barycentric.x * v0 +
+    barycentric.y * v1 +
+    barycentric.z * v2
+  );
+}
+
+vec3 barycentricCoordinates(vec2 uv)
+{
+  return vec3(1.0 - uv.x - uv.y, uv);
 }
 
 float
