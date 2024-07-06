@@ -48,24 +48,24 @@ void main()
   Intersection intersection = intersections[index];
 
   ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
-  imageStore(gbuffer, coords, vec4(vec2(coords)/vec2(gl_WorkGroupSize * gl_NumWorkGroups), 0.0, 1.0));
-  // if (abs(MAX_FLOAT - intersection.dist) < EPSILON)
-  // {
-  //   imageStore(gbuffer, coords, vec4(0.0));
-  //   return;
-  // }
+  // imageStore(gbuffer, coords, vec4(vec2(coords)/vec2(gl_WorkGroupSize * gl_NumWorkGroups), 0.0, 1.0));
+  if (abs(MAX_FLOAT - intersection.dist) < EPSILON)
+  {
+    imageStore(gbuffer, coords, vec4(0.0));
+    return;
+  }
 
-  // Instance instance = instances[intersection.instance];
+  Instance instance = instances[intersection.instance];
 
-  // // @todo: Could be refactored with the shading, that will re-compute the normal.
-  // Primitive primitive = extractPrimitive(instance, intersection);
-  // vec3 barycentric = barycentricCoordinates(intersection.uv);
+  // @todo: Could be refactored with the shading, that will re-compute the normal.
+  Primitive primitive = extractPrimitive(instance, intersection);
+  vec3 barycentric = barycentricCoordinates(intersection.uv);
 
-  // vec3 normal = interpolateBarycentric(
-  //   primitive.v0.normal.xyx,
-  //   primitive.v1.normal.xyx,
-  //   primitive.v2.normal.xyx,
-  //   barycentric);
+  vec3 normal = interpolateBarycentric(
+    primitive.v0.normal.xyx,
+    primitive.v1.normal.xyx,
+    primitive.v2.normal.xyx,
+    barycentric);
 
-  // imageStore(gbuffer, coords, vec4(normal, intersection.dist));
+  imageStore(gbuffer, coords, vec4(normal, intersection.dist));
 }

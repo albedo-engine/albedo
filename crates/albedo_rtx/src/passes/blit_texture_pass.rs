@@ -61,7 +61,10 @@ impl BlitTexturePass {
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("BlitTexture Pipeline Layout"),
             bind_group_layouts: &[&bind_group_layout],
-            push_constant_ranges: &[],
+            push_constant_ranges: &[wgpu::PushConstantRange {
+                stages: wgpu::ShaderStages::FRAGMENT,
+                range: 0..8,
+            }],
         });
 
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -119,6 +122,7 @@ impl BlitTexturePass {
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
         bind_group: &BindGroup,
+        size: &(u32, u32),
     ) {
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
@@ -141,6 +145,11 @@ impl BlitTexturePass {
         });
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, bind_group, &[]);
+        {
+            let slice = [size.0, size.1];
+            let data = bytemuck::cast_slice(&slice);
+            pass.set_push_constants(wgpu::ShaderStages::FRAGMENT, 0, data);
+        }
         pass.draw(0..3, 0..1);
     }
 }

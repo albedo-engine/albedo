@@ -1,7 +1,7 @@
 use albedo_backend::gpu;
 
 use crate::macros::path_separator;
-use crate::uniforms;
+use crate::{get_dispatch_size, uniforms};
 
 pub struct GBufferPass {
     frame_bind_group_layout: wgpu::BindGroupLayout,
@@ -9,6 +9,8 @@ pub struct GBufferPass {
 }
 
 impl GBufferPass {
+    const WORKGROUP_SIZE: (u32, u32, u32) = (8, 8, 1);
+
     const RAY_BINDING: u32 = 0;
     const INTERSECTION_BINDING: u32 = 1;
     const GBUFFER_BINDING: u32 = 2;
@@ -121,15 +123,16 @@ impl GBufferPass {
         encoder: &mut wgpu::CommandEncoder,
         scene_bind_group: &wgpu::BindGroup,
         frame_bind_group: &wgpu::BindGroup,
-        dispatch_size: (u32, u32, u32),
+        size: (u32, u32, u32),
     ) {
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some("GBuffer Pass"),
             timestamp_writes: None,
         });
+        let workgroups = get_dispatch_size(size, Self::WORKGROUP_SIZE);
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, scene_bind_group, &[]);
         pass.set_bind_group(1, frame_bind_group, &[]);
-        pass.dispatch_workgroups(dispatch_size.0, dispatch_size.1, dispatch_size.2);
+        pass.dispatch_workgroups(workgroups.0, workgroups.1, workgroups.2);
     }
 }
