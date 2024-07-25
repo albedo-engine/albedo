@@ -14,7 +14,6 @@ layout(set = 0, binding = 1) uniform texture2D uTexture;
 
 layout(location = 0) out vec4 outColor;
 
-
 void main() {
   vec2 t = vec2(constants.size) / vec2(textureSize(uTexture, 0));
   outColor = texture(sampler2D(uTexture, uTextureSampler), vUv * t).rgba;

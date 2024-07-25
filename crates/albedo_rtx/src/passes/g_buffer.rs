@@ -11,9 +11,9 @@ pub struct GBufferPass {
 impl GBufferPass {
     const WORKGROUP_SIZE: (u32, u32, u32) = (8, 8, 1);
 
-    const RAY_BINDING: u32 = 0;
-    const INTERSECTION_BINDING: u32 = 1;
-    const GBUFFER_BINDING: u32 = 2;
+    const INTERSECTION_BINDING: u32 = 0;
+    const GBUFFER_BINDING: u32 = 1;
+    const MOTION_BINDING: u32 = 2;
 
     pub fn new(
         device: &wgpu::Device,
@@ -24,16 +24,6 @@ impl GBufferPass {
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("GBuffer Bind Group Layout"),
                 entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: Self::RAY_BINDING,
-                        visibility: wgpu::ShaderStages::COMPUTE,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Storage { read_only: true },
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    },
                     wgpu::BindGroupLayoutEntry {
                         binding: Self::INTERSECTION_BINDING,
                         visibility: wgpu::ShaderStages::COMPUTE,
@@ -54,13 +44,26 @@ impl GBufferPass {
                         },
                         count: None,
                     },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: Self::MOTION_BINDING,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::StorageTexture {
+                            format: wgpu::TextureFormat::Rg16Float,
+                            access: wgpu::StorageTextureAccess::WriteOnly,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                        },
+                        count: None,
+                    },
                 ],
             });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("GBuffer Pipeline Layout"),
             bind_group_layouts: &[geometry_layout, &frame_bind_group_layout],
-            push_constant_ranges: &[],
+            push_constant_ranges: &[wgpu::PushConstantRange {
+                stages: wgpu::ShaderStages::COMPUTE,
+                range: 0..64,
+            }],
         });
 
         let shader = match source {
@@ -92,10 +95,10 @@ impl GBufferPass {
     pub fn create_frame_bind_groups(
         &self,
         device: &wgpu::Device,
-        size: (u32, u32),
+        size: &(u32, u32),
         out_gbuffer: &wgpu::TextureView,
-        intersections: &gpu::Buffer<uniforms::Intersection>,
-        rays: &gpu::Buffer<uniforms::Ray>,
+        out_motion: &wgpu::TextureView,
+        intersections: &gpu::Buffer<uniforms::Intersection>
     ) -> wgpu::BindGroup {
         let pixels_count: u64 = (size.0 * size.1) as u64;
         device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -103,16 +106,16 @@ impl GBufferPass {
             layout: &self.frame_bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
-                    binding: Self::RAY_BINDING,
-                    resource: rays.as_sub_binding(pixels_count),
-                },
-                wgpu::BindGroupEntry {
                     binding: Self::INTERSECTION_BINDING,
                     resource: intersections.as_sub_binding(pixels_count),
                 },
                 wgpu::BindGroupEntry {
                     binding: Self::GBUFFER_BINDING,
                     resource: wgpu::BindingResource::TextureView(out_gbuffer),
+                },
+                wgpu::BindGroupEntry {
+                    binding: Self::MOTION_BINDING,
+                    resource: wgpu::BindingResource::TextureView(out_motion),
                 },
             ],
         })
@@ -124,6 +127,7 @@ impl GBufferPass {
         scene_bind_group: &wgpu::BindGroup,
         frame_bind_group: &wgpu::BindGroup,
         size: (u32, u32, u32),
+        world_to_screen: &glam::Mat4 // @todo: Better to not use GLAM probably here
     ) {
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some("GBuffer Pass"),
@@ -133,6 +137,11 @@ impl GBufferPass {
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, scene_bind_group, &[]);
         pass.set_bind_group(1, frame_bind_group, &[]);
+        {
+            let data: &[f32; 16] = world_to_screen.as_ref();
+            let data = bytemuck::cast_slice(data);
+            pass.set_push_constants(0, data);
+        }
         pass.dispatch_workgroups(workgroups.0, workgroups.1, workgroups.2);
     }
 }
