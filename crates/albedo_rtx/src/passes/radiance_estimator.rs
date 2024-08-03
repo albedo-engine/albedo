@@ -141,7 +141,7 @@ impl ShadingPass {
             label: Some("Shading Pass"),
             timestamp_writes: None,
         });
-        let workgroups = get_dispatch_size(size, Self::WORKGROUP_SIZE);
+        let workgroups = get_dispatch_size(&size, &Self::WORKGROUP_SIZE);
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, geometry_bindgroup, &[]);
         pass.set_bind_group(1, surface_bindgroup, &[]);

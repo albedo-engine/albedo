@@ -175,7 +175,7 @@ impl AOPass {
             encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 label: Some("AO Pass"),
             });
-        let workgroups = get_dispatch_size(size, Self::WORKGROUP_SIZE);
+        let workgroups = get_dispatch_size(&size, &Self::WORKGROUP_SIZE);
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, frame_bind_groups, &[]);
         pass.dispatch_workgroups(workgroups.0, workgroups.1, workgroups.2);

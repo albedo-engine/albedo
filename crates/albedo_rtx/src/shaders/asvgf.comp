@@ -1,0 +1,69 @@
+#version 450
+
+// #include "utils/common.glsl"
+
+// layout(push_constant) uniform pushConstants {
+//   uint step;
+// } constants;
+
+// const float B3SPLINE_WEIGHTS[2] = {3.0/8.0, 1.0/4.0, 1.0/16.0};
+
+// float luminance(vec3 color)
+// {
+//     return 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
+// }
+
+// float weightDepth(float pdepth, uint step)
+// {
+//     const float phiZ = 1.0;
+
+//     vec3 qdepth = 1.0; // @todo
+
+//     float depthDist = abs(pdepth - qdepth);
+//     float delta = max(abs(dFdx(pdepth)), abs(dFdy(pdepth)));
+
+//     return depthDist / (phiZ * delta * float(step) + EPSILON);
+// }
+
+// float weightNormal()
+// {
+//     vec3 center_normal = vec3(1.0, 0.0, 0.0);
+//     vec3 p_normal = vec3(1.0, 0.0, 0.0); // @todo
+//     const float phi_n = 128.0;
+//     return pow(max(0.0, dot(center_normal, p_normal)), phi_n);
+// }
+
+// float weightIllumination(vec3 center_color, vec3 p_color)
+// {
+//     /* Spatiotemporal-Variance-Guided-Filtering, 4.4 Edge-stopping functions */
+//     const float phi_l = 4.0;
+
+//     float center_lum = luminance(center_color);
+//     float p_lum = luminance(p_color);
+//     float num = abs(center_lum - p_lum);
+// }
+
+layout(local_size_x = 8, local_size_y = 8) in;
+void main()
+{
+    // ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+
+    // for (int y = -2; y < 2; ++y) {
+    //     for (int x = -2; x < 2; ++x) {
+    //         if (x == 0u && y == 0u) continue;
+
+    //         uint x_abs = abs(x);
+    //         uint y_abs = abs(y);
+    //         float dist = length(vec2(float(x), float(y)));
+    //         vec2 h = vec2(B3SPLINE_WEIGHTS[x_abs], B3SPLINE_WEIGHTS[y_abs]);
+
+    //         vec3 center_color = vec3(0.0);
+    //         vec3 p_color = vec3(0.0);
+
+    //         float w = exp(
+    //             - weightDepth(dist, constants.step)
+    //             - weightIllumination(center_color, p_color)
+    //         ) * weightNormal();
+    //     }
+    // }
+}

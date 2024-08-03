@@ -126,14 +126,14 @@ impl GBufferPass {
         encoder: &mut wgpu::CommandEncoder,
         scene_bind_group: &wgpu::BindGroup,
         frame_bind_group: &wgpu::BindGroup,
-        size: (u32, u32, u32),
+        size: &(u32, u32, u32),
         world_to_screen: &glam::Mat4 // @todo: Better to not use GLAM probably here
     ) {
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some("GBuffer Pass"),
             timestamp_writes: None,
         });
-        let workgroups = get_dispatch_size(size, Self::WORKGROUP_SIZE);
+        let workgroups = get_dispatch_size(&size, &Self::WORKGROUP_SIZE);
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, scene_bind_group, &[]);
         pass.set_bind_group(1, frame_bind_group, &[]);

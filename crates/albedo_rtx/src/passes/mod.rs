@@ -5,6 +5,7 @@ mod g_buffer;
 mod intersector;
 mod lightmap;
 mod radiance_estimator;
+mod temporal_accumulation;
 mod ray;
 
 pub use accumulation::AccumulationPass;
@@ -15,3 +16,4 @@ pub use intersector::IntersectorPass;
 pub use lightmap::LightmapPass;
 pub use radiance_estimator::ShadingPass;
 pub use ray::RayPass;
+pub use temporal_accumulation::TemporalAccumulationPass;

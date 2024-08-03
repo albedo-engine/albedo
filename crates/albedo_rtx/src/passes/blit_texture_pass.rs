@@ -125,7 +125,7 @@ impl BlitTexturePass {
         size: &(u32, u32),
     ) {
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: None,
+            label: Some("Blitting Texture Render Pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: view,
                 resolve_target: None,

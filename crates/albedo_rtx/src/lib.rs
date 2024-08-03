@@ -8,8 +8,8 @@ pub use layouts::*;
 pub use uniforms::*;
 
 pub fn get_dispatch_size(
-    size: (u32, u32, u32),
-    workgroup_size: (u32, u32, u32),
+    size: &(u32, u32, u32),
+    workgroup_size: &(u32, u32, u32),
 ) -> (u32, u32, u32) {
     let x: f32 = (size.0 as f32) / workgroup_size.0 as f32;
     let y: f32 = (size.1 as f32) / workgroup_size.1 as f32;
