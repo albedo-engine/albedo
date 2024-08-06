@@ -48,7 +48,7 @@ impl GBufferPass {
                         binding: Self::MOTION_BINDING,
                         visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::StorageTexture {
-                            format: wgpu::TextureFormat::Rg16Float,
+                            format: wgpu::TextureFormat::Rg32Float,
                             access: wgpu::StorageTextureAccess::WriteOnly,
                             view_dimension: wgpu::TextureViewDimension::D2,
                         },

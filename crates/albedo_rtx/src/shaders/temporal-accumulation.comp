@@ -25,33 +25,41 @@ layout(local_size_x = 8, local_size_y = 8) in;
 void main()
 {
   uint index = gl_GlobalInvocationID.y * gl_WorkGroupSize.x * gl_NumWorkGroups.x + gl_GlobalInvocationID.x;
-  // if (index >= rays.length()) return;
-
-  vec2 size = vec2(gl_WorkGroupSize * gl_NumWorkGroups);
+  if (index >= rays.length()) return;
 
   ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
-  vec2 motion2d = texelFetch(sampler2D(motion, samplerNearest), coords, 0).xy;
-  ivec2 prevCoords = coords + ivec2(motion2d * size);
+  // vec2 size = vec2(imageSize(radiance));
 
-  vec4 currSample = texelFetch(sampler2D(gbuffer, samplerNearest), coords, 0);
-  vec4 prevSample = texelFetch(sampler2D(gbufferPrevious, samplerNearest), prevCoords, 0);
+  // vec2 motion2d = texelFetch(sampler2D(motion, samplerNearest), coords, 0).xy;
+  // ivec2 prevCoords = coords - ivec2(motion2d * size);
+
+  // vec4 currSample = texelFetch(sampler2D(gbuffer, samplerNearest), coords, 0);
+  // vec4 prevSample = texelFetch(sampler2D(gbufferPrevious, samplerNearest), prevCoords, 0);
+
+  // if (distance(vec2(coords), vec2(prevCoords)) >= 1.00001) {
+  //   imageStore(radiance, coords, vec4(1.0, 0.0, 0.0, 1.0));
+  //   return;
+  // }
 
   /* Depth sample mismatch */
-  float depthThreshold = 0.1; // @todo: Should be based on precision of the depth range.
-  if (abs(currSample.w - prevSample.w) > depthThreshold) {
-    imageStore(radiance, coords, vec4(1.0, 0.0, 0.0, 1.0));
-    return;
-  }
+  // float depthThreshold = 0.1; // @todo: Should be based on precision of the depth range.
+  // if (abs(currSample.w - prevSample.w) > depthThreshold) {
+  //   bool red = currSample.w > prevSample.w;
+  //   // imageStore(radiance, coords, vec4(red ? 1.0 : 0.0, 0.0, red ? 0.0 : 1.0, 1.0));
+  //   // float v = prevSample.w - currSample.w;
+  //   float v = prevSample.w;
+  //   imageStore(radiance, coords, vec4(v, v, v, 1.0));
+  //   return;
+  // }
+
   // @todo: Instance ID
 
-  RayPayload ray = rays[index];
-  vec3 currRadiance = ray.radiance.rgb;
-  vec3 prevRadiance = texelFetch(sampler2D(radiancePrevious, samplerNearest), coords, 0).rgb;
+  // RayPayload ray = rays[index];
+  // vec3 currRadiance = ray.radiance.rgb;
+  // vec3 prevRadiance = texelFetch(sampler2D(radiancePrevious, samplerNearest), prevCoords, 0).rgb;
 
-  // imageStore(radiance, coords, vec4(ray.radiance.rgb, 1.0));
-  if (prevRadiance.r >= 0.0001 && prevRadiance.g >= 0.0001 && prevRadiance.b >= 0.0001) {
-    vec3 col = 0.5 * (currRadiance + prevRadiance);
-    imageStore(radiance, coords, vec4(col, 1.0));
-  }
-  imageStore(radiance, coords, vec4(currRadiance, 1.0));
+  // vec3 col = 0.5 * (currRadiance + prevRadiance);
+  // vec3 col = currRadiance;
+  // imageStore(radiance, coords, vec4(col, 1.0));
+  imageStore(radiance, coords, vec4(1.0, 0.0, 0.0, 1.0));
 }

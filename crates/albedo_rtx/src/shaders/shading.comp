@@ -177,69 +177,69 @@ shade(RayPayload ray, Intersection intersection, uvec2 workgroupSize)
     vec3 probe = sampleProbe(samplerLinear, Probe, uv);
     ray.radiance.rgb += throughput * probe;
     ray.terminated.x = 1u;
+    return ray;
   }
   else if (intersection.emitter != INVALID_UINT)
   {
     Light light = lights[intersection.emitter];
     ray.radiance.rgb += throughput * vec3(1.0, 0.9, 0.8) * light.intensity;
+    return ray;
   }
-  else
+  Instance instance = instances[intersection.instance];
+
+  vec3 barycentric = vec3(1.0 - intersection.uv.x - intersection.uv.y, intersection.uv);
+
+  uint vertexOffset = instance.vertexRootIndex;
+  Vertex vertex0 = getVertex(vertexOffset, intersection.index);
+  Vertex vertex1 = getVertex(vertexOffset, intersection.index + 1);
+  Vertex vertex2 = getVertex(vertexOffset, intersection.index + 2);
+
+  // @todo: clean up uvs. Should UVs and normal always be packed together
+  // anyway? The intersection code only need vertices.
+  vec2 uv0 = vec2(vertex0.position.w, vertex0.normal.w);
+  vec2 uv1 = vec2(vertex1.position.w, vertex1.normal.w);
+  vec2 uv2 = vec2(vertex2.position.w, vertex2.normal.w);
+
+  vec2 uv = interpolate(uv0, uv1, uv2, barycentric);
+  vec3 normal = interpolate(
+    vertex0.normal.xyz,
+    vertex1.normal.xyz,
+    vertex2.normal.xyz,
+    barycentric
+  );
+  normal = transformDirection(normal, instance.modelToWorld);
+  normal = normalize(normal);
+
+  Material inputMat = materials[intersection.materialIndex];
+
+  MaterialState mat;
+  mat.albedo = sRGBToLinear(inputMat.color.rgb);
+  if (inputMat.albedoTexture != MAX_UINT)
   {
-    Instance instance = instances[intersection.instance];
-
-    vec3 barycentric = vec3(1.0 - intersection.uv.x - intersection.uv.y, intersection.uv);
-
-    uint vertexOffset = instance.vertexRootIndex;
-    Vertex vertex0 = getVertex(vertexOffset, intersection.index);
-    Vertex vertex1 = getVertex(vertexOffset, intersection.index + 1);
-    Vertex vertex2 = getVertex(vertexOffset, intersection.index + 2);
-
-    // @todo: clean up uvs. Should UVs and normal always be packed together
-    // anyway? The intersection code only need vertices.
-    vec2 uv0 = vec2(vertex0.position.w, vertex0.normal.w);
-    vec2 uv1 = vec2(vertex1.position.w, vertex1.normal.w);
-    vec2 uv2 = vec2(vertex2.position.w, vertex2.normal.w);
-
-    vec2 uv = interpolate(uv0, uv1, uv2, barycentric);
-    vec3 normal = interpolate(
-      vertex0.normal.xyz,
-      vertex1.normal.xyz,
-      vertex2.normal.xyz,
-      barycentric
-    );
-    normal = transformDirection(normal, instance.modelToWorld);
-    normal = normalize(normal);
-
-    Material inputMat = materials[intersection.materialIndex];
-
-    MaterialState mat;
-    mat.albedo = sRGBToLinear(inputMat.color.rgb);
-    if (inputMat.albedoTexture != MAX_UINT)
-    {
-      // @todo: pre-convert?
-      mat.albedo *= sRGBToLinear(fetchTexture(samplerNearest, inputMat.albedoTexture, uv).rgb);
-    }
-    mat.metallic = inputMat.metallic;
-    mat.perceptualRoughness = inputMat.roughnessFactor;
-    if (inputMat.mraTexture != MAX_UINT)
-    {
-      vec4 mraFetch = fetchTexture(samplerNearest, inputMat.mraTexture, uv).rgba;
-      mat.perceptualRoughness *= mraFetch.g;
-      mat.metallic *= mraFetch.b;
-    }
-    mat.perceptualRoughness = max(EPSILON, mat.perceptualRoughness);
-    mat.roughness = max(EPSILON, mat.perceptualRoughness * mat.perceptualRoughness);
-    mat.roughness2 = mat.roughness * mat.roughness;
-
-    BSDFSample bsdf = sampleBSDF_UE4(- ray.dir.xyz, normal, mat, randState);
-    if (bsdf.pdf > EPSILON)
-				throughput *= evalSample_UE4(bsdf, normal, mat) * abs(bsdf.NdotL) / bsdf.pdf;
-
-    ray.origin.xyz += intersection.dist * ray.dir.xyz + normal * EPSILON;
-    ray.dir.xyz = bsdf.dir;
+    // @todo: pre-convert?
+    mat.albedo *= sRGBToLinear(fetchTexture(samplerNearest, inputMat.albedoTexture, uv).rgb);
   }
+  mat.metallic = inputMat.metallic;
+  mat.perceptualRoughness = inputMat.roughnessFactor;
+  if (inputMat.mraTexture != MAX_UINT)
+  {
+    vec4 mraFetch = fetchTexture(samplerNearest, inputMat.mraTexture, uv).rgba;
+    mat.perceptualRoughness *= mraFetch.g;
+    mat.metallic *= mraFetch.b;
+  }
+  mat.perceptualRoughness = max(EPSILON, mat.perceptualRoughness);
+  mat.roughness = max(EPSILON, mat.perceptualRoughness * mat.perceptualRoughness);
+  mat.roughness2 = mat.roughness * mat.roughness;
+
+  BSDFSample bsdf = sampleBSDF_UE4(- ray.dir.xyz, normal, mat, randState);
+  if (bsdf.pdf > EPSILON)
+      throughput *= evalSample_UE4(bsdf, normal, mat) * abs(bsdf.NdotL) / bsdf.pdf;
+
+  ray.origin.xyz += intersection.dist * ray.dir.xyz + normal * EPSILON;
+  ray.dir.xyz = bsdf.dir;
 
   setThroughput(ray, throughput);
+
   return ray;
 }
 

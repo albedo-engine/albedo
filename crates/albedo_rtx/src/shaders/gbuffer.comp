@@ -33,7 +33,7 @@ layout (set = 1, binding = 0, std430) readonly buffer IntersectionBuffer {
 
 layout(set = 1, binding = 1, rgba32f) writeonly uniform image2D gbuffer;
 
-layout(set = 1, binding = 2, rg16f) writeonly uniform image2D motion;
+layout(set = 1, binding = 2, rg32f) writeonly uniform image2D motion;
 
 layout(push_constant) uniform pushConstants {
   mat4 previousWorldToScreen;
@@ -46,12 +46,17 @@ layout(push_constant) uniform pushConstants {
 layout(local_size_x = 8, local_size_y = 8) in;
 void main()
 {
+  ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
   uint index = gl_GlobalInvocationID.y * gl_WorkGroupSize.x * gl_NumWorkGroups.x + gl_GlobalInvocationID.x;
-  if (index >= intersections.length()) return;
+  if (index >= intersections.length())
+  {
+    imageStore(gbuffer, coords, vec4(0.0));
+    imageStore(motion, coords, vec4(0.0));
+    return;
+  }
 
   Intersection intersection = intersections[index];
 
-  ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
   if (abs(MAX_FLOAT - intersection.dist) < EPSILON)
   {
     imageStore(gbuffer, coords, vec4(0.0));
@@ -82,7 +87,7 @@ void main()
   vec4 prevProjectedPos = constants.previousWorldToScreen * worldPos;
 
   vec2 currPos2d = vec2(coords) / vec2(gl_WorkGroupSize * gl_NumWorkGroups);
-  vec2 prevPos2d = (prevProjectedPos.xy / prevProjectedPos.w) * 0.5 + vec2(0.5);
+  vec2 prevPos2d = (prevProjectedPos.xy / prevProjectedPos.w) * vec2(0.5) + vec2(0.5);
   vec2 motionVector = currPos2d - prevPos2d;
 
   imageStore(gbuffer, coords, vec4(normal, intersection.dist));

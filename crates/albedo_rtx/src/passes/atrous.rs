@@ -4,37 +4,18 @@ use wgpu::{BindGroup, BindingType, StoreOp};
 use crate::macros::path_separator;
 use crate::uniforms;
 
-pub struct BlitTexturePass {
+pub struct ATrousPass {
     bind_group_layout: wgpu::BindGroupLayout,
     pipeline: wgpu::RenderPipeline,
 }
 
-impl BlitTexturePass {
-    const TEXTURE_SAMPLER_BINDING: u32 = 0;
-    const TEXTURE_BINDING: u32 = 1;
+impl ATrousPass {
+    const WORKGROUP_SIZE: (u32, u32, u32) = (8, 8, 1);
 
     pub fn new(device: &wgpu::Device, swap_chain_format: wgpu::TextureFormat) -> Self {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: None,
             entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: Self::TEXTURE_SAMPLER_BINDING,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    // ty: BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                    ty: BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: Self::TEXTURE_BINDING,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: BindingType::Texture {
-                        multisampled: false,
-                        // @todo: Should be filterable.
-                        sample_type: wgpu::TextureSampleType::Float { filterable: false },
-                        view_dimension: wgpu::TextureViewDimension::D2,
-                    },
-                    count: None,
-                }
             ],
         });
 
@@ -59,13 +40,13 @@ impl BlitTexturePass {
         )));
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("BlitTexture Pipeline Layout"),
+            label: Some("ATrous Pipeline Layout"),
             bind_group_layouts: &[&bind_group_layout],
             push_constant_ranges: &[],
         });
 
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("BlitTexture Pipeline"),
+            label: Some("ATrous Pipeline"),
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &vx_module,
@@ -86,7 +67,7 @@ impl BlitTexturePass {
             multiview: None,
         });
 
-        BlitTexturePass {
+        ATrousPass {
             bind_group_layout,
             pipeline,
         }
@@ -95,52 +76,29 @@ impl BlitTexturePass {
     pub fn create_frame_bind_groups(
         &self,
         device: &wgpu::Device,
-        view: &wgpu::TextureView,
-        sampler: &wgpu::Sampler,
     ) -> BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("BlitTexture Bind Group"),
             layout: &self.bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: Self::TEXTURE_SAMPLER_BINDING,
-                    resource: wgpu::BindingResource::Sampler(sampler),
-                },
-                wgpu::BindGroupEntry {
-                    binding: Self::TEXTURE_BINDING,
-                    resource: wgpu::BindingResource::TextureView(view),
-                }
-            ],
+            entries: &[],
         })
     }
 
-    pub fn draw(
+    pub fn dispatch(
         &self,
         encoder: &mut wgpu::CommandEncoder,
-        view: &wgpu::TextureView,
-        bind_group: &BindGroup,
+        scene_bind_group: &wgpu::BindGroup,
+        frame_bind_group: &wgpu::BindGroup,
+        size: (u32, u32, u32),
     ) {
-        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("Blitting Texture Render Pass"),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: view,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: 0.0,
-                        g: 0.0,
-                        b: 0.0,
-                        a: 1.0,
-                    }),
-                    store: StoreOp::Store,
-                },
-            })],
-            depth_stencil_attachment: None,
+        let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+            label: Some("ATrous Pass"),
             timestamp_writes: None,
-            occlusion_query_set: None,
         });
+        let workgroups = get_dispatch_size(&size, &Self::WORKGROUP_SIZE);
         pass.set_pipeline(&self.pipeline);
-        pass.set_bind_group(0, bind_group, &[]);
-        pass.draw(0..3, 0..1);
+        pass.set_bind_group(0, scene_bind_group, &[]);
+        pass.set_bind_group(1, frame_bind_group, &[]);
+        pass.dispatch_workgroups(workgroups.0, workgroups.1, workgroups.2);
     }
 }
