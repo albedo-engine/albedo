@@ -1,4 +1,5 @@
 use albedo_backend::gpu;
+use guillotiere::euclid::default;
 use wgpu::{BindGroup, BindingType, StoreOp};
 
 use crate::macros::path_separator;
@@ -81,11 +82,13 @@ impl BlitPass {
                 module: &vx_module,
                 entry_point: "main",
                 buffers: &[],
+                compilation_options: Default::default()
             },
             fragment: Some(wgpu::FragmentState {
                 module: &fg_module,
                 entry_point: "main",
                 targets: &[Some(swap_chain_format.into())],
+                compilation_options: Default::default()
             }),
             primitive: wgpu::PrimitiveState {
                 cull_mode: None,
@@ -94,6 +97,7 @@ impl BlitPass {
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
+            cache: None
         });
 
         BlitPass {

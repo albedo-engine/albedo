@@ -81,6 +81,8 @@ impl ShadingPass {
             layout: Some(&pipeline_layout),
             entry_point: "main",
             module: &shader,
+            compilation_options: Default::default(),
+            cache: None,
         });
 
         Self {
@@ -97,6 +99,8 @@ impl ShadingPass {
             layout: Some(&self.pipeline_layout),
             entry_point: "main",
             module: &shader,
+            compilation_options: Default::default(),
+            cache: None,
         });
     }
 

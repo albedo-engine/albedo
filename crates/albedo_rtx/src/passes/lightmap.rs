@@ -110,11 +110,13 @@ impl LightmapPass {
                 module: &vx_module,
                 entry_point: "main",
                 buffers: &[layout],
+                compilation_options: Default::default()
             },
             fragment: Some(wgpu::FragmentState {
                 module: &fg_module,
                 entry_point: "main",
                 targets: &[Some(target_format.into())],
+                compilation_options: Default::default()
             }),
             primitive: wgpu::PrimitiveState {
                 cull_mode: None,
@@ -123,6 +125,7 @@ impl LightmapPass {
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
+            cache: None,
         });
 
         LightmapPass {

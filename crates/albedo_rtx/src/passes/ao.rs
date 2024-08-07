@@ -110,6 +110,8 @@ impl AOPass {
             layout: Some(&pipeline_layout),
             entry_point: "main",
             module: &shader,
+            compilation_options: Default::default(),
+            cache: None,
         });
 
         AOPass {

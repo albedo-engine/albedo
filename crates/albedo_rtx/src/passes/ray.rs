@@ -68,6 +68,8 @@ impl RayPass {
             layout: Some(&pipeline_layout),
             entry_point: "main",
             module: &shader,
+            compilation_options: Default::default(),
+            cache: None,
         });
         Self {
             bind_group_layout,
@@ -83,6 +85,8 @@ impl RayPass {
             layout: Some(&self.pipeline_layout),
             entry_point: "main",
             module: &shader,
+            compilation_options: Default::default(),
+            cache: None,
         });
     }
 
