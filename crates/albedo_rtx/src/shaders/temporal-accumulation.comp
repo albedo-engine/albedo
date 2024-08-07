@@ -47,6 +47,12 @@ void main()
   RayPayload ray = rays[index];
   vec3 currRadiance = ray.radiance.rgb;
 
+  if (currSample.w < 0.00001) {
+    imageStore(radiance, coords, vec4(currRadiance, 1.0));
+    historyLen[index] = 0u;
+    return;
+  }
+
   /* Depth sample mismatch */
   float depthThreshold = 0.1; // @todo: Should be based on precision of the depth range.
   if (abs(currSample.w - prevSample.w) > depthThreshold) {
@@ -60,11 +66,12 @@ void main()
   // @todo: normal
 
   uint prevIndex = uint(prevCoords.y * size.x + prevCoords.x);
-  uint history = max(min(historyLenPrevious[prevIndex] + 1, 5), 1);
+  uint history = max(min(historyLenPrevious[prevIndex] + 1, 100), 1);
 
   vec3 prevRadiance = texelFetch(sampler2D(radiancePrevious, samplerNearest), prevCoords, 0).rgb;
   vec3 color = mix(prevRadiance, currRadiance, 1.0 / float(history));
 
   imageStore(radiance, coords, vec4(color, 1.0));
+  // imageStore(radiance, coords, vec4(history > 2u ? 1.0 : 0.0, 0.0, 0.0, 1.0));
   historyLen[index] = history;
 }
