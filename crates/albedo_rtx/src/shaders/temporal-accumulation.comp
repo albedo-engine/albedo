@@ -53,25 +53,33 @@ void main()
     return;
   }
 
+  // @todo: Instance ID
+
   /* Depth sample mismatch */
-  float depthThreshold = 0.1; // @todo: Should be based on precision of the depth range.
+  float depthThreshold = 0.5; // @todo: Should be based on precision of the depth range.
   if (abs(currSample.w - prevSample.w) > depthThreshold) {
     bool red = currSample.w > prevSample.w;
-    imageStore(radiance, coords, vec4(0.0, red ? 1.0 : 0.0, red ? 0.0 : 1.0, 1.0));
-    // imageStore(radiance, coords, vec4(currRadiance, 1.0));
+    imageStore(radiance, coords, vec4(currRadiance, 1.0));
     historyLen[index] = 0u;
     return;
   }
-  // @todo: Instance ID
-  // @todo: normal
+
+  float normalThreshold = 0.99;
+  if (dot(currSample.xyz, prevSample.xyz) < normalThreshold) {
+    // imageStore(radiance, coords, vec4(0.0, 0.0, 1.0, 1.0));
+    imageStore(radiance, coords, vec4(currRadiance, 1.0));
+    historyLen[index] = 0u;
+    return;
+  }
+
+  uint maxHistory = 16;
 
   uint prevIndex = uint(prevCoords.y * size.x + prevCoords.x);
-  uint history = max(min(historyLenPrevious[prevIndex] + 1, 100), 1);
+  uint history = max(min(historyLenPrevious[prevIndex] + 1, maxHistory), 1);
+  historyLen[index] = history;
 
   vec3 prevRadiance = texelFetch(sampler2D(radiancePrevious, samplerNearest), prevCoords, 0).rgb;
   vec3 color = mix(prevRadiance, currRadiance, 1.0 / float(history));
-
   imageStore(radiance, coords, vec4(color, 1.0));
-  // imageStore(radiance, coords, vec4(history > 2u ? 1.0 : 0.0, 0.0, 0.0, 1.0));
-  historyLen[index] = history;
+  // imageStore(radiance, coords, vec4(currRadiance, 1.0));
 }
