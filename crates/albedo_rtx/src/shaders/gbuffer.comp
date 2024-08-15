@@ -1,0 +1,95 @@
+#version 450
+
+#extension GL_GOOGLE_include_directive : enable
+
+#include "utils/math.glsl"
+#include "structures.glsl"
+
+layout (set = 0, binding = 0, std430) readonly buffer InstanceBuffer {
+  Instance instances[];
+};
+
+// @todo: Add previous frame matrix per instance.
+
+layout (set = 0, binding = 1, std430) readonly buffer BVHNodeBuffer {
+  BVHNode nodes[];
+};
+
+layout (set = 0, binding = 2, std430) readonly buffer IndexBuffer {
+  uint indices[];
+};
+
+layout (set = 0, binding = 3, std430) readonly buffer VertexBuffer {
+  Vertex vertices[];
+};
+
+layout (set = 0, binding = 4, std430) readonly buffer LightBuffer {
+  Light lights[];
+};
+
+layout (set = 1, binding = 0, std430) readonly buffer IntersectionBuffer {
+  Intersection intersections[];
+};
+
+layout(set = 1, binding = 1, rgba32f) writeonly uniform image2D gbuffer;
+
+layout(set = 1, binding = 2, rg32f) writeonly uniform image2D motion;
+
+layout(push_constant) uniform pushConstants {
+  mat4 previousWorldToScreen;
+} constants;
+
+/* Utils */
+
+#include "utils/intersection_utils.glsl"
+
+layout(local_size_x = 8, local_size_y = 8) in;
+void main()
+{
+  ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
+  uint index = gl_GlobalInvocationID.y * gl_WorkGroupSize.x * gl_NumWorkGroups.x + gl_GlobalInvocationID.x;
+  if (index >= intersections.length())
+  {
+    imageStore(gbuffer, coords, vec4(0.0));
+    imageStore(motion, coords, vec4(0.0));
+    return;
+  }
+
+  Intersection intersection = intersections[index];
+
+  if (abs(MAX_FLOAT - intersection.dist) < EPSILON)
+  {
+    imageStore(gbuffer, coords, vec4(0.0));
+    imageStore(motion, coords, vec4(0.0));
+    return;
+  }
+
+  Instance instance = instances[intersection.instance];
+
+  // @todo: Could be refactored with the shading, that will re-compute the normal.
+  Primitive primitive = extractPrimitive(instance, intersection);
+  vec3 barycentric = barycentricCoordinates(intersection.uv);
+
+  vec3 normal = interpolateBarycentric(
+    primitive.v0.normal.xyz,
+    primitive.v1.normal.xyz,
+    primitive.v2.normal.xyz,
+    barycentric
+  );
+
+  vec3 posLocal = interpolateBarycentric(
+    primitive.v0.position.xyz,
+    primitive.v1.position.xyz,
+    primitive.v2.position.xyz,
+    barycentric
+  );
+  vec4 worldPos = instance.modelToWorld * vec4(posLocal, 1.0);
+  vec4 prevProjectedPos = constants.previousWorldToScreen * worldPos;
+
+  vec2 currPos2d = vec2(coords) / vec2(gl_WorkGroupSize * gl_NumWorkGroups);
+  vec2 prevPos2d = (prevProjectedPos.xy / prevProjectedPos.w) * vec2(0.5) + vec2(0.5);
+  vec2 motionVector = currPos2d - prevPos2d;
+
+  imageStore(gbuffer, coords, vec4(normal, intersection.dist));
+  imageStore(motion, coords, vec4(motionVector, 0.0, 0.0));
+}

@@ -68,6 +68,8 @@ impl RayPass {
             layout: Some(&pipeline_layout),
             entry_point: "main",
             module: &shader,
+            compilation_options: Default::default(),
+            cache: None,
         });
         Self {
             bind_group_layout,
@@ -83,6 +85,8 @@ impl RayPass {
             layout: Some(&self.pipeline_layout),
             entry_point: "main",
             module: &shader,
+            compilation_options: Default::default(),
+            cache: None,
         });
     }
 
@@ -120,7 +124,7 @@ impl RayPass {
             label: Some("Ray Generator Pass"),
             timestamp_writes: None,
         });
-        let workgroups = get_dispatch_size(dispatch_size, Self::WORKGROUP_SIZE);
+        let workgroups = get_dispatch_size(&dispatch_size, &Self::WORKGROUP_SIZE);
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, frame_bind_groups, &[]);
         pass.dispatch_workgroups(workgroups.0, workgroups.1, workgroups.2);

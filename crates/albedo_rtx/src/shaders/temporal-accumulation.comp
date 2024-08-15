@@ -1,0 +1,85 @@
+#version 450
+
+#extension GL_GOOGLE_include_directive : enable
+
+#include "utils/math.glsl"
+#include "structures.glsl"
+
+// @todo: Add previous frame matrix per instance.
+
+layout(set = 0, binding = 0, std430) readonly buffer RayBuffer {
+  // @todo: Split radiance into a separate texture.
+  //
+  // The problem is that the pathtracing shader has reached the
+  // maximum amount of storage buffers per stage.
+  RayPayload rays[];
+};
+
+layout(set = 0, binding = 1) uniform texture2D gbufferPrevious;
+layout(set = 0, binding = 2) uniform texture2D gbuffer;
+layout(set = 0, binding = 3) uniform texture2D motion;
+layout(set = 0, binding = 4) uniform texture2D radiancePrevious;
+layout(set = 0, binding = 5, rgba32f) writeonly uniform image2D radiance;
+layout(set = 0, binding = 6) uniform sampler samplerNearest;
+
+layout(set = 0, binding = 7, std430) readonly buffer HistoryBufferPrevious {
+  uint historyLenPrevious[]; // @todo: Use u8
+};
+layout(set = 0, binding = 8, std430) buffer HistoryBuffer {
+  uint historyLen[]; // @todo: Use u8
+};
+
+layout(local_size_x = 8, local_size_y = 8) in;
+void main()
+{
+  uint index = gl_GlobalInvocationID.y * gl_WorkGroupSize.x * gl_NumWorkGroups.x + gl_GlobalInvocationID.x;
+  if (index >= rays.length()) return;
+
+  ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
+  vec2 size = vec2(imageSize(radiance));
+
+  vec2 motion2d = texelFetch(sampler2D(motion, samplerNearest), coords, 0).xy;
+  ivec2 prevCoords = coords - ivec2(motion2d * size);
+
+  vec4 currSample = texelFetch(sampler2D(gbuffer, samplerNearest), coords, 0);
+  vec4 prevSample = texelFetch(sampler2D(gbufferPrevious, samplerNearest), prevCoords, 0);
+
+  RayPayload ray = rays[index];
+  vec3 currRadiance = ray.radiance.rgb;
+
+  if (currSample.w < 0.00001) {
+    imageStore(radiance, coords, vec4(currRadiance, 1.0));
+    historyLen[index] = 0u;
+    return;
+  }
+
+  // @todo: Instance ID
+
+  /* Depth sample mismatch */
+  float depthThreshold = 0.5; // @todo: Should be based on precision of the depth range.
+  if (abs(currSample.w - prevSample.w) > depthThreshold) {
+    bool red = currSample.w > prevSample.w;
+    imageStore(radiance, coords, vec4(currRadiance, 1.0));
+    historyLen[index] = 0u;
+    return;
+  }
+
+  float normalThreshold = 0.99;
+  if (dot(currSample.xyz, prevSample.xyz) < normalThreshold) {
+    // imageStore(radiance, coords, vec4(0.0, 0.0, 1.0, 1.0));
+    imageStore(radiance, coords, vec4(currRadiance, 1.0));
+    historyLen[index] = 0u;
+    return;
+  }
+
+  uint maxHistory = 16;
+
+  uint prevIndex = uint(prevCoords.y * size.x + prevCoords.x);
+  uint history = max(min(historyLenPrevious[prevIndex] + 1, maxHistory), 1);
+  historyLen[index] = history;
+
+  vec3 prevRadiance = texelFetch(sampler2D(radiancePrevious, samplerNearest), prevCoords, 0).rgb;
+  vec3 color = mix(prevRadiance, currRadiance, 1.0 / float(history));
+  imageStore(radiance, coords, vec4(color, 1.0));
+  // imageStore(radiance, coords, vec4(currRadiance, 1.0));
+}

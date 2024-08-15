@@ -1,19 +1,17 @@
 use albedo_backend::gpu;
-use guillotiere::euclid::default;
 use wgpu::{BindGroup, BindingType, StoreOp};
 
 use crate::macros::path_separator;
 use crate::uniforms;
 
-pub struct BlitPass {
+pub struct BlitTexturePass {
     bind_group_layout: wgpu::BindGroupLayout,
     pipeline: wgpu::RenderPipeline,
 }
 
-impl BlitPass {
+impl BlitTexturePass {
     const TEXTURE_SAMPLER_BINDING: u32 = 0;
     const TEXTURE_BINDING: u32 = 1;
-    const PER_DRAW_STRUCT_BINDING: u32 = 2;
 
     pub fn new(device: &wgpu::Device, swap_chain_format: wgpu::TextureFormat) -> Self {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -36,20 +34,11 @@ impl BlitPass {
                         view_dimension: wgpu::TextureViewDimension::D2,
                     },
                     count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: Self::PER_DRAW_STRUCT_BINDING,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
+                }
             ],
         });
 
+        // @todo: Share with other passes.
         let vx_module = device.create_shader_module(wgpu::include_spirv!(concat!(
             "..",
             path_separator!(),
@@ -66,17 +55,17 @@ impl BlitPass {
             path_separator!(),
             "spirv",
             path_separator!(),
-            "blitting.frag.spv"
+            "blitting-texture.frag.spv"
         )));
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Blit Pipeline"),
+            label: Some("BlitTexture Pipeline Layout"),
             bind_group_layouts: &[&bind_group_layout],
             push_constant_ranges: &[],
         });
 
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Blit Pipeline"),
+            label: Some("BlitTexture Pipeline"),
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &vx_module,
@@ -100,7 +89,7 @@ impl BlitPass {
             cache: None
         });
 
-        BlitPass {
+        BlitTexturePass {
             bind_group_layout,
             pipeline,
         }
@@ -111,10 +100,9 @@ impl BlitPass {
         device: &wgpu::Device,
         view: &wgpu::TextureView,
         sampler: &wgpu::Sampler,
-        global_uniforms: &gpu::Buffer<uniforms::PerDrawUniforms>,
     ) -> BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Blit Bind Group"),
+            label: Some("BlitTexture Bind Group"),
             layout: &self.bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
@@ -124,11 +112,7 @@ impl BlitPass {
                 wgpu::BindGroupEntry {
                     binding: Self::TEXTURE_BINDING,
                     resource: wgpu::BindingResource::TextureView(view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: Self::PER_DRAW_STRUCT_BINDING,
-                    resource: global_uniforms.as_entire_binding(),
-                },
+                }
             ],
         })
     }
@@ -140,15 +124,15 @@ impl BlitPass {
         bind_group: &BindGroup,
     ) {
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: None,
+            label: Some("Blitting Texture Render Pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: view,
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: 0.9,
-                        g: 0.2,
-                        b: 0.3,
+                        r: 0.0,
+                        g: 0.0,
+                        b: 0.0,
                         a: 1.0,
                     }),
                     store: StoreOp::Store,
