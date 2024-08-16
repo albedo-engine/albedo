@@ -2,6 +2,7 @@
 
 #extension GL_GOOGLE_include_directive : enable
 
+#include "utils/colorspace.glsl"
 #include "utils/math.glsl"
 #include "structures.glsl"
 
@@ -29,6 +30,19 @@ layout(set = 0, binding = 8, std430) buffer HistoryBuffer {
   uint historyLen[]; // @todo: Use u8
 };
 
+layout(set = 0, binding = 9) uniform texture2D momentsPrevious;
+layout(set = 0, binding = 10, rg32f) writeonly uniform image2D moments;
+
+bool validateDepth(float prev, float curr) {
+  float depthThreshold = 0.5; // @todo: Should be based on precision of the depth range.
+  return abs(curr - prev) < depthThreshold;
+}
+
+bool validateNormal(vec3 prev, vec3 curr) {
+  float normalThreshold = 0.99; // @todo: Should be based on precision of the depth range.
+  return dot(curr, prev) > normalThreshold;
+}
+
 layout(local_size_x = 8, local_size_y = 8) in;
 void main()
 {
@@ -54,19 +68,7 @@ void main()
   }
 
   // @todo: Instance ID
-
-  /* Depth sample mismatch */
-  float depthThreshold = 0.5; // @todo: Should be based on precision of the depth range.
-  if (abs(currSample.w - prevSample.w) > depthThreshold) {
-    bool red = currSample.w > prevSample.w;
-    imageStore(radiance, coords, vec4(currRadiance, 1.0));
-    historyLen[index] = 0u;
-    return;
-  }
-
-  float normalThreshold = 0.99;
-  if (dot(currSample.xyz, prevSample.xyz) < normalThreshold) {
-    // imageStore(radiance, coords, vec4(0.0, 0.0, 1.0, 1.0));
+  if (!validateDepth(prevSample.w, currSample.w) || !validateNormal(prevSample.xyz, currSample.xyz)) {
     imageStore(radiance, coords, vec4(currRadiance, 1.0));
     historyLen[index] = 0u;
     return;
@@ -74,12 +76,23 @@ void main()
 
   uint maxHistory = 16;
 
+  /* History length */
   uint prevIndex = uint(prevCoords.y * size.x + prevCoords.x);
   uint history = max(min(historyLenPrevious[prevIndex] + 1, maxHistory), 1);
   historyLen[index] = history;
 
+  float a = 1.0 / float(history); /* History interpolation coffecient */
+
+  /* Moments */
+  vec2 prevMoment = texelFetch(sampler2D(momentsPrevious, samplerNearest), prevCoords, 0).rg;
+  float mu_1 = luminance(currRadiance); /* First raw moment */
+  vec2 moment = vec2(mu_1, mu_1 * mu_1);
+  moment = mix(prevMoment, moment, a);
+  imageStore(moments, coords, vec4(moment, 0.0, 0.0));
+
+  /* Color & variance */
   vec3 prevRadiance = texelFetch(sampler2D(radiancePrevious, samplerNearest), prevCoords, 0).rgb;
-  vec3 color = mix(prevRadiance, currRadiance, 1.0 / float(history));
-  imageStore(radiance, coords, vec4(color, 1.0));
-  // imageStore(radiance, coords, vec4(currRadiance, 1.0));
+  vec3 color = mix(prevRadiance, currRadiance, a);
+  float variance = max(moment.y - moment.x * moment.x, 0.0); /* mu_2' - mu_1'^2 */
+  imageStore(radiance, coords, vec4(color, variance));
 }
