@@ -2,6 +2,7 @@
 
 #extension GL_GOOGLE_include_directive : enable
 
+#include "utils/common.glsl"
 #include "utils/colorspace.glsl"
 #include "utils/math.glsl"
 #include "structures.glsl"
@@ -43,6 +44,10 @@ bool validateNormal(vec3 prev, vec3 curr) {
   return dot(curr, prev) > normalThreshold;
 }
 
+bool validateCoords(ivec2 coords, ivec2 size) {
+  return !(coords.x < 0 || coords.x > size.x || coords.y < 0 || coords.y > size.y);
+}
+
 layout(local_size_x = 8, local_size_y = 8) in;
 void main()
 {
@@ -50,10 +55,10 @@ void main()
   if (index >= rays.length()) return;
 
   ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
-  vec2 size = vec2(imageSize(radiance));
+  ivec2 size = imageSize(radiance);
 
   vec2 motion2d = texelFetch(sampler2D(motion, samplerNearest), coords, 0).xy;
-  ivec2 prevCoords = coords - ivec2(motion2d * size);
+  ivec2 prevCoords = coords - ivec2(motion2d * vec2(size));
 
   vec4 currSample = texelFetch(sampler2D(gbuffer, samplerNearest), coords, 0);
   vec4 prevSample = texelFetch(sampler2D(gbufferPrevious, samplerNearest), prevCoords, 0);
@@ -61,14 +66,8 @@ void main()
   RayPayload ray = rays[index];
   vec3 currRadiance = ray.radiance.rgb;
 
-  if (currSample.w < 0.00001) {
-    imageStore(radiance, coords, vec4(currRadiance, 1.0));
-    historyLen[index] = 0u;
-    return;
-  }
-
   // @todo: Instance ID
-  if (!validateDepth(prevSample.w, currSample.w) || !validateNormal(prevSample.xyz, currSample.xyz)) {
+  if (currSample.w < EPSILON || !validateCoords(prevCoords, size) || !validateDepth(prevSample.w, currSample.w) || !validateNormal(prevSample.xyz, currSample.xyz)) {
     imageStore(radiance, coords, vec4(currRadiance, 1.0));
     historyLen[index] = 0u;
     return;

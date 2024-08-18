@@ -1,0 +1,98 @@
+#version 450
+
+#extension GL_GOOGLE_include_directive : enable
+
+#include "utils/common.glsl"
+#include "utils/colorspace.glsl"
+
+layout(push_constant) uniform pushConstants {
+  uint step;
+} constants;
+
+layout(set = 0, binding = 0) uniform texture2D gbuffer;
+layout(set = 0, binding = 1) uniform texture2D radianceIn;
+layout(set = 0, binding = 2, rgba32f) writeonly uniform image2D radiance;
+layout(set = 0, binding = 3) uniform sampler samplerNearest;
+
+float B3SPLINE_WEIGHTS[3] = {3.0/8.0, 1.0/4.0, 1.0/16.0};
+
+float weightDepth(float pdepth, float delta_p, float qdepth, uint step)
+{
+    const float phiZ = 1.0;
+
+    float depthDist = abs(pdepth - qdepth);
+    return depthDist / (phiZ * delta_p * float(step) + EPSILON);
+}
+
+float weightNormal(vec3 normal_p, vec3 normal_q)
+{
+    const float phi_n = 128.0;
+    return pow(max(0.0, dot(normal_p, normal_q)), phi_n);
+}
+
+float weightIllumination(float variance_p, float luminance_p, float luminance_q)
+{
+    const float phi_l = 4.0;
+
+    float num = abs(luminance_p - luminance_q);
+    float den = phi_l * sqrt(variance_p) + EPSILON;
+    return num / den;
+}
+
+layout(local_size_x = 8, local_size_y = 8) in;
+void main()
+{
+    ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 size = imageSize(radiance);
+
+    /* `p` for center pixel, similar to SVGF paper. */
+    vec4 sample_p = texelFetch(sampler2D(gbuffer, samplerNearest), coords, 0);
+    vec4 color_p = texelFetch(sampler2D(radianceIn, samplerNearest), coords, 0);
+    float lum_p = luminance(color_p.rgb);
+
+    // @todo: Pre-compute and store?
+    float depthDerivative_p = 0.0;
+    if (coords.x < size.x - 1) {
+        float d = texelFetch(sampler2D(gbuffer, samplerNearest), coords + ivec2(1, 0), 0).a;
+        depthDerivative_p = abs(d - sample_p.w);
+    }
+    if (coords.y < size.y - 1) {
+        float d = texelFetch(sampler2D(gbuffer, samplerNearest), coords + ivec2(0, 1), 0).a;
+        depthDerivative_p = max(depthDerivative_p, abs(d - sample_p.w));
+    }
+
+    vec3 colorSum = color_p.rgb;
+    float varianceSum = color_p.w;
+    float weight = 1.0;
+    for (int y = -2; y < 2; ++y) {
+        for (int x = -2; x < 2; ++x) {
+            if (x == 0u && y == 0u) continue;
+
+            ivec2 qCoords = coords + ivec2(x, y);
+            if (qCoords.x < 0 || qCoords.x > size.x || qCoords.y < 0 || qCoords.y > size.y) continue;
+
+            uint x_abs = abs(x);
+            uint y_abs = abs(y);
+            float dist = length(vec2(float(x), float(y)));
+            vec2 h = vec2(B3SPLINE_WEIGHTS[x_abs], B3SPLINE_WEIGHTS[y_abs]);
+
+            vec4 sample_q = texelFetch(sampler2D(gbuffer, samplerNearest), qCoords, 0);
+            vec4 color_q = texelFetch(sampler2D(radianceIn, samplerNearest), qCoords, 0);
+            float lum_q = luminance(color_q.rgb);
+
+            float wdepth = weightDepth(sample_p.w, depthDerivative_p, sample_q.w, constants.step);
+            float willumination = weightIllumination(color_p.w, lum_p, lum_q);
+            float w = exp(- wdepth - willumination) * weightNormal(sample_p.xyz, sample_q.xyz);
+            w *= h.x * h.y;
+
+            colorSum += color_q.rgb * w;
+            varianceSum += w * w * color_q.w;
+            weight += w;
+        }
+    }
+
+    vec3 colorOut = colorSum / weight;
+    float varianceOut = varianceSum / (weight * weight);
+
+    imageStore(radiance, coords, vec4(colorOut, varianceOut));
+}
