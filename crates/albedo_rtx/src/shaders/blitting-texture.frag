@@ -3,6 +3,8 @@
 #extension GL_EXT_samplerless_texture_functions : enable
 #extension GL_GOOGLE_include_directive : enable
 
+#include "utils/colorspace.glsl"
+
 layout(location = 0) in vec2 vUv;
 
 layout(set = 0, binding = 0) uniform sampler uTextureSampler;
@@ -12,5 +14,7 @@ layout(location = 0) out vec4 outColor;
 
 void main() {
   outColor = texture(sampler2D(uTexture, uTextureSampler), vUv).rgba;
+  outColor.rgb = ACESFilmTonemapping(outColor.rgb);
+  outColor.rgb = linearTosRGB(outColor.rgb);
   outColor.a = 1.0;
 }

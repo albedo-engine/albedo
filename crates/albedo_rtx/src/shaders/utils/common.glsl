@@ -34,14 +34,4 @@ project(vec3 val, const vec3 normal, const vec3 tangent, const vec3 bitangent)
   return tangent * val.x + bitangent * val.y + normal * val.z;
 }
 
-Ray
-transformRay(inout Ray ray, mat4 transform)
-{
-  Ray result;
-  // @todo: radiance and throughput should go somewhere else.
-  result.origin = transformPosition(ray.origin, transform);
-  result.dir = transformDirection(ray.dir, transform);
-  return result;
-}
-
 #endif // COMMON_H

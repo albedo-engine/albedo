@@ -20,6 +20,8 @@ impl TemporalAccumulationPass {
     const SAMPLER_BINDING: u32 = 6;
     const HISTORY_PREVIOUS_BINDING: u32 = 7;
     const HISTORY_BINDING: u32 = 8;
+    const MOMENTS_PREVIOUS_BINDING: u32 = 9;
+    const MOMENTS_BINDING: u32 = 10;
 
     pub fn new(
         device: &wgpu::Device,
@@ -115,6 +117,26 @@ impl TemporalAccumulationPass {
                         },
                         count: None,
                     },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: Self::MOMENTS_PREVIOUS_BINDING,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: Self::MOMENTS_BINDING,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::StorageTexture {
+                            format: wgpu::TextureFormat::Rg32Float,
+                            access: wgpu::StorageTextureAccess::WriteOnly,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                        },
+                        count: None,
+                    },
                 ],
             });
 
@@ -157,6 +179,7 @@ impl TemporalAccumulationPass {
         device: &wgpu::Device,
         size: &(u32, u32),
         out_radiance: &wgpu::TextureView,
+        out_moments: &wgpu::TextureView,
         out_history: &gpu::Buffer<u32>,
         rays: &gpu::Buffer<uniforms::Ray>,
         gbuffer_previous: &wgpu::TextureView,
@@ -165,6 +188,7 @@ impl TemporalAccumulationPass {
         radiance_previous: &wgpu::TextureView,
         sampler: &wgpu::Sampler,
         history_previous: &gpu::Buffer<u32>,
+        moments_previous: &wgpu::TextureView,
     ) -> wgpu::BindGroup {
         let pixels_count: u64 = (size.0 * size.1) as u64;
         device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -206,6 +230,14 @@ impl TemporalAccumulationPass {
                 wgpu::BindGroupEntry {
                     binding: Self::HISTORY_BINDING,
                     resource: out_history.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: Self::MOMENTS_PREVIOUS_BINDING,
+                    resource: wgpu::BindingResource::TextureView(moments_previous),
+                },
+                wgpu::BindGroupEntry {
+                    binding: Self::MOMENTS_BINDING,
+                    resource: wgpu::BindingResource::TextureView(out_moments),
                 },
             ],
         })

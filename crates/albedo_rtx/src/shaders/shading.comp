@@ -173,8 +173,10 @@ shade(RayPayload ray, Intersection intersection, uvec2 workgroupSize)
   vec3 throughput = getThroughput(ray);
   if (abs(MAX_FLOAT - intersection.dist) < EPSILON)
   {
+    float exposition = 0.5; // @todo: Expose exposition (no pun intended)
     vec2 uv = cartesianToEqui(ray.dir.xyz);
     vec3 probe = sampleProbe(samplerLinear, Probe, uv);
+    probe = probe * exposition;
     ray.radiance.rgb += throughput * probe;
     ray.terminated.x = 1u;
     return ray;

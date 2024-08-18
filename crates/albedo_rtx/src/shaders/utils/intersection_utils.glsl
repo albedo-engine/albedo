@@ -53,6 +53,16 @@ vec3 barycentricCoordinates(vec2 uv)
   return vec3(1.0 - uv.x - uv.y, uv);
 }
 
+Ray
+transformRay(inout Ray ray, mat4 transform)
+{
+  Ray result;
+  // @todo: radiance and throughput should go somewhere else.
+  result.origin = transformPosition(ray.origin, transform);
+  result.dir = transformDirection(ray.dir, transform);
+  return result;
+}
+
 float
 intersectPlane(Ray ray, vec3 normal, vec3 origin, vec3 edge01, vec3 edge02)
 {

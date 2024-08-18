@@ -76,6 +76,8 @@ void main()
     primitive.v2.normal.xyz,
     barycentric
   );
+  normal = transformDirection(normal, instance.modelToWorld);
+  normal = normalize(normal);
 
   vec3 posLocal = interpolateBarycentric(
     primitive.v0.position.xyz,
