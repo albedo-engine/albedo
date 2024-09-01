@@ -8,9 +8,6 @@ repository = "https://github.com/albedo-engine/albedo"
 license = "MIT"
 keywords = ["raytracing", "graphics" ]
 
-[features]
-accumulate_read_write = []
-
 [dependencies]
 albedo_backend = { path = "../albedo_backend", version = "0.0.1-beta.0" }
 albedo_bvh = { path = "../albedo_bvh", version = "0.0.1-beta.0" }
