@@ -14,9 +14,7 @@ impl AccumulationPass {
     const RAY_BINDING: u32 = 0;
     const PER_DRAW_STRUCT_BINDING: u32 = 1;
     const TEXTURE_BINDING: u32 = 2;
-    #[cfg(feature = "accumulate_read_write")]
     const READ_TEXTURE_BINDING: u32 = 3;
-    #[cfg(feature = "accumulate_read_write")]
     const SAMPLER_BINDING: u32 = 4;
 
     pub fn new(device: &wgpu::Device, source: Option<wgpu::ShaderModuleDescriptor>) -> Self {
@@ -38,10 +36,7 @@ impl AccumulationPass {
                     visibility: wgpu::ShaderStages::COMPUTE,
                     ty: wgpu::BindingType::StorageTexture {
                         format: wgpu::TextureFormat::Rgba32Float,
-                        #[cfg(feature = "accumulate_read_write")]
                         access: wgpu::StorageTextureAccess::WriteOnly,
-                        #[cfg(not(feature = "accumulate_read_write"))]
-                        access: wgpu::StorageTextureAccess::ReadWrite,
                         view_dimension: wgpu::TextureViewDimension::D2,
                     },
                     count: None,
@@ -56,7 +51,6 @@ impl AccumulationPass {
                     },
                     count: None,
                 },
-                #[cfg(feature = "accumulate_read_write")]
                 wgpu::BindGroupLayoutEntry {
                     binding: Self::READ_TEXTURE_BINDING,
                     visibility: wgpu::ShaderStages::COMPUTE,
@@ -67,7 +61,6 @@ impl AccumulationPass {
                     },
                     count: None,
                 },
-                #[cfg(feature = "accumulate_read_write")]
                 wgpu::BindGroupLayoutEntry {
                     binding: Self::SAMPLER_BINDING,
                     visibility: wgpu::ShaderStages::COMPUTE,
@@ -84,17 +77,6 @@ impl AccumulationPass {
         });
 
         let shader = match source {
-            #[cfg(not(feature = "accumulate_read_write"))]
-            None => device.create_shader_module(wgpu::include_spirv!(concat!(
-                "..",
-                path_separator!(),
-                "shaders",
-                path_separator!(),
-                "spirv",
-                path_separator!(),
-                "accumulation.comp.spv"
-            ))),
-            #[cfg(feature = "accumulate_read_write")]
             None => device.create_shader_module(wgpu::include_spirv!(concat!(
                 "..",
                 path_separator!(),
@@ -122,37 +104,6 @@ impl AccumulationPass {
         }
     }
 
-    #[cfg(not(feature = "accumulate_read_write"))]
-    pub fn create_frame_bind_groups(
-        &self,
-        device: &wgpu::Device,
-        size: (u32, u32),
-        in_rays: &gpu::Buffer<Ray>,
-        global_uniforms: &gpu::Buffer<PerDrawUniforms>,
-        view: &wgpu::TextureView,
-    ) -> wgpu::BindGroup {
-        let pixels_count: u64 = (size.0 * size.1) as u64;
-        device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Accumulation Bind Group"),
-            layout: &self.bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: Self::RAY_BINDING,
-                    resource: in_rays.as_sub_binding(pixels_count),
-                },
-                wgpu::BindGroupEntry {
-                    binding: Self::TEXTURE_BINDING,
-                    resource: wgpu::BindingResource::TextureView(view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: Self::PER_DRAW_STRUCT_BINDING,
-                    resource: global_uniforms.as_entire_binding(),
-                },
-            ],
-        })
-    }
-
-    #[cfg(feature = "accumulate_read_write")]
     pub fn create_frame_bind_groups(
         &self,
         device: &wgpu::Device,
