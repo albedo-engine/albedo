@@ -1,6 +1,8 @@
 use albedo_backend::mesh;
 use bytemuck::{Pod, Zeroable};
+
 use std::convert::TryInto;
+use glam::Vec4Swizzles;
 
 pub static INVALID_INDEX: u32 = std::u32::MAX;
 
@@ -195,6 +197,25 @@ pub struct Camera {
     pub padding_1: f32,
     pub dimensions: [u32; 2],
     pub padding_2: [u32; 2],
+}
+
+impl Camera {
+    pub fn set_transform(&mut self, transform: &glam::Mat4) {
+        self.right = transform.x_axis.xyz();
+        self.up = transform.y_axis.xyz();
+        self.origin = transform.w_axis.xyz();
+    }
+
+    pub fn perspective(&self, near: f32, far: f32) -> glam::Mat4 {
+        let aspect = self.dimensions[0] as f32 / self.dimensions[1] as f32;
+        glam::Mat4::perspective_lh(self.v_fov, aspect, near, far)
+    }
+
+    pub fn transform(&self) -> glam::Mat4 {
+        let dir = self.up.cross(self.right).normalize().extend(0.0);
+        let rot = glam::Mat4::from_cols(self.right.normalize().extend(0.0), self.up.normalize().extend(0.0), dir, glam::Vec4::W);
+        glam::Mat4::from_translation(self.origin) * rot
+    }
 }
 
 impl Default for Camera {

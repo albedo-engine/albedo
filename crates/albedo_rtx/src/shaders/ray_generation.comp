@@ -22,34 +22,7 @@ layout (set = 0, binding = 1) readonly uniform CameraUniformsBuffer {
   float padding_1;
   uvec2 dimensions;
   uvec2 padding_2;
-} CameraUniforms;
-
-RayPayload
-generateRay(uvec3 coords, uvec2 dimensions)
-{
-  RayPayload ray;
-
-  vec2 halfSize = vec2(dimensions) * 0.5;
-  vec3 clip = vec3(
-    coords.x - halfSize.x,
-    coords.y - halfSize.y,
-    halfSize.y / tan(CameraUniforms.vFOV * 0.5)
-  );
-
-  // TODO: pack direction directly?
-  vec3 dir = normalize(cross(CameraUniforms.up, CameraUniforms.right));
-
-  // `throughput` is packed in `origin.w`, `dir.w`, and `radiance.w`.
-  ray.origin = vec4(CameraUniforms.origin, 1.0);
-  ray.dir = vec4(
-    normalize(clip.x * CameraUniforms.right + clip.y * CameraUniforms.up + clip.z * dir),
-    1.0 // throughput component
-  );
-  ray.radiance = vec4(0.0, 0.0, 0.0, 1.0);
-  ray.terminated = uvec4(0u);
-
-  return ray;
-}
+} camera;
 
 // @todo: not hardcoding that means generating the shader at runtime
 layout(local_size_x = 8, local_size_y = 8) in;
@@ -58,12 +31,17 @@ void main()
   uint index = gl_GlobalInvocationID.y * gl_WorkGroupSize.x * gl_NumWorkGroups.x + gl_GlobalInvocationID.x;
   if (index >= rays.length()) return;
 
-  uvec2 dimensions = CameraUniforms.dimensions;
-  rays[index] = generateRay(gl_GlobalInvocationID, dimensions);
+  vec2 halfSize = vec2(camera.dimensions) * 0.5;
+  vec3 clip = vec3(vec2(gl_GlobalInvocationID.xy) - halfSize, halfSize.y / tan(camera.vFOV * 0.5));
+  // TODO: pack direction directly?
+  vec3 forward = normalize(cross(camera.up, camera.right));
 
-  // DEBUG
-  // RayPayload ray;
-  // ray.radiance = vec4(1.0, 0.0, 0.0, 0.0);
-  // rays[index] = ray;
-  // END DEBUG
+  // `throughput` is packed in `origin.w`, `dir.w`, and `radiance.w`.
+  RayPayload ray;
+  ray.origin = vec4(camera.origin, 1.0);
+  ray.dir = vec4(normalize(clip.x * camera.right + clip.y * camera.up + clip.z * forward), 1.0);
+  ray.radiance = vec4(0.0, 0.0, 0.0, 1.0);
+  ray.terminated = uvec4(0u);
+
+  rays[index] = ray;
 }
