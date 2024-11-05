@@ -54,9 +54,6 @@ impl ShaderCache {
             };
             buf.extend([content, "\n"]);
         }
-
-        print!("{}", buf);
-
         Ok(buf)
     }
 }

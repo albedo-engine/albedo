@@ -1,4 +1,8 @@
+use std::borrow::{Borrow, Cow};
+
+use albedo_backend::data::ShaderCache;
 use albedo_backend::gpu;
+use wgpu::naga::{self, FastHashMap};
 
 use crate::get_dispatch_size;
 use crate::macros::path_separator;
@@ -20,7 +24,7 @@ impl RayPass {
 
     const WORKGROUP_SIZE: (u32, u32, u32) = (8, 8, 1);
 
-    pub fn new(device: &wgpu::Device, source: Option<wgpu::ShaderModuleDescriptor>) -> Self {
+    pub fn new(device: &wgpu::Device, processor: &mut ShaderCache, source: Option<&str>) -> Self {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Ray Generator Layout"),
             entries: &[
@@ -51,18 +55,27 @@ impl RayPass {
             bind_group_layouts: &[&bind_group_layout],
             push_constant_ranges: &[],
         });
-        let shader = match source {
-            None => device.create_shader_module(wgpu::include_spirv!(concat!(
-                "..",
-                path_separator!(),
-                "shaders",
-                path_separator!(),
-                "spirv",
-                path_separator!(),
-                "ray_generation.comp.spv"
-            ))),
-            Some(v) => device.create_shader_module(v),
-        };
+
+        let source = source.unwrap_or(include_str!(concat!(
+            "..",
+            path_separator!(),
+            "..",
+            path_separator!(),
+            "shaders",
+            path_separator!(),
+            "ray_generation.comp"
+        )));
+        let source = processor.compile(source).unwrap();
+
+        let shader: wgpu::ShaderModule = device.create_shader_module(wgpu::ShaderModuleDescriptor{
+            label: Some("Ray Generation Shader"),
+            source: wgpu::ShaderSource::Glsl {
+                shader: Cow::Borrowed(source.borrow()),
+                stage: naga::ShaderStage::Compute,
+                defines: FastHashMap::default()
+            }
+        });
+
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Ray Generator Pipeline"),
             layout: Some(&pipeline_layout),
