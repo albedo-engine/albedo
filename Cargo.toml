@@ -17,7 +17,7 @@ members = ["crates/*"]
 
 [workspace.dependencies]
 bytemuck = { version = "1.7.2", features = ["derive"] }
-wgpu = { version = "22.0.0", features = ["spirv"] }
+wgpu = { version = "22.0.0", features = ["spirv", "glsl"] }
 
 [dev-dependencies]
 albedo_backend = { path = "crates/albedo_backend" }

@@ -15,4 +15,6 @@ albedo_math = { path = "../albedo_math", version = "0.0.1-beta.0" }
 bytemuck = { workspace = true }
 glam = "0.20.2"
 guillotiere = "0.6.2"
+bitflags = "2.6.0"
+rust-embed = "8"
 wgpu = { workspace = true }
