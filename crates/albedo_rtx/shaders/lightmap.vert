@@ -1,8 +1,6 @@
 #version 450
 
-#extension GL_GOOGLE_include_directive : enable
-
-#include "structures.glsl"
+#include "imports/structures.glsl"
 
 layout(location=0) in vec4 vPosition;
 layout(location=1) in vec4 vNormal;

@@ -1,7 +1,6 @@
-use std::borrow::{Borrow, Cow};
+use std::borrow::{Cow};
 
 use albedo_backend::{gpu, data::ShaderCache};
-use wgpu::naga::{FastHashMap, ShaderStage};
 use wgpu::ShaderModuleDescriptor;
 
 use crate::macros::path_separator;
@@ -18,7 +17,7 @@ impl IntersectorPass {
 
     pub fn new(
         device: &wgpu::Device,
-        processor: &mut ShaderCache,
+        processor: &ShaderCache,
         geometry_layout: &crate::RTGeometryBindGroupLayout,
         source: Option<&str>,
     ) -> Self {
@@ -55,7 +54,7 @@ impl IntersectorPass {
             push_constant_ranges: &[],
         });
 
-        let source = source.unwrap_or(include_str!(concat!(
+        let module: wgpu::naga::Module = processor.compile_compute(source.unwrap_or(include_str!(concat!(
             "..",
             path_separator!(),
             "..",
@@ -63,22 +62,17 @@ impl IntersectorPass {
             "shaders",
             path_separator!(),
             "intersection.comp"
-        )));
-        let source = processor.compile(source).unwrap();
+        )))).unwrap();
 
         let shader = device.create_shader_module(ShaderModuleDescriptor{
             label: Some("Intersector Shader"),
-            source: wgpu::ShaderSource::Glsl {
-                shader: Cow::Borrowed(source.borrow()),
-                stage: ShaderStage::Compute,
-                defines: FastHashMap::default()
-            }
+            source: wgpu::ShaderSource::Naga(Cow::Owned(module))
         });
 
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Intersector Pipeline"),
             layout: Some(&pipeline_layout),
-            entry_point: "main",
+            entry_point: Some("main"),
             module: &shader,
             compilation_options: Default::default(),
             cache: None,

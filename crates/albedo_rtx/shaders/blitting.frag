@@ -1,11 +1,10 @@
 #version 450
 
 #extension GL_EXT_samplerless_texture_functions : enable
-#extension GL_GOOGLE_include_directive : enable
 
 // @todo: split global uniforms.
-#include "structures.glsl"
-#include "utils/colorspace.glsl"
+#include "imports/structures.glsl"
+#include "imports/colorspace.glsl"
 
 layout( location = 0 ) in vec2 vUv;
 

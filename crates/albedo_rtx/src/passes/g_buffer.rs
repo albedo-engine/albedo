@@ -21,7 +21,7 @@ impl GBufferPass {
 
     pub fn new(
         device: &wgpu::Device,
-        processor: &mut ShaderCache,
+        processor: &ShaderCache,
         geometry_layout: &crate::RTGeometryBindGroupLayout,
         source: Option<&str>,
     ) -> Self {
@@ -94,7 +94,7 @@ impl GBufferPass {
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Gbuffer Pipeline"),
             layout: Some(&pipeline_layout),
-            entry_point: "main",
+            entry_point: Some("main"),
             module: &shader,
             compilation_options: Default::default(),
             cache: None,

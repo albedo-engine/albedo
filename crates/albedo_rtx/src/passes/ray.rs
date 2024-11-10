@@ -24,7 +24,7 @@ impl RayPass {
 
     const WORKGROUP_SIZE: (u32, u32, u32) = (8, 8, 1);
 
-    pub fn new(device: &wgpu::Device, processor: &mut ShaderCache, source: Option<&str>) -> Self {
+    pub fn new(device: &wgpu::Device, processor: &ShaderCache, source: Option<&str>) -> Self {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Ray Generator Layout"),
             entries: &[
@@ -56,7 +56,7 @@ impl RayPass {
             push_constant_ranges: &[],
         });
 
-        let source = source.unwrap_or(include_str!(concat!(
+        let module = processor.compile_compute(source.unwrap_or(include_str!(concat!(
             "..",
             path_separator!(),
             "..",
@@ -64,22 +64,17 @@ impl RayPass {
             "shaders",
             path_separator!(),
             "ray_generation.comp"
-        )));
-        let source = processor.compile(source).unwrap();
+        )))).unwrap();
 
         let shader: wgpu::ShaderModule = device.create_shader_module(wgpu::ShaderModuleDescriptor{
             label: Some("Ray Generation Shader"),
-            source: wgpu::ShaderSource::Glsl {
-                shader: Cow::Borrowed(source.borrow()),
-                stage: naga::ShaderStage::Compute,
-                defines: FastHashMap::default()
-            }
+            source: wgpu::ShaderSource::Naga(Cow::Owned(module))
         });
 
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Ray Generator Pipeline"),
             layout: Some(&pipeline_layout),
-            entry_point: "main",
+            entry_point: Some("main"),
             module: &shader,
             compilation_options: Default::default(),
             cache: None,
@@ -96,7 +91,7 @@ impl RayPass {
         self.pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Ray Generator Pipeline"),
             layout: Some(&self.pipeline_layout),
-            entry_point: "main",
+            entry_point: Some("main"),
             module: &shader,
             compilation_options: Default::default(),
             cache: None,
