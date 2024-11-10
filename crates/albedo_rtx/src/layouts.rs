@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use crate::{uniforms, RadianceParameters};
+use crate::{uniforms};
 use albedo_backend::gpu;
 
 pub struct RTGeometryBindGroupLayout(wgpu::BindGroupLayout);

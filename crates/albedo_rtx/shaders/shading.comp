@@ -1,11 +1,8 @@
 #version 450
 
-#extension GL_EXT_samplerless_texture_functions : enable
-#extension GL_GOOGLE_include_directive : enable
-
-#include "structures.glsl"
-#include "utils/common.glsl"
-#include "utils/colorspace.glsl"
+#include "imports/structures.glsl"
+#include "imports/common.glsl"
+#include "imports/colorspace.glsl"
 
 struct TextureInfo
 {
@@ -89,10 +86,10 @@ layout(set = 2, binding = 2) uniform GlobalUniformBuffer {
 
 /* Utils */
 
-#include "utils/math.glsl"
-#include "utils/intersection_utils.glsl"
-#include "utils/texture_utils.glsl"
-#include "utils/sampling.glsl"
+#include "imports/math.glsl"
+#include "imports/intersection_utils.glsl"
+#include "imports/texture_utils.glsl"
+#include "imports/sampling.glsl"
 
 vec3
 decodeRGBE(vec4 hdr)
@@ -103,7 +100,7 @@ decodeRGBE(vec4 hdr)
 vec3
 sampleProbe(sampler samp, texture2D probe, vec2 uv)
 {
-  return decodeRGBE(texture(sampler2D(probe, samp), uv));
+  return decodeRGBE(textureLod(sampler2D(probe, samp), uv, 0.0));
 }
 
 vec3
@@ -166,7 +163,7 @@ shade(RayPayload ray, Intersection intersection, uvec2 workgroupSize)
     vec2 texSize = vec2(textureSize(noiseTexture, 0));
     vec2 uv = mod(vec2(gl_GlobalInvocationID.xy) * 100.0, texSize);
     uv = uv/texSize;
-    vec3 noise = texture(sampler2D(noiseTexture, samplerNearest), uv).rgb;
+    vec3 noise = textureLod(sampler2D(noiseTexture, samplerNearest), uv, 0.0).rgb;
     randState = uint(noise.x * 10.0) * uint(global.seed) * uint(26699);
   }
 
@@ -219,13 +216,13 @@ shade(RayPayload ray, Intersection intersection, uvec2 workgroupSize)
   if (inputMat.albedoTexture != MAX_UINT)
   {
     // @todo: pre-convert?
-    mat.albedo *= sRGBToLinear(fetchTexture(samplerNearest, inputMat.albedoTexture, uv).rgb);
+    mat.albedo *= sRGBToLinear(fetchTexture(inputMat.albedoTexture, uv).rgb);
   }
   mat.metallic = inputMat.metallic;
   mat.perceptualRoughness = inputMat.roughnessFactor;
   if (inputMat.mraTexture != MAX_UINT)
   {
-    vec4 mraFetch = fetchTexture(samplerNearest, inputMat.mraTexture, uv).rgba;
+    vec4 mraFetch = fetchTexture(inputMat.mraTexture, uv).rgba;
     mat.perceptualRoughness *= mraFetch.g;
     mat.metallic *= mraFetch.b;
   }

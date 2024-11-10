@@ -1,7 +1,7 @@
 #version 450
 
-#include "utils/math.glsl"
-#include "structures.glsl"
+#include "imports/math.glsl"
+#include "imports/structures.glsl"
 
 #define MAX_SAMPLES 128
 
@@ -31,8 +31,9 @@ layout (set = 0, binding = 4) uniform GlobalUniformBuffer {
   GlobalUniforms global;
 };
 
-#include "utils/intersection_utils.glsl"
-#include "utils/sampling.glsl"
+#include "imports/common.glsl"
+#include "imports/intersection_utils.glsl"
+#include "imports/sampling.glsl"
 
 void main() {
   uint randState = uint(

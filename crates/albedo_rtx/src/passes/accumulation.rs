@@ -1,6 +1,9 @@
+use std::borrow::Cow;
+
 use crate::get_dispatch_size;
 use crate::macros::path_separator;
 use crate::uniforms::{PerDrawUniforms, Ray};
+use albedo_backend::data::ShaderCache;
 use albedo_backend::gpu;
 
 pub struct AccumulationPass {
@@ -17,7 +20,7 @@ impl AccumulationPass {
     const READ_TEXTURE_BINDING: u32 = 3;
     const SAMPLER_BINDING: u32 = 4;
 
-    pub fn new(device: &wgpu::Device, source: Option<wgpu::ShaderModuleDescriptor>) -> Self {
+    pub fn new(device: &wgpu::Device, processor: &ShaderCache, source: Option<wgpu::ShaderModuleDescriptor>) -> Self {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Accumulation Bind Group Layout"),
             entries: &[
@@ -76,23 +79,24 @@ impl AccumulationPass {
             push_constant_ranges: &[],
         });
 
-        let shader = match source {
-            None => device.create_shader_module(wgpu::include_spirv!(concat!(
-                "..",
-                path_separator!(),
-                "shaders",
-                path_separator!(),
-                "spirv",
-                path_separator!(),
-                "accumulation_pingpong.comp.spv"
-            ))),
-            Some(v) => device.create_shader_module(v),
-        };
+        let module = processor.compile_compute(include_str!(concat!(
+            "..",
+            path_separator!(),
+            "..",
+            path_separator!(),
+            "shaders",
+            path_separator!(),
+             "accumulation-pingpong.comp"
+        ))).unwrap();
+        let shader: wgpu::ShaderModule = device.create_shader_module(wgpu::ShaderModuleDescriptor{
+            label: Some("Accumulation Shader"),
+            source: wgpu::ShaderSource::Naga(Cow::Owned(module))
+        });
 
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Accumulation Pipeline"),
             layout: Some(&pipeline_layout),
-            entry_point: "main",
+            entry_point: Some("main"),
             module: &shader,
             compilation_options: Default::default(),
             cache: None,

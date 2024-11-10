@@ -2,10 +2,10 @@
 
 #extension GL_GOOGLE_include_directive : enable
 
-#include "utils/common.glsl"
-#include "utils/colorspace.glsl"
-#include "utils/math.glsl"
-#include "structures.glsl"
+#include "imports/common.glsl"
+#include "imports/colorspace.glsl"
+#include "imports/math.glsl"
+#include "imports/structures.glsl"
 
 // @todo: Add previous frame matrix per instance.
 
@@ -77,7 +77,7 @@ void main()
 
   /* History length */
   uint prevIndex = uint(prevCoords.y * size.x + prevCoords.x);
-  uint history = max(min(historyLenPrevious[prevIndex] + 1, maxHistory), 1);
+  uint history = max(min(historyLenPrevious[prevIndex] + 1u, maxHistory), 1u);
   historyLen[index] = history;
 
   float a = 1.0 / float(history); /* History interpolation coffecient */

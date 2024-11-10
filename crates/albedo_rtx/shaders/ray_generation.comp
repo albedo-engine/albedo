@@ -1,8 +1,6 @@
 #version 450
 
-#extension GL_GOOGLE_include_directive : enable
-
-#include "structures.glsl"
+#include "imports/structures.glsl"
 
 /**
  * Layout 0
@@ -13,7 +11,7 @@ layout (set = 0, binding = 0, std430) buffer RayBuffer {
   RayPayload rays[];
 };
 
-layout (set = 0, binding = 1) readonly uniform CameraUniformsBuffer {
+layout (set = 0, binding = 1) uniform CameraUniformsBuffer {
   vec3 origin;
   float vFOV;
   vec3 up;

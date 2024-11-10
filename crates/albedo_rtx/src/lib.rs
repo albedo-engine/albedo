@@ -3,9 +3,11 @@ pub mod macros;
 pub mod passes;
 pub mod texture;
 pub mod uniforms;
+pub mod shaders;
 
 pub use layouts::*;
 pub use uniforms::*;
+pub use shaders::*;
 
 pub fn get_dispatch_size(
     size: &(u32, u32, u32),

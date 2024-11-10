@@ -1,12 +1,6 @@
 #version 450
 
-#extension GL_GOOGLE_include_directive : enable
-
-#include "structures.glsl"
-
-/**
- * Layout 0.
- */
+#include "imports/structures.glsl"
 
 layout (set = 0, binding = 0, std430) readonly buffer RayBuffer {
   RayPayload rays[];

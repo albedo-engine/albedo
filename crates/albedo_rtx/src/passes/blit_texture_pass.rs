@@ -1,8 +1,9 @@
-use albedo_backend::gpu;
+use std::borrow::Cow;
+
+use albedo_backend::data::ShaderCache;
 use wgpu::{BindGroup, BindingType, StoreOp};
 
 use crate::macros::path_separator;
-use crate::uniforms;
 
 pub struct BlitTexturePass {
     bind_group_layout: wgpu::BindGroupLayout,
@@ -13,7 +14,7 @@ impl BlitTexturePass {
     const TEXTURE_SAMPLER_BINDING: u32 = 0;
     const TEXTURE_BINDING: u32 = 1;
 
-    pub fn new(device: &wgpu::Device, swap_chain_format: wgpu::TextureFormat) -> Self {
+    pub fn new(device: &wgpu::Device, processor: &ShaderCache, swap_chain_format: wgpu::TextureFormat) -> Self {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: None,
             entries: &[
@@ -39,24 +40,32 @@ impl BlitTexturePass {
         });
 
         // @todo: Share with other passes.
-        let vx_module = device.create_shader_module(wgpu::include_spirv!(concat!(
+        let vx_module = processor.compile_vertex(include_str!(concat!(
+            "..",
+            path_separator!(),
             "..",
             path_separator!(),
             "shaders",
             path_separator!(),
-            "spirv",
+            "blitting.vert"
+        ))).unwrap();
+        let vx_module: wgpu::ShaderModule = device.create_shader_module(wgpu::ShaderModuleDescriptor{
+            label: Some("Blitting Shaderr"),
+            source: wgpu::ShaderSource::Naga(Cow::Owned(vx_module))
+        });
+        let fg_module = processor.compile_fragment(include_str!(concat!(
+            "..",
             path_separator!(),
-            "blitting.vert.spv"
-        )));
-        let fg_module = device.create_shader_module(wgpu::include_spirv!(concat!(
             "..",
             path_separator!(),
             "shaders",
             path_separator!(),
-            "spirv",
-            path_separator!(),
-            "blitting-texture.frag.spv"
-        )));
+             "blitting-texture.frag"
+        ))).unwrap();
+        let fg_module: wgpu::ShaderModule = device.create_shader_module(wgpu::ShaderModuleDescriptor{
+            label: Some("Blitting Texture Shader"),
+            source: wgpu::ShaderSource::Naga(Cow::Owned(fg_module))
+        });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("BlitTexture Pipeline Layout"),
@@ -69,13 +78,13 @@ impl BlitTexturePass {
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &vx_module,
-                entry_point: "main",
+                entry_point: Some("main"),
                 buffers: &[],
                 compilation_options: Default::default()
             },
             fragment: Some(wgpu::FragmentState {
                 module: &fg_module,
-                entry_point: "main",
+                entry_point: Some("main"),
                 targets: &[Some(swap_chain_format.into())],
                 compilation_options: Default::default()
             }),

@@ -119,7 +119,7 @@ impl Example for PickingExample {
             .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 vertex: wgpu::VertexState {
                     module: &shader,
-                    entry_point: "vs_main",
+                    entry_point: Some("vs_main"),
                     buffers: &[vertex_buffer_layout.build(None)],
                     compilation_options: Default::default()
                 },
@@ -127,7 +127,7 @@ impl Example for PickingExample {
                 layout: Some(&pipeline_layout),
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
-                    entry_point: "fs_main",
+                    entry_point: Some("fs_main"),
                     targets: &[Some(app.surface_config.format.into())],
                     compilation_options: Default::default()
                 }),

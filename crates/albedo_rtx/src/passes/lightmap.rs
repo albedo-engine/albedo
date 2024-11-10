@@ -1,3 +1,6 @@
+use std::borrow::Cow;
+
+use albedo_backend::data::ShaderCache;
 use albedo_backend::gpu;
 use wgpu::BindGroup;
 
@@ -16,7 +19,7 @@ impl LightmapPass {
     const VERTEX_BINDING: u32 = 3;
     const PER_DRAW_STRUCT_BINDING: u32 = 4;
 
-    pub fn new(device: &wgpu::Device, target_format: wgpu::TextureFormat) -> Self {
+    pub fn new(device: &wgpu::Device, processor: &ShaderCache, target_format: wgpu::TextureFormat) -> Self {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Lightmap Pass Bind Group Layout"),
             entries: &[
@@ -73,24 +76,32 @@ impl LightmapPass {
             ],
         });
 
-        let vx_module = device.create_shader_module(wgpu::include_spirv!(concat!(
+        let vx_module = processor.compile_vertex(include_str!(concat!(
+            "..",
+            path_separator!(),
             "..",
             path_separator!(),
             "shaders",
             path_separator!(),
-            "spirv",
+            "lightmap.vert"
+        ))).unwrap();
+        let vx_module: wgpu::ShaderModule = device.create_shader_module(wgpu::ShaderModuleDescriptor{
+            label: Some("Lightmap Vertex Shaderr"),
+            source: wgpu::ShaderSource::Naga(Cow::Owned(vx_module))
+        });
+        let fg_module = processor.compile_fragment(include_str!(concat!(
+            "..",
             path_separator!(),
-            "lightmap.vert.spv"
-        )));
-        let fg_module = device.create_shader_module(wgpu::include_spirv!(concat!(
             "..",
             path_separator!(),
             "shaders",
             path_separator!(),
-            "spirv",
-            path_separator!(),
-            "lightmap.frag.spv"
-        )));
+             "lightmap.frag"
+        ))).unwrap();
+        let fg_module: wgpu::ShaderModule = device.create_shader_module(wgpu::ShaderModuleDescriptor{
+            label: Some("Lightmap Fragment Shader"),
+            source: wgpu::ShaderSource::Naga(Cow::Owned(fg_module))
+        });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Lightmap Pipeline"),
@@ -108,13 +119,13 @@ impl LightmapPass {
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &vx_module,
-                entry_point: "main",
+                entry_point: Some("main"),
                 buffers: &[layout],
                 compilation_options: Default::default()
             },
             fragment: Some(wgpu::FragmentState {
                 module: &fg_module,
-                entry_point: "main",
+                entry_point: Some("main"),
                 targets: &[Some(target_format.into())],
                 compilation_options: Default::default()
             }),

@@ -1,4 +1,8 @@
+use std::borrow::{Borrow, Cow};
+
+use albedo_backend::data::ShaderCache;
 use albedo_backend::gpu;
+use wgpu::naga::{self, FastHashMap};
 
 use crate::get_dispatch_size;
 use crate::macros::path_separator;
@@ -20,7 +24,7 @@ impl RayPass {
 
     const WORKGROUP_SIZE: (u32, u32, u32) = (8, 8, 1);
 
-    pub fn new(device: &wgpu::Device, source: Option<wgpu::ShaderModuleDescriptor>) -> Self {
+    pub fn new(device: &wgpu::Device, processor: &ShaderCache, source: Option<&str>) -> Self {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Ray Generator Layout"),
             entries: &[
@@ -51,22 +55,26 @@ impl RayPass {
             bind_group_layouts: &[&bind_group_layout],
             push_constant_ranges: &[],
         });
-        let shader = match source {
-            None => device.create_shader_module(wgpu::include_spirv!(concat!(
-                "..",
-                path_separator!(),
-                "shaders",
-                path_separator!(),
-                "spirv",
-                path_separator!(),
-                "ray_generation.comp.spv"
-            ))),
-            Some(v) => device.create_shader_module(v),
-        };
+
+        let module = processor.compile_compute(source.unwrap_or(include_str!(concat!(
+            "..",
+            path_separator!(),
+            "..",
+            path_separator!(),
+            "shaders",
+            path_separator!(),
+            "ray_generation.comp"
+        )))).unwrap();
+
+        let shader: wgpu::ShaderModule = device.create_shader_module(wgpu::ShaderModuleDescriptor{
+            label: Some("Ray Generation Shader"),
+            source: wgpu::ShaderSource::Naga(Cow::Owned(module))
+        });
+
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Ray Generator Pipeline"),
             layout: Some(&pipeline_layout),
-            entry_point: "main",
+            entry_point: Some("main"),
             module: &shader,
             compilation_options: Default::default(),
             cache: None,
@@ -83,7 +91,7 @@ impl RayPass {
         self.pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Ray Generator Pipeline"),
             layout: Some(&self.pipeline_layout),
-            entry_point: "main",
+            entry_point: Some("main"),
             module: &shader,
             compilation_options: Default::default(),
             cache: None,

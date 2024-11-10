@@ -12,3 +12,4 @@ keywords = ["rendering", "graphics", "wgpu" ]
 bytemuck = { workspace = true }
 wgpu = { workspace = true }
 pas = { version = "0.1.0"}
+rust-embed = "8"

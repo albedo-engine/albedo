@@ -85,9 +85,9 @@ float GeometrySmith_GGX(float NdotV, float a2)
  * @return A random direction generated based on the Lambert diffuse BRDF
  */
 vec3 randomSampleDiffuse_Lambert(
-  const in vec3 normal,
-  const in vec3 tangent,
-  const in vec3 bitangent,
+  const vec3 normal,
+  const vec3 tangent,
+  const vec3 bitangent,
   inout uint seed
 )
 {
@@ -101,7 +101,7 @@ vec3 randomSampleDiffuse_Lambert(
  * **Note**: This override re-compute the tangent and bitangent.
  * If you plan to call that multiple times, please use the other overload.
  */
-vec3 randomSampleDiffuse_Lambert(const in vec3 normal, inout uint seed)
+vec3 randomSampleDiffuse_Lambert(const vec3 normal, inout uint seed)
 {
   vec3 worldUp = abs(normal.z) < 0.9999 ? vec3(0, 0, 1) : vec3(1, 0, 0);
   vec3 tangent = normalize(cross(worldUp, normal));
@@ -122,10 +122,10 @@ vec3 randomSampleDiffuse_Lambert(const in vec3 normal, inout uint seed)
  * @return A random direction generated based on the GGX specular BRDF
  */
 vec3 randomSampleSpecular_GGX(
-  const in vec3 w0,
-  const in vec3 normal,
-  const in vec3 tangent,
-  const in vec3 bitangent,
+  const vec3 w0,
+  const vec3 normal,
+  const vec3 tangent,
+  const vec3 bitangent,
   const float roughness2,
   inout uint seed
 )

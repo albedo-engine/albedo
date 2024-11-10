@@ -2,8 +2,9 @@
 
 #extension GL_GOOGLE_include_directive : enable
 
-#include "utils/math.glsl"
-#include "structures.glsl"
+#include "imports/common.glsl"
+#include "imports/math.glsl"
+#include "imports/structures.glsl"
 
 layout (set = 0, binding = 0, std430) readonly buffer InstanceBuffer {
   Instance instances[];
@@ -41,7 +42,7 @@ layout(push_constant) uniform pushConstants {
 
 /* Utils */
 
-#include "utils/intersection_utils.glsl"
+#include "imports/intersection_utils.glsl"
 
 layout(local_size_x = 8, local_size_y = 8) in;
 void main()

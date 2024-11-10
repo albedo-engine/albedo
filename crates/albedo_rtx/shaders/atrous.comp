@@ -1,9 +1,7 @@
 #version 450
 
-#extension GL_GOOGLE_include_directive : enable
-
-#include "utils/common.glsl"
-#include "utils/colorspace.glsl"
+#include "imports/common.glsl"
+#include "imports/colorspace.glsl"
 
 layout(push_constant) uniform pushConstants {
   uint step;

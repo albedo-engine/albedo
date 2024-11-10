@@ -1,8 +1,6 @@
 #ifndef INTERSECTION_UTILS_H
 #define INTERSECTION_UTILS_H
 
-#include "common.glsl"
-
 struct Primitive
 {
   Vertex v0;

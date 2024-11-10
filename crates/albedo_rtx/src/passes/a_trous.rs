@@ -1,8 +1,9 @@
-use albedo_backend::gpu;
-use wgpu::Extent3d;
+use std::borrow::Cow;
+
+use albedo_backend::data::ShaderCache;
 
 use crate::macros::path_separator;
-use crate::{get_dispatch_size, uniforms};
+use crate::{get_dispatch_size};
 
 pub struct ATrousPass {
     frame_bind_group_layout: wgpu::BindGroupLayout,
@@ -21,6 +22,7 @@ impl ATrousPass {
 
     pub fn new(
         device: &wgpu::Device,
+        processor: &ShaderCache,
         source: Option<wgpu::ShaderModuleDescriptor>,
     ) -> Self {
         let frame_bind_group_layout =
@@ -75,23 +77,24 @@ impl ATrousPass {
             }],
         });
 
-        let shader = match source {
-            None => device.create_shader_module(wgpu::include_spirv!(concat!(
-                "..",
-                path_separator!(),
-                "shaders",
-                path_separator!(),
-                "spirv",
-                path_separator!(),
-                "atrous.comp.spv"
-            ))),
-            Some(v) => device.create_shader_module(v),
-        };
+        let module = processor.compile_compute(include_str!(concat!(
+            "..",
+            path_separator!(),
+            "..",
+            path_separator!(),
+            "shaders",
+            path_separator!(),
+             "atrous.comp"
+        ))).unwrap();
+        let shader: wgpu::ShaderModule = device.create_shader_module(wgpu::ShaderModuleDescriptor{
+            label: Some("A-Trous Shader"),
+            source: wgpu::ShaderSource::Naga(Cow::Owned(module))
+        });
 
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("ATrous Pipeline"),
             layout: Some(&pipeline_layout),
-            entry_point: "main",
+            entry_point: Some("main"),
             module: &shader,
             compilation_options: Default::default(),
             cache: None,
