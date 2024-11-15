@@ -1,14 +1,14 @@
-use std::{collections::HashMap, fmt::Debug};
+use std::{collections::HashMap, fmt::Debug, path::Path};
 use wgpu::naga;
 
-pub enum ShaderError {
+pub enum PreprocessError {
     SyntaxError,
     Missing(String)
 }
 
 #[derive(Debug)]
 pub enum CompileError {
-    Preprocessor(ShaderError),
+    Preprocessor(PreprocessError),
     Module(naga::front::glsl::ParseErrors),
 }
 
@@ -18,13 +18,13 @@ impl From<naga::front::glsl::ParseErrors> for CompileError {
     }
 }
 
-impl From<ShaderError> for CompileError {
-    fn from(value: ShaderError) -> Self {
+impl From<PreprocessError> for CompileError {
+    fn from(value: PreprocessError) -> Self {
         CompileError::Preprocessor(value)
     }
 }
 
-impl Debug for ShaderError {
+impl Debug for PreprocessError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::SyntaxError => write!(f, "SyntaxError"),
@@ -51,7 +51,45 @@ impl ShaderCache {
         }
     }
 
-    pub fn compile(&self, source: &str) -> Result<String, ShaderError> {
+    pub fn add_path(&mut self, path: &Path) -> Result<(), std::io::Error> {
+        let content = std::fs::read_to_string(path)?;
+        let name = path.file_name().unwrap();
+        self.add_raw(name.to_str().unwrap(), &content);
+        Ok(())
+    }
+
+    pub fn add_raw(&mut self, name: &str, content: &str) {
+        self.imports.insert(name.to_string(), content.to_string());
+    }
+
+    pub fn add_directory<P: AsRef<Path>>(&mut self, directory: P) -> Result<(), std::io::Error> {
+        let paths = std::fs::read_dir(directory)?;
+        for entry in paths {
+            let Ok(entry) = entry else { continue; };
+            let Ok(meta) = entry.metadata() else { continue; };
+            if !meta.is_file() { continue; }
+
+            let path = entry.path();
+            let Some(ext) = path.extension().map(|s| s.to_str()).flatten() else {
+                continue;
+            };
+            match ext {
+                "comp"|"frag"|"vert" => (),
+                _ => { continue; }
+            }
+
+            let Some(filename) = path.file_name().map(|s| s.to_str()).flatten() else { continue; };
+            let content = std::fs::read_to_string(entry.path())?;
+            self.imports.insert(filename.to_string(), content);
+        }
+        Ok(())
+    }
+
+    pub fn get(&self, name: &str) -> Option<&str> {
+        self.imports.get(name).map(|s| s.as_str())
+    }
+
+    pub fn compile(&self, source: &str) -> Result<String, PreprocessError> {
         let lines = source.lines();
         let mut buf = String::new();
         for line in lines {
@@ -62,14 +100,14 @@ impl ShaderCache {
             };
             let include = line[(start + ("#include".len())..)].trim();
             if !include.starts_with("\"") {
-                return Err(ShaderError::SyntaxError);
+                return Err(PreprocessError::SyntaxError);
             }
             let Some(end) = include[1..].find("\"") else {
-                return Err(ShaderError::SyntaxError);
+                return Err(PreprocessError::SyntaxError);
             };
             let name = &include[1..end+1];
             let Some(content) = self.imports.get(name) else {
-                return Err(ShaderError::Missing(name.to_string()));
+                return Err(PreprocessError::Missing(name.to_string()));
             };
             buf.extend([content, "\n"]);
         }

@@ -237,6 +237,7 @@ shade(RayPayload ray, Intersection intersection, uvec2 workgroupSize)
   ray.origin.xyz += intersection.dist * ray.dir.xyz + normal * EPSILON;
   ray.dir.xyz = bsdf.dir;
 
+  // throughput.rgb = vec3(1.0, 0.0, 0.0);
   setThroughput(ray, throughput);
 
   return ray;

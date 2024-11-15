@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use crate::get_dispatch_size;
 use crate::macros::path_separator;
 use crate::uniforms;
@@ -7,6 +5,7 @@ use crate::RTGeometryBindGroupLayout;
 use crate::RTSurfaceBindGroupLayout;
 use albedo_backend::data::ShaderCache;
 use albedo_backend::gpu;
+use albedo_backend::gpu::ComputePipeline;
 
 pub struct ShadingPass {
     frame_bind_group_layout: wgpu::BindGroupLayout,
@@ -64,7 +63,12 @@ impl ShadingPass {
                 ],
             });
 
-        let module = processor.compile_compute(include_str!(concat!(
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("Radiance Estimator Pipeline Layout"),
+            bind_group_layouts: &[geometry_layout, surface_layout, &frame_bind_group_layout],
+            push_constant_ranges: &[],
+        });
+        let pipeline = <ShadingPass as ComputePipeline>::compile(device, processor, &pipeline_layout, include_str!(concat!(
             "..",
             path_separator!(),
             "..",
@@ -74,42 +78,11 @@ impl ShadingPass {
             "shading.comp"
         ))).unwrap();
 
-        let shader: wgpu::ShaderModule = device.create_shader_module(wgpu::ShaderModuleDescriptor{
-            label: Some("Shading Shader"),
-            source: wgpu::ShaderSource::Naga(Cow::Owned(module))
-        });
-
-        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Radiance Estimator Pipeline Layout"),
-            bind_group_layouts: &[geometry_layout, surface_layout, &frame_bind_group_layout],
-            push_constant_ranges: &[],
-        });
-        let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label: Some("Radiance Estimator Pipeline"),
-            layout: Some(&pipeline_layout),
-            entry_point: Some("main"),
-            module: &shader,
-            compilation_options: Default::default(),
-            cache: None,
-        });
-
         Self {
             frame_bind_group_layout,
             pipeline_layout,
             pipeline,
         }
-    }
-
-    pub fn set_shader(&mut self, device: &wgpu::Device, shader_desc: wgpu::ShaderModuleDescriptor) {
-        let shader = device.create_shader_module(shader_desc);
-        self.pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label: Some("Radiance Estimator Pipeline"),
-            layout: Some(&self.pipeline_layout),
-            entry_point: Some("main"),
-            module: &shader,
-            compilation_options: Default::default(),
-            cache: None,
-        });
     }
 
     pub fn create_frame_bind_groups(
@@ -159,5 +132,17 @@ impl ShadingPass {
         pass.set_bind_group(1, surface_bindgroup, &[]);
         pass.set_bind_group(2, frame_bind_groups, &[]);
         pass.dispatch_workgroups(workgroups.0, workgroups.1, workgroups.2);
+    }
+}
+
+impl ComputePipeline for ShadingPass {
+    const LABEL: &'static str = "Radiance Estimator Pipeline";
+    const SHADER_ID: &'static str = "shading.comp";
+
+    fn set_pipeline(&mut self, pipeline: wgpu::ComputePipeline) {
+        self.pipeline = pipeline;
+    }
+    fn get_pipeline_layout(&self) -> &wgpu::PipelineLayout {
+        &self.pipeline_layout
     }
 }

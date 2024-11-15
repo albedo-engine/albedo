@@ -1,12 +1,14 @@
 use std::borrow::Cow;
 
 use albedo_backend::data::ShaderCache;
+use albedo_backend::gpu::ComputePipeline;
 
 use crate::macros::path_separator;
 use crate::{get_dispatch_size};
 
 pub struct ATrousPass {
     frame_bind_group_layout: wgpu::BindGroupLayout,
+    layout: wgpu::PipelineLayout,
     pipeline: wgpu::ComputePipeline,
 
     count: u8,
@@ -102,6 +104,7 @@ impl ATrousPass {
 
         Self {
             frame_bind_group_layout,
+            layout: pipeline_layout,
             pipeline,
             count: 3
         }
@@ -204,5 +207,18 @@ impl ATrousPass {
                 }, retain.size())
             }
         }
+    }
+}
+
+impl ComputePipeline for ATrousPass {
+    const LABEL: &'static str = "ATrous Pipeline";
+    const SHADER_ID: &'static str = "atrous.comp";
+
+    fn get_pipeline_layout(&self) -> &wgpu::PipelineLayout {
+        &self.layout
+    }
+
+    fn set_pipeline(&mut self, pipeline: wgpu::ComputePipeline) {
+        self.pipeline = pipeline;
     }
 }
