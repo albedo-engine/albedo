@@ -7,6 +7,8 @@ use wgpu::naga;
 use crate::macros::path_separator;
 use crate::{get_dispatch_size, uniforms};
 
+use super::GBUFFER_WRITE_TY;
+
 pub struct GBufferPass {
     frame_bind_group_layout: wgpu::BindGroupLayout,
     pipeline: wgpu::ComputePipeline,
@@ -42,11 +44,7 @@ impl GBufferPass {
                     wgpu::BindGroupLayoutEntry {
                         binding: Self::GBUFFER_BINDING,
                         visibility: wgpu::ShaderStages::COMPUTE,
-                        ty: wgpu::BindingType::StorageTexture {
-                            format: wgpu::TextureFormat::Rgba32Float,
-                            access: wgpu::StorageTextureAccess::WriteOnly,
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                        },
+                        ty: GBUFFER_WRITE_TY,
                         count: None,
                     },
                     wgpu::BindGroupLayoutEntry {

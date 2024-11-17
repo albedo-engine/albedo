@@ -6,6 +6,7 @@
 #include "imports/colorspace.glsl"
 #include "imports/math.glsl"
 #include "imports/structures.glsl"
+#include "imports/packing.glsl"
 
 // @todo: Add previous frame matrix per instance.
 
@@ -17,8 +18,8 @@ layout(set = 0, binding = 0, std430) readonly buffer RayBuffer {
   RayPayload rays[];
 };
 
-layout(set = 0, binding = 1) uniform texture2D gbufferPrevious;
-layout(set = 0, binding = 2) uniform texture2D gbuffer;
+layout(set = 0, binding = 1) uniform utexture2D gbufferPrevious;
+layout(set = 0, binding = 2) uniform utexture2D gbuffer;
 layout(set = 0, binding = 3) uniform texture2D motion;
 layout(set = 0, binding = 4) uniform texture2D radiancePrevious;
 layout(set = 0, binding = 5, rgba32f) writeonly uniform image2D radiance;
@@ -60,20 +61,24 @@ void main()
   vec2 motion2d = texelFetch(sampler2D(motion, samplerNearest), coords, 0).xy;
   ivec2 prevCoords = coords - ivec2(motion2d * vec2(size));
 
-  vec4 currSample = texelFetch(sampler2D(gbuffer, samplerNearest), coords, 0);
-  vec4 prevSample = texelFetch(sampler2D(gbufferPrevious, samplerNearest), prevCoords, 0);
+  GBufferSample currSample = unpackGbuffer(texelFetch(usampler2D(gbuffer, samplerNearest), coords, 0));
+  GBufferSample prevSample = unpackGbuffer(texelFetch(usampler2D(gbufferPrevious, samplerNearest), prevCoords, 0));
 
   RayPayload ray = rays[index];
   vec3 currRadiance = ray.radiance.rgb;
 
   // @todo: Instance ID
-  if (currSample.w < EPSILON || !validateCoords(prevCoords, size) || !validateDepth(prevSample.w, currSample.w) || !validateNormal(prevSample.xyz, currSample.xyz)) {
+  if (currSample.depth < EPSILON
+    || !validateCoords(prevCoords, size)
+    || !validateDepth(prevSample.depth, currSample.depth)
+    || !validateNormal(prevSample.normal, currSample.normal))
+  {
     imageStore(radiance, coords, vec4(currRadiance, 1.0));
     historyLen[index] = 0u;
     return;
   }
 
-  uint maxHistory = 16;
+  uint maxHistory = 128;
 
   /* History length */
   uint prevIndex = uint(prevCoords.y * size.x + prevCoords.x);

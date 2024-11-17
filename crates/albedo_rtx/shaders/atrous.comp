@@ -2,12 +2,13 @@
 
 #include "imports/common.glsl"
 #include "imports/colorspace.glsl"
+#include "imports/packing.glsl"
 
 layout(push_constant) uniform pushConstants {
   uint step;
 } constants;
 
-layout(set = 0, binding = 0) uniform texture2D gbuffer;
+layout(set = 0, binding = 0) uniform utexture2D gbuffer;
 layout(set = 0, binding = 1) uniform texture2D radianceIn;
 layout(set = 0, binding = 2, rgba32f) writeonly uniform image2D radiance;
 layout(set = 0, binding = 3) uniform sampler samplerNearest;
@@ -44,19 +45,21 @@ void main()
     ivec2 size = imageSize(radiance);
 
     /* `p` for center pixel, similar to SVGF paper. */
-    vec4 sample_p = texelFetch(sampler2D(gbuffer, samplerNearest), coords, 0);
+    GBufferSample sample_p = unpackGbuffer(texelFetch(usampler2D(gbuffer, samplerNearest), coords, 0));
     vec4 color_p = texelFetch(sampler2D(radianceIn, samplerNearest), coords, 0);
     float lum_p = luminance(color_p.rgb);
 
     // @todo: Pre-compute and store?
     float depthDerivative_p = 0.0;
     if (coords.x < size.x - 1) {
-        float d = texelFetch(sampler2D(gbuffer, samplerNearest), coords + ivec2(1, 0), 0).a;
-        depthDerivative_p = abs(d - sample_p.w);
+        uint encodedDepth = texelFetch(usampler2D(gbuffer, samplerNearest), coords + ivec2(1, 0), 0).b;
+        float d = uintBitsToFloat(encodedDepth);
+        depthDerivative_p = abs(d - sample_p.depth);
     }
     if (coords.y < size.y - 1) {
-        float d = texelFetch(sampler2D(gbuffer, samplerNearest), coords + ivec2(0, 1), 0).a;
-        depthDerivative_p = max(depthDerivative_p, abs(d - sample_p.w));
+        uint encodedDepth = texelFetch(usampler2D(gbuffer, samplerNearest), coords + ivec2(0, 1), 0).b;
+        float d = uintBitsToFloat(encodedDepth);
+        depthDerivative_p = max(depthDerivative_p, abs(d - sample_p.depth));
     }
 
     vec3 colorSum = color_p.rgb;
@@ -74,13 +77,13 @@ void main()
             float dist = length(vec2(float(x), float(y)));
             vec2 h = vec2(B3SPLINE_WEIGHTS[x_abs], B3SPLINE_WEIGHTS[y_abs]);
 
-            vec4 sample_q = texelFetch(sampler2D(gbuffer, samplerNearest), qCoords, 0);
+            GBufferSample sample_q = unpackGbuffer(texelFetch(usampler2D(gbuffer, samplerNearest), qCoords, 0));
             vec4 color_q = texelFetch(sampler2D(radianceIn, samplerNearest), qCoords, 0);
             float lum_q = luminance(color_q.rgb);
 
-            float wdepth = weightDepth(sample_p.w, depthDerivative_p, sample_q.w, constants.step);
+            float wdepth = weightDepth(sample_p.depth, depthDerivative_p, sample_q.depth, constants.step);
             float willumination = weightIllumination(color_p.w, lum_p, lum_q);
-            float w = exp(- wdepth - willumination) * weightNormal(sample_p.xyz, sample_q.xyz);
+            float w = exp(- wdepth - willumination) * weightNormal(sample_p.normal, sample_q.normal);
             w *= h.x * h.y;
 
             colorSum += color_q.rgb * w;

@@ -6,6 +6,8 @@ use albedo_backend::gpu;
 use crate::macros::path_separator;
 use crate::{get_dispatch_size, uniforms};
 
+use super::GBUFFER_READ_TY;
+
 pub struct TemporalAccumulationPass {
     frame_bind_group_layout: wgpu::BindGroupLayout,
     pipeline: wgpu::ComputePipeline,
@@ -48,21 +50,13 @@ impl TemporalAccumulationPass {
                     wgpu::BindGroupLayoutEntry {
                         binding: Self::GBUFFER_PREVIOUS_BINDING,
                         visibility: wgpu::ShaderStages::COMPUTE,
-                        ty: wgpu::BindingType::Texture {
-                            multisampled: false,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: false },
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                        },
+                        ty: GBUFFER_READ_TY,
                         count: None,
                     },
                     wgpu::BindGroupLayoutEntry {
                         binding: Self::GBUFFER_BINDING,
                         visibility: wgpu::ShaderStages::COMPUTE,
-                        ty: wgpu::BindingType::Texture {
-                            multisampled: false,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: false },
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                        },
+                        ty: GBUFFER_READ_TY,
                         count: None,
                     },
                     wgpu::BindGroupLayoutEntry {
