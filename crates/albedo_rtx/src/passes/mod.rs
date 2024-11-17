@@ -19,3 +19,14 @@ pub use lightmap::LightmapPass;
 pub use radiance_estimator::ShadingPass;
 pub use ray::RayPass;
 pub use temporal_accumulation::TemporalAccumulationPass;
+
+pub(crate) const GBUFFER_READ_TY: wgpu::BindingType = wgpu::BindingType::Texture {
+    multisampled: false,
+    sample_type: wgpu::TextureSampleType::Uint,
+    view_dimension: wgpu::TextureViewDimension::D2,
+};
+pub(crate) const GBUFFER_WRITE_TY: wgpu::BindingType = wgpu::BindingType::StorageTexture {
+    format: wgpu::TextureFormat::Rgba32Uint,
+    access: wgpu::StorageTextureAccess::WriteOnly,
+    view_dimension: wgpu::TextureViewDimension::D2,
+};

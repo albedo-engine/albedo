@@ -32,7 +32,7 @@ layout (set = 1, binding = 0, std430) readonly buffer IntersectionBuffer {
   Intersection intersections[];
 };
 
-layout(set = 1, binding = 1, rgba32f) writeonly uniform image2D gbuffer;
+layout(set = 1, binding = 1, rgba32ui) writeonly uniform image2D gbuffer;
 
 layout(set = 1, binding = 2, rg32f) writeonly uniform image2D motion;
 
@@ -43,6 +43,11 @@ layout(push_constant) uniform pushConstants {
 /* Utils */
 
 #include "imports/intersection_utils.glsl"
+#include "imports/packing.glsl"
+
+uvec4 packGbuffer(vec3 normal, float dist, vec3 albedo) {
+  return uvec4(packRGBE(albedo), packOctahedral(normal), floatBitsToUint(dist), 0u);
+}
 
 layout(local_size_x = 8, local_size_y = 8) in;
 void main()
@@ -51,7 +56,7 @@ void main()
   uint index = gl_GlobalInvocationID.y * gl_WorkGroupSize.x * gl_NumWorkGroups.x + gl_GlobalInvocationID.x;
   if (index >= intersections.length())
   {
-    imageStore(gbuffer, coords, vec4(0.0));
+    imageStore(gbuffer, coords, uvec4(0u));
     imageStore(motion, coords, vec4(0.0));
     return;
   }
@@ -60,7 +65,7 @@ void main()
 
   if (abs(MAX_FLOAT - intersection.dist) < EPSILON)
   {
-    imageStore(gbuffer, coords, vec4(0.0));
+    imageStore(gbuffer, coords, uvec4(0u));
     imageStore(motion, coords, vec4(0.0));
     return;
   }
@@ -93,6 +98,6 @@ void main()
   vec2 prevPos2d = (prevProjectedPos.xy / prevProjectedPos.w) * vec2(0.5) + vec2(0.5);
   vec2 motionVector = currPos2d - prevPos2d;
 
-  imageStore(gbuffer, coords, vec4(normal, intersection.dist));
+  imageStore(gbuffer, coords, packGbuffer(normal, intersection.dist, vec3(1.0)));
   imageStore(motion, coords, vec4(motionVector, 0.0, 0.0));
 }
