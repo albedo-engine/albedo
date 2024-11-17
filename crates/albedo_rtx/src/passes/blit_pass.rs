@@ -2,7 +2,6 @@ use std::borrow::Cow;
 
 use albedo_backend::data::ShaderCache;
 use albedo_backend::gpu;
-use guillotiere::euclid::default;
 use wgpu::{BindGroup, BindingType, StoreOp};
 
 use crate::macros::path_separator;

@@ -107,19 +107,17 @@ impl GBufferPass {
     pub fn create_frame_bind_groups(
         &self,
         device: &wgpu::Device,
-        size: &(u32, u32),
         out_gbuffer: &wgpu::TextureView,
         out_motion: &wgpu::TextureView,
         intersections: &gpu::Buffer<uniforms::Intersection>
     ) -> wgpu::BindGroup {
-        let pixels_count: u64 = (size.0 * size.1) as u64;
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Gbuffer Frame Bind Group"),
             layout: &self.frame_bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: Self::INTERSECTION_BINDING,
-                    resource: intersections.as_sub_binding(pixels_count),
+                    resource: intersections.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: Self::GBUFFER_BINDING,

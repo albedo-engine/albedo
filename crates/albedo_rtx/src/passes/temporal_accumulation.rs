@@ -176,7 +176,6 @@ impl TemporalAccumulationPass {
     pub fn create_frame_bind_groups(
         &self,
         device: &wgpu::Device,
-        size: &(u32, u32),
         out_radiance: &wgpu::TextureView,
         out_moments: &wgpu::TextureView,
         out_history: &gpu::Buffer<u32>,
@@ -189,14 +188,13 @@ impl TemporalAccumulationPass {
         history_previous: &gpu::Buffer<u32>,
         moments_previous: &wgpu::TextureView,
     ) -> wgpu::BindGroup {
-        let pixels_count: u64 = (size.0 * size.1) as u64;
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Temporal Accumulation Frame Bind Group"),
             layout: &self.frame_bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: Self::RAYS_BINDING,
-                    resource: rays.as_sub_binding(pixels_count),
+                    resource: rays.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: Self::GBUFFER_PREVIOUS_BINDING,

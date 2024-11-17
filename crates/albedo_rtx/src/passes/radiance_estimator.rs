@@ -88,23 +88,21 @@ impl ShadingPass {
     pub fn create_frame_bind_groups(
         &self,
         device: &wgpu::Device,
-        size: (u32, u32),
         out_rays: &gpu::Buffer<uniforms::Ray>,
         intersections: &gpu::Buffer<uniforms::Intersection>,
         global_uniforms: &gpu::UniformBufferSlice<uniforms::PerDrawUniforms>,
     ) -> wgpu::BindGroup {
-        let pixels_count: u64 = (size.0 * size.1) as u64;
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Radiance Estimator Frame Bind Group"),
             layout: &self.frame_bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: Self::RAY_BINDING,
-                    resource: out_rays.as_sub_binding(pixels_count),
+                    resource: out_rays.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: Self::INTERSECTION_BINDING,
-                    resource: intersections.as_sub_binding(pixels_count),
+                    resource: intersections.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: Self::PER_DRAW_STRUCT_BINDING,
