@@ -295,6 +295,7 @@ impl IndexBuffer {
     }
 }
 
+#[derive(Copy, Clone)]
 pub struct UniformBufferSlice<'a, T: Pod>(&'a Buffer<T>);
 
 impl<'a, T: Pod> UniformBufferSlice<'a, T> {
@@ -303,6 +304,7 @@ impl<'a, T: Pod> UniformBufferSlice<'a, T> {
     }
 }
 
+#[derive(Copy, Clone)]
 pub struct StorageBufferSlice<'a, T: Pod>(&'a Buffer<T>);
 
 impl<'a, T: Pod> StorageBufferSlice<'a, T> {

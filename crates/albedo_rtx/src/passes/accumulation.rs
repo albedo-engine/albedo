@@ -111,8 +111,8 @@ impl AccumulationPass {
     pub fn create_frame_bind_groups(
         &self,
         device: &wgpu::Device,
-        in_rays: &gpu::Buffer<Ray>,
-        global_uniforms: &gpu::Buffer<PerDrawUniforms>,
+        in_rays: gpu::StorageBufferSlice<Ray>,
+        global_uniforms: gpu::UniformBufferSlice<PerDrawUniforms>,
         write_view: &wgpu::TextureView,
         input_view: &wgpu::TextureView,
         sampler: &wgpu::Sampler,

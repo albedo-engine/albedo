@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::get_dispatch_size;
 use crate::macros::path_separator;
 use crate::uniforms;
@@ -5,6 +7,7 @@ use crate::RTGeometryBindGroupLayout;
 use crate::RTSurfaceBindGroupLayout;
 use albedo_backend::data::ShaderCache;
 use albedo_backend::gpu;
+use albedo_backend::gpu::AsBindGroup;
 use albedo_backend::gpu::ComputePipeline;
 
 pub struct ShadingPass {
@@ -19,6 +22,8 @@ impl ShadingPass {
     const RAY_BINDING: u32 = 0;
     const INTERSECTION_BINDING: u32 = 1;
     const PER_DRAW_STRUCT_BINDING: u32 = 2;
+    const GBUFFER_BINDING: u32 = 3;
+    const MOTION_BINDING: u32 = 4;
 
     pub fn new(
         device: &wgpu::Device,
@@ -88,9 +93,9 @@ impl ShadingPass {
     pub fn create_frame_bind_groups(
         &self,
         device: &wgpu::Device,
-        out_rays: &gpu::Buffer<uniforms::Ray>,
-        intersections: &gpu::Buffer<uniforms::Intersection>,
-        global_uniforms: &gpu::UniformBufferSlice<uniforms::PerDrawUniforms>,
+        out_rays: gpu::StorageBufferSlice<uniforms::Ray>,
+        intersections: gpu::StorageBufferSlice<uniforms::Intersection>,
+        global_uniforms: gpu::UniformBufferSlice<uniforms::PerDrawUniforms>,
     ) -> wgpu::BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Radiance Estimator Frame Bind Group"),
@@ -142,5 +147,48 @@ impl ComputePipeline for ShadingPass {
     }
     fn get_pipeline_layout(&self) -> &wgpu::PipelineLayout {
         &self.pipeline_layout
+    }
+}
+
+impl<'a> AsBindGroup<'a> for ShadingPass {
+    type Params = crate::RaytraceDrawResources<'a>;
+
+    fn as_bind_group(&self, device: &wgpu::Device, defines: &HashMap<String, String>, params: &Self::Params) -> Result<wgpu::BindGroup, String> {
+        let mut entries: Vec<wgpu::BindGroupEntry<'_>> = Vec::new();
+
+        entries.extend_from_slice(&[
+            wgpu::BindGroupEntry {
+                binding: Self::RAY_BINDING,
+                resource: params.rays.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: Self::INTERSECTION_BINDING,
+                resource: params.intersections.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: Self::PER_DRAW_STRUCT_BINDING,
+                resource: params.global_uniforms.as_entire_binding(),
+            },
+        ]);
+
+        if defines.contains_key("EMIT_GBUFFER") {
+            let gbuffer = params.gbuffer.unwrap();
+            let motion = params.motion.unwrap();
+
+            entries.push(wgpu::BindGroupEntry {
+                binding: Self::GBUFFER_BINDING,
+                resource: wgpu::BindingResource::TextureView(gbuffer),
+            });
+            entries.push(wgpu::BindGroupEntry {
+                binding: Self::MOTION_BINDING,
+                resource: wgpu::BindingResource::TextureView(motion),
+            });
+        }
+
+        Ok(device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Radiance Estimator Frame Bind Group"),
+            layout: &self.frame_bind_group_layout,
+            entries: &entries
+        }))
     }
 }

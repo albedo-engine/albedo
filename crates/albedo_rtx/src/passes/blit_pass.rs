@@ -121,7 +121,7 @@ impl BlitPass {
         device: &wgpu::Device,
         view: &wgpu::TextureView,
         sampler: &wgpu::Sampler,
-        global_uniforms: &gpu::Buffer<uniforms::PerDrawUniforms>,
+        global_uniforms: gpu::UniformBufferSlice<uniforms::PerDrawUniforms>,
     ) -> BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Blit Bind Group"),

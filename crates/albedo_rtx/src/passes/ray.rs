@@ -101,8 +101,8 @@ impl RayPass {
     pub fn create_frame_bind_groups(
         &self,
         device: &wgpu::Device,
-        out_rays: &gpu::Buffer<uniforms::Ray>,
-        camera: &gpu::UniformBufferSlice<uniforms::Camera>,
+        out_rays: gpu::StorageBufferSlice<uniforms::Ray>,
+        camera: gpu::UniformBufferSlice<uniforms::Camera>,
     ) -> wgpu::BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Ray Generation Frame Bind Group"),

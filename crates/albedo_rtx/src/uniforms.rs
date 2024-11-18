@@ -1,4 +1,4 @@
-use albedo_backend::mesh;
+use albedo_backend::{gpu, mesh};
 use bytemuck::{Pod, Zeroable};
 
 use std::convert::TryInto;
@@ -349,3 +349,12 @@ pub struct RadianceParameters {
 }
 
 impl Uniform for albedo_bvh::BVHNode {}
+
+pub struct RaytraceDrawResources<'a> {
+    pub rays: gpu::StorageBufferSlice<'a, Ray>,
+    pub intersections: gpu::StorageBufferSlice<'a, Intersection>,
+    pub global_uniforms: gpu::UniformBufferSlice<'a, PerDrawUniforms>,
+    pub camera_uniforms: gpu::UniformBufferSlice<'a, Camera>,
+    pub gbuffer: Option<&'a wgpu::TextureView>,
+    pub motion: Option<&'a wgpu::TextureView>,
+}

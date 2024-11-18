@@ -87,8 +87,8 @@ impl IntersectorPass {
     pub fn create_frame_bind_groups(
         &self,
         device: &wgpu::Device,
-        out_intersections: &gpu::Buffer<uniforms::Intersection>,
-        rays: &gpu::Buffer<uniforms::Ray>,
+        out_intersections: gpu::StorageBufferSlice<uniforms::Intersection>,
+        rays: gpu::StorageBufferSlice<uniforms::Ray>,
     ) -> wgpu::BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Intersector Frame Bind Group"),
