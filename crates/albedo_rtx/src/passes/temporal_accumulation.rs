@@ -152,7 +152,7 @@ impl TemporalAccumulationPass {
             "shaders",
             path_separator!(),
             "temporal-accumulation.comp"
-        ))).unwrap();
+        )), None).unwrap();
         let shader: wgpu::ShaderModule = device.create_shader_module(wgpu::ShaderModuleDescriptor{
             label: Some("Temporal Accumulation Shader"),
             source: wgpu::ShaderSource::Naga(Cow::Owned(module))

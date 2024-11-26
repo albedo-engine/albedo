@@ -97,6 +97,7 @@ layout(push_constant) uniform pushConstants {
 #include "imports/intersection_utils.glsl"
 #include "imports/texture_utils.glsl"
 #include "imports/sampling.glsl"
+#include "imports/packing.glsl"
 
 vec3
 decodeRGBE(vec4 hdr)
@@ -169,6 +170,8 @@ main()
   RayPayload ray = rays[index];
   if (ray.terminated.x > 0u) return;
 
+  ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
+
   uint randState = uint(
     gl_GlobalInvocationID.x * uint(1973)
     + gl_GlobalInvocationID.y * uint(9277)
@@ -195,6 +198,12 @@ main()
     ray.radiance.rgb += throughput * probe;
     ray.terminated.x = 1u;
     rays[index] = ray;
+
+    #ifdef EMIT_GBUFFER
+    imageStore(gbuffer, coords, uvec4(0u));
+    imageStore(motion, coords, vec4(0.0));
+    #endif
+
     return;
   }
 
@@ -203,6 +212,12 @@ main()
     Light light = lights[intersection.emitter];
     ray.radiance.rgb += throughput * vec3(1.0, 0.9, 0.8) * light.intensity;
     rays[index] = ray;
+
+    #ifdef EMIT_GBUFFER
+    imageStore(gbuffer, coords, uvec4(0u));
+    imageStore(motion, coords, vec4(0.0));
+    #endif
+
     return;
   }
 
@@ -259,7 +274,6 @@ main()
   rays[index] = ray;
 
   #ifdef EMIT_GBUFFER
-  ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
   vec2 currPos2d = vec2(coords) / vec2(gl_WorkGroupSize * gl_NumWorkGroups);
 
   vec3 posLocal = interpolateBarycentric(
@@ -272,6 +286,8 @@ main()
   vec4 prevProjectedPos = constants.previousWorldToScreen * worldPos;
   vec2 prevPos2d = (prevProjectedPos.xy / prevProjectedPos.w) * vec2(0.5) + vec2(0.5);
   vec2 motionVector = currPos2d - prevPos2d;
+
+  imageStore(gbuffer, coords, packGbuffer(normal, intersection.dist, vec3(1.0)));
   imageStore(motion, coords, vec4(motionVector, 0.0, 0.0));
   #endif
 }

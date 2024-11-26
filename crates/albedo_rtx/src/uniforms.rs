@@ -350,11 +350,26 @@ pub struct RadianceParameters {
 
 impl Uniform for albedo_bvh::BVHNode {}
 
-pub struct RaytraceDrawResources<'a> {
+pub struct RaytraceResources<'a> {
     pub rays: gpu::StorageBufferSlice<'a, Ray>,
     pub intersections: gpu::StorageBufferSlice<'a, Intersection>,
     pub global_uniforms: gpu::UniformBufferSlice<'a, PerDrawUniforms>,
     pub camera_uniforms: gpu::UniformBufferSlice<'a, Camera>,
-    pub gbuffer: Option<&'a wgpu::TextureView>,
-    pub motion: Option<&'a wgpu::TextureView>,
+}
+
+#[derive(Clone, Copy)]
+pub struct DenoiseResources<'a> {
+    pub gbuffer_current: &'a wgpu::TextureView,
+    pub gbuffer_previous: &'a wgpu::TextureView,
+    pub motion: &'a wgpu::TextureView,
+}
+
+impl<'a> DenoiseResources<'a> {
+    pub fn pong(&self) -> DenoiseResources<'a> {
+        Self {
+            gbuffer_current: self.gbuffer_previous,
+            gbuffer_previous: self.gbuffer_current,
+            motion: self.motion
+        }
+    }
 }

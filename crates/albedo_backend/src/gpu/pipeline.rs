@@ -1,5 +1,7 @@
 use std::{borrow::Cow, collections::HashMap};
 
+use wgpu::naga::FastHashMap;
+
 use crate::data::{CompileError, PreprocessError, ShaderCache};
 
 pub trait ComputePipeline {
@@ -7,7 +9,7 @@ pub trait ComputePipeline {
     const SHADER_ID: &'static str;
 
     fn compile(device: &wgpu::Device, processor: &ShaderCache, layout: &wgpu::PipelineLayout, source: &str) -> Result<wgpu::ComputePipeline, CompileError> {
-        let module = processor.compile_compute(source)?;
+        let module = processor.compile_compute(source, None)?;
 
         let shader: wgpu::ShaderModule = device.create_shader_module(wgpu::ShaderModuleDescriptor{
             label: Some(Self::SHADER_ID),

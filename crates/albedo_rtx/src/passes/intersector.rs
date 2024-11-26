@@ -62,7 +62,7 @@ impl IntersectorPass {
             "shaders",
             path_separator!(),
             "intersection.comp"
-        )))).unwrap();
+        ))), None).unwrap();
 
         let shader = device.create_shader_module(ShaderModuleDescriptor{
             label: Some("Intersector Shader"),

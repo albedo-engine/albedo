@@ -64,7 +64,7 @@ impl RayPass {
             "shaders",
             path_separator!(),
             "ray_generation.comp"
-        )))).unwrap();
+        ))), None).unwrap();
 
         let shader: wgpu::ShaderModule = device.create_shader_module(wgpu::ShaderModuleDescriptor{
             label: Some("Ray Generation Shader"),

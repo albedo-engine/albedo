@@ -87,7 +87,7 @@ impl AccumulationPass {
             "shaders",
             path_separator!(),
              "accumulation-pingpong.comp"
-        ))).unwrap();
+        )), None).unwrap();
         let shader: wgpu::ShaderModule = device.create_shader_module(wgpu::ShaderModuleDescriptor{
             label: Some("Accumulation Shader"),
             source: wgpu::ShaderSource::Naga(Cow::Owned(module))
