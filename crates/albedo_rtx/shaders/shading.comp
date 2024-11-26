@@ -1,5 +1,7 @@
 #version 450
 
+// #define EMIT_GBUFFER
+
 #include "imports/structures.glsl"
 #include "imports/common.glsl"
 #include "imports/colorspace.glsl"
@@ -26,10 +28,6 @@ struct Parameters
 {
   uint useNoiseTexture;
 };
-
-/**
- * Layout 0.
- */
 
 layout(set = 0, binding = 0, std430) readonly buffer InstanceBuffer {
   Instance instances[];
@@ -84,12 +82,22 @@ layout(set = 2, binding = 2) uniform GlobalUniformBuffer {
   GlobalUniforms global;
 };
 
+#ifdef EMIT_GBUFFER
+layout(set = 2, binding = 3, rgba32ui) writeonly uniform image2D gbuffer;
+layout(set = 2, binding = 4, rg32f) writeonly uniform image2D motion;
+
+layout(push_constant) uniform pushConstants {
+  mat4 previousWorldToScreen;
+} constants;
+#endif
+
 /* Utils */
 
 #include "imports/math.glsl"
 #include "imports/intersection_utils.glsl"
 #include "imports/texture_utils.glsl"
 #include "imports/sampling.glsl"
+#include "imports/packing.glsl"
 
 vec3
 decodeRGBE(vec4 hdr)
@@ -147,10 +155,22 @@ interpolate(vec2 v0, vec2 v1, vec2 v2, vec3 barycentric)
   );
 }
 
-RayPayload
-shade(RayPayload ray, Intersection intersection, uvec2 workgroupSize)
+layout(local_size_x = 8, local_size_y = 8) in;
+void
+main()
 {
-  if (ray.terminated.x > 0u) return ray;
+  uint index = gl_GlobalInvocationID.y * gl_WorkGroupSize.x * gl_NumWorkGroups.x + gl_GlobalInvocationID.x;
+  if (index >= rays.length()) return;
+
+  // Modified ray is written back to SSBO.
+  //
+  // On Apple, the WorkGroupSize is an attribute, and it looks like accessing it outside of main
+  // means it's not forwarded.
+
+  RayPayload ray = rays[index];
+  if (ray.terminated.x > 0u) return;
+
+  ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
 
   uint randState = uint(
     gl_GlobalInvocationID.x * uint(1973)
@@ -167,6 +187,7 @@ shade(RayPayload ray, Intersection intersection, uvec2 workgroupSize)
     randState = uint(noise.x * 10.0) * uint(global.seed) * uint(26699);
   }
 
+  Intersection intersection = intersections[index];
   vec3 throughput = getThroughput(ray);
   if (abs(MAX_FLOAT - intersection.dist) < EPSILON)
   {
@@ -176,34 +197,46 @@ shade(RayPayload ray, Intersection intersection, uvec2 workgroupSize)
     probe = probe * exposition;
     ray.radiance.rgb += throughput * probe;
     ray.terminated.x = 1u;
-    return ray;
+    rays[index] = ray;
+
+    #ifdef EMIT_GBUFFER
+    imageStore(gbuffer, coords, uvec4(0u));
+    imageStore(motion, coords, vec4(0.0));
+    #endif
+
+    return;
   }
-  else if (intersection.emitter != INVALID_UINT)
+
+  if (intersection.emitter != INVALID_UINT)
   {
     Light light = lights[intersection.emitter];
     ray.radiance.rgb += throughput * vec3(1.0, 0.9, 0.8) * light.intensity;
-    return ray;
+    rays[index] = ray;
+
+    #ifdef EMIT_GBUFFER
+    imageStore(gbuffer, coords, uvec4(0u));
+    imageStore(motion, coords, vec4(0.0));
+    #endif
+
+    return;
   }
+
   Instance instance = instances[intersection.instance];
 
-  vec3 barycentric = vec3(1.0 - intersection.uv.x - intersection.uv.y, intersection.uv);
-
-  uint vertexOffset = instance.vertexRootIndex;
-  Vertex vertex0 = getVertex(vertexOffset, intersection.index);
-  Vertex vertex1 = getVertex(vertexOffset, intersection.index + 1);
-  Vertex vertex2 = getVertex(vertexOffset, intersection.index + 2);
+  Primitive primitive = extractPrimitive(instance, intersection);
+  vec3 barycentric = barycentricCoordinates(intersection.uv);
 
   // @todo: clean up uvs. Should UVs and normal always be packed together
   // anyway? The intersection code only need vertices.
-  vec2 uv0 = vec2(vertex0.position.w, vertex0.normal.w);
-  vec2 uv1 = vec2(vertex1.position.w, vertex1.normal.w);
-  vec2 uv2 = vec2(vertex2.position.w, vertex2.normal.w);
+  vec2 uv0 = vec2(primitive.v0.position.w, primitive.v0.normal.w);
+  vec2 uv1 = vec2(primitive.v1.position.w, primitive.v1.normal.w);
+  vec2 uv2 = vec2(primitive.v2.position.w, primitive.v2.normal.w);
 
   vec2 uv = interpolate(uv0, uv1, uv2, barycentric);
-  vec3 normal = interpolate(
-    vertex0.normal.xyz,
-    vertex1.normal.xyz,
-    vertex2.normal.xyz,
+  vec3 normal = interpolateBarycentric(
+    primitive.v0.normal.xyz,
+    primitive.v1.normal.xyz,
+    primitive.v2.normal.xyz,
     barycentric
   );
   normal = transformDirection(normal, instance.modelToWorld);
@@ -237,25 +270,24 @@ shade(RayPayload ray, Intersection intersection, uvec2 workgroupSize)
   ray.origin.xyz += intersection.dist * ray.dir.xyz + normal * EPSILON;
   ray.dir.xyz = bsdf.dir;
 
-  // throughput.rgb = vec3(1.0, 0.0, 0.0);
   setThroughput(ray, throughput);
+  rays[index] = ray;
 
-  return ray;
-}
+  #ifdef EMIT_GBUFFER
+  vec2 currPos2d = vec2(coords) / vec2(gl_WorkGroupSize * gl_NumWorkGroups);
 
-layout(local_size_x = 8, local_size_y = 8) in;
-void
-main()
-{
-  uint index = gl_GlobalInvocationID.y * gl_WorkGroupSize.x * gl_NumWorkGroups.x + gl_GlobalInvocationID.x;
-  if (index >= rays.length()) return;
+  vec3 posLocal = interpolateBarycentric(
+    primitive.v0.position.xyz,
+    primitive.v1.position.xyz,
+    primitive.v2.position.xyz,
+    barycentric
+  );
+  vec4 worldPos = instance.modelToWorld * vec4(posLocal, 1.0);
+  vec4 prevProjectedPos = constants.previousWorldToScreen * worldPos;
+  vec2 prevPos2d = (prevProjectedPos.xy / prevProjectedPos.w) * vec2(0.5) + vec2(0.5);
+  vec2 motionVector = currPos2d - prevPos2d;
 
-  RayPayload ray = rays[index];
-  Intersection intersection = intersections[index];
-
-  // Modified ray is written back to SSBO.
-  //
-  // On Apple, the WorkGroupSize is an attribute, and it looks like accessing it outside of main
-  // means it's not forwarded.
-  rays[index] = shade(ray, intersection, gl_WorkGroupSize.xy);
+  imageStore(gbuffer, coords, packGbuffer(normal, intersection.dist, vec3(1.0)));
+  imageStore(motion, coords, vec4(motionVector, 0.0, 0.0));
+  #endif
 }

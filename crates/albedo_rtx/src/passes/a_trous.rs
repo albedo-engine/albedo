@@ -85,7 +85,7 @@ impl ATrousPass {
             "shaders",
             path_separator!(),
              "atrous.comp"
-        ))).unwrap();
+        )), None).unwrap();
         let shader: wgpu::ShaderModule = device.create_shader_module(wgpu::ShaderModuleDescriptor{
             label: Some("A-Trous Shader"),
             source: wgpu::ShaderSource::Naga(Cow::Owned(module))

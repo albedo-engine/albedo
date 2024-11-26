@@ -77,6 +77,11 @@ unpackRGBE(uint x)
     return v;
 }
 
+uvec4
+packGbuffer(vec3 normal, float dist, vec3 albedo) {
+  return uvec4(packRGBE(albedo), packOctahedral(normal), floatBitsToUint(dist), 0u);
+}
+
 GBufferSample
 unpackGbuffer(uvec4 data)
 {

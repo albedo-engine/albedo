@@ -1,5 +1,5 @@
 use std::{collections::HashMap, fmt::Debug, path::Path};
-use wgpu::naga;
+use wgpu::naga::{self, FastHashMap};
 
 pub enum PreprocessError {
     SyntaxError,
@@ -114,23 +114,27 @@ impl ShaderCache {
         Ok(buf)
     }
 
-    pub fn compile_compute(&self, source: &str) -> Result<naga::Module, CompileError> {
-        self.compile_module(source, naga::ShaderStage::Compute)
+    pub fn compile_compute(&self, source: &str, defines: Option<&FastHashMap<String, String>>) -> Result<naga::Module, CompileError> {
+        let defines = match defines {
+            Some(d) => d.clone(),
+            None => FastHashMap::default()
+        };
+        self.compile_module(source, defines, naga::ShaderStage::Compute)
     }
     pub fn compile_fragment(&self, source: &str) -> Result<naga::Module, CompileError> {
-        self.compile_module(source, naga::ShaderStage::Fragment)
+        self.compile_module(source, FastHashMap::default(), naga::ShaderStage::Fragment)
     }
     pub fn compile_vertex(&self, source: &str) -> Result<naga::Module, CompileError> {
-        self.compile_module(source, naga::ShaderStage::Vertex)
+        self.compile_module(source, FastHashMap::default(), naga::ShaderStage::Vertex)
     }
 
-    pub fn compile_module(&self, source: &str, stage: naga::ShaderStage) -> Result<naga::Module, CompileError> {
+    pub fn compile_module(&self, source: &str, defines: FastHashMap<String, String>, stage: naga::ShaderStage) -> Result<naga::Module, CompileError> {
         let source = self.compile(source)?;
         let module = naga::front::glsl::Frontend::default()
             .parse(
                 &naga::front::glsl::Options {
                     stage,
-                    defines: Default::default(),
+                    defines
                 },
                 &source,
             )?;

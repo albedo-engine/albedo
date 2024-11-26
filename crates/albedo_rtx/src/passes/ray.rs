@@ -64,7 +64,7 @@ impl RayPass {
             "shaders",
             path_separator!(),
             "ray_generation.comp"
-        )))).unwrap();
+        ))), None).unwrap();
 
         let shader: wgpu::ShaderModule = device.create_shader_module(wgpu::ShaderModuleDescriptor{
             label: Some("Ray Generation Shader"),
@@ -101,18 +101,16 @@ impl RayPass {
     pub fn create_frame_bind_groups(
         &self,
         device: &wgpu::Device,
-        size: (u32, u32),
-        out_rays: &gpu::Buffer<uniforms::Ray>,
-        camera: &gpu::UniformBufferSlice<uniforms::Camera>,
+        out_rays: gpu::StorageBufferSlice<uniforms::Ray>,
+        camera: gpu::UniformBufferSlice<uniforms::Camera>,
     ) -> wgpu::BindGroup {
-        let pixels_count: u64 = (size.0 * size.1) as u64;
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Ray Generation Frame Bind Group"),
             layout: &self.bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: Self::RAY_BINDING,
-                    resource: out_rays.as_sub_binding(pixels_count),
+                    resource: out_rays.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: Self::CAMERA_BINDING,

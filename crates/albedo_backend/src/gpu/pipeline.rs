@@ -1,4 +1,6 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, collections::HashMap};
+
+use wgpu::naga::FastHashMap;
 
 use crate::data::{CompileError, PreprocessError, ShaderCache};
 
@@ -7,7 +9,7 @@ pub trait ComputePipeline {
     const SHADER_ID: &'static str;
 
     fn compile(device: &wgpu::Device, processor: &ShaderCache, layout: &wgpu::PipelineLayout, source: &str) -> Result<wgpu::ComputePipeline, CompileError> {
-        let module = processor.compile_compute(source)?;
+        let module = processor.compile_compute(source, None)?;
 
         let shader: wgpu::ShaderModule = device.create_shader_module(wgpu::ShaderModuleDescriptor{
             label: Some(Self::SHADER_ID),
@@ -34,4 +36,10 @@ pub trait ComputePipeline {
     }
     fn set_pipeline(&mut self, pipeline: wgpu::ComputePipeline);
     fn get_pipeline_layout(&self) -> &wgpu::PipelineLayout;
+}
+
+pub trait AsBindGroup<'a> {
+    type Params;
+
+    fn as_bind_group(&self, device: &wgpu::Device, defines: &HashMap<String, String>, params: &Self::Params) -> Result<wgpu::BindGroup, String>;
 }

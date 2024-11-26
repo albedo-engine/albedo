@@ -152,7 +152,7 @@ impl LightmapPass {
         nodes: &wgpu::Buffer,
         indices: &gpu::Buffer<u32>,
         vertices: &wgpu::Buffer,
-        global_uniforms: &gpu::Buffer<uniforms::PerDrawUniforms>,
+        global_uniforms: gpu::UniformBufferSlice<uniforms::PerDrawUniforms>,
     ) -> BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Lightmap Bind Group"),

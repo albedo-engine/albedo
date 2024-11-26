@@ -2,7 +2,6 @@ use std::borrow::Cow;
 
 use albedo_backend::data::ShaderCache;
 use albedo_backend::gpu;
-use guillotiere::euclid::default;
 use wgpu::{BindGroup, BindingType, StoreOp};
 
 use crate::macros::path_separator;
@@ -122,7 +121,7 @@ impl BlitPass {
         device: &wgpu::Device,
         view: &wgpu::TextureView,
         sampler: &wgpu::Sampler,
-        global_uniforms: &gpu::Buffer<uniforms::PerDrawUniforms>,
+        global_uniforms: gpu::UniformBufferSlice<uniforms::PerDrawUniforms>,
     ) -> BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Blit Bind Group"),
