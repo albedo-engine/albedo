@@ -1,0 +1,24 @@
+#version 450
+
+layout(set = 0, binding = 0) uniform utexture2D gbuffer;
+layout(set = 0, binding = 1) uniform texture2D radianceIn;
+layout(set = 0, binding = 2, rgba32f) writeonly uniform image2D radiance;
+layout(set = 0, binding = 3) uniform sampler samplerNearest;
+
+#include "imports/common.glsl"
+#include "imports/packing.glsl"
+
+layout(local_size_x = 8, local_size_y = 8) in;
+void main()
+{
+    ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
+
+    /* `p` for center pixel, similar to SVGF paper. */
+    GBufferSample p = unpackGbuffer(texelFetch(usampler2D(gbuffer, samplerNearest), coords, 0));
+    vec4 color = texelFetch(sampler2D(radianceIn, samplerNearest), coords, 0);
+
+    /** @todo: Modulation should be based on the entire BRDF, i.e.,
+     * Throughput, specular and diffuse must be kept separated. */
+    if(p.depth >= EPSILON) color.rgb *= p.albedo;
+    imageStore(radiance, coords, color);
+}

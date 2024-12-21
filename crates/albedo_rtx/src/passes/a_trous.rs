@@ -104,7 +104,7 @@ impl ATrousPass {
             frame_bind_group_layout,
             layout: pipeline_layout,
             pipeline,
-            count: 3
+            count: 4
         }
     }
 

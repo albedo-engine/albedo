@@ -258,15 +258,32 @@ impl ShadingPass {
 pub struct PrimaryRayPass(ShadingPass);
 
 impl PrimaryRayPass {
+    fn defines() -> FastHashMap<String, String> {
+        // @todo: Replace by shader flags
+        let mut defines: FastHashMap<String, String> = FastHashMap::default();
+        defines.insert("EMIT_GBUFFER".into(), "".into());
+        defines
+    }
+
+    pub fn new(
+        device: &wgpu::Device,
+        processor: &ShaderCache,
+        geometry_layout: &RTGeometryBindGroupLayout,
+        surface_layout: &RTSurfaceBindGroupLayout,
+    ) -> Result<Self, CompileError> {
+        let defines = PrimaryRayPass::defines();
+        Ok(Self {
+            0: ShadingPass::new(device, processor, &defines, geometry_layout, surface_layout)?
+        })
+    }
+
     pub fn new_inlined(
         device: &wgpu::Device,
         processor: &ShaderCache,
         geometry_layout: &RTGeometryBindGroupLayout,
         surface_layout: &RTSurfaceBindGroupLayout,
     ) -> Self {
-        // @todo: Replace by shader flags
-        let mut defines: FastHashMap<String, String> = FastHashMap::default();
-        defines.insert("EMIT_GBUFFER".into(), "".into());
+        let defines = PrimaryRayPass::defines();
         Self {
             0: ShadingPass::new_inlined(device, processor, &defines, geometry_layout, surface_layout)
         }

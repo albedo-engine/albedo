@@ -2,6 +2,7 @@ mod a_trous;
 mod accumulation;
 mod blit_pass;
 mod blit_texture_pass;
+mod denoise;
 mod intersector;
 mod lightmap;
 mod shading;
@@ -16,6 +17,7 @@ pub use intersector::IntersectorPass;
 pub use lightmap::LightmapPass;
 pub use shading::{PrimaryRayPass,ShadingPass};
 pub use ray::RayPass;
+pub use denoise::*;
 pub use temporal_accumulation::TemporalAccumulationPass;
 
 pub(crate) const GBUFFER_READ_TY: wgpu::BindingType = wgpu::BindingType::Texture {
