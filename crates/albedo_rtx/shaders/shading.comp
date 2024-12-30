@@ -1,6 +1,7 @@
 #version 450
 
 // #define EMIT_GBUFFER
+#define DEBUG_CWBVH_TRAVERSAL
 
 #include "imports/structures.glsl"
 #include "imports/common.glsl"
@@ -34,11 +35,11 @@ layout(set = 0, binding = 0, std430) readonly buffer InstanceBuffer {
 };
 
 layout(set = 0, binding = 1, std430) readonly buffer BVHNodeBuffer {
-  BVHNode nodes[];
+  vec4 nodes[];
 };
 
-layout(set = 0, binding = 2, std430) readonly buffer IndexBuffer {
-  uint indices[];
+layout (set = 0, binding = 2, std430) readonly buffer CWBVHTriangleBuffer {
+  vec4 trianglesCWBVH[];
 };
 
 layout(set = 0, binding = 3, std430) readonly buffer VertexBuffer {
@@ -188,6 +189,20 @@ main()
   }
 
   Intersection intersection = intersections[index];
+
+  #ifdef DEBUG_CWBVH_TRAVERSAL
+  #ifdef EMIT_GBUFFER
+  imageStore(gbuffer, coords, uvec4(0u));
+  imageStore(motion, coords, vec4(0.0));
+  #endif
+
+  float stepCount = intersection.dist;
+  ray.radiance.rgb = vec3(stepCount/1000.0);
+  ray.terminated.x = 1u;
+  rays[index] = ray;
+  if (true) return; // naga validation bug
+  #endif
+
   vec3 throughput = getThroughput(ray);
   if (abs(MAX_FLOAT - intersection.dist) < EPSILON)
   {

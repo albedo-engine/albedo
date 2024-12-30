@@ -16,11 +16,11 @@ layout (set = 0, binding = 0, std430) readonly buffer InstanceBuffer {
 };
 
 layout (set = 0, binding = 1, std430) readonly buffer BVHNodeBuffer {
-  BVHNode nodes[];
+  vec4 nodes[];
 };
 
-layout (set = 0, binding = 2, std430) readonly buffer IndexBuffer {
-  uint indices[];
+layout (set = 0, binding = 2, std430) readonly buffer CWBVHTriangleBuffer {
+  vec4 trianglesCWBVH[];
 };
 
 layout (set = 0, binding = 3, std430) readonly buffer VertexBuffer {

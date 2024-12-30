@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use crate::{uniforms};
+use crate::uniforms;
 use albedo_backend::gpu;
 
 pub struct RTGeometryBindGroupLayout(wgpu::BindGroupLayout);
@@ -8,7 +8,7 @@ pub struct RTGeometryBindGroupLayout(wgpu::BindGroupLayout);
 impl RTGeometryBindGroupLayout {
     const INSTANCE_BINDING: u32 = 0;
     const NODE_BINDING: u32 = 1;
-    const INDEX_BINDING: u32 = 2;
+    const TRIANGLES_BINDING: u32 = 2;
     const VERTEX_BINDING: u32 = 3;
     const LIGHT_BINDING: u32 = 4;
 
@@ -37,7 +37,7 @@ impl RTGeometryBindGroupLayout {
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry {
-                    binding: Self::INDEX_BINDING,
+                    binding: Self::TRIANGLES_BINDING,
                     visibility: wgpu::ShaderStages::COMPUTE,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Storage { read_only: true },
@@ -74,9 +74,9 @@ impl RTGeometryBindGroupLayout {
     pub fn create_bindgroup(
         &self,
         device: &wgpu::Device,
-        nodes: gpu::StorageBufferSlice<albedo_bvh::BVHNode>,
+        nodes: gpu::StorageBufferSlice<uniforms::BVHNode>,
         instances: gpu::StorageBufferSlice<uniforms::Instance>,
-        indices: gpu::StorageBufferSlice<u32>,
+        triangles: gpu::StorageBufferSlice<uniforms::BVHPrimitive>,
         vertices: gpu::StorageBufferSlice<uniforms::Vertex>,
         lights: gpu::StorageBufferSlice<uniforms::Light>,
     ) -> wgpu::BindGroup {
@@ -93,8 +93,8 @@ impl RTGeometryBindGroupLayout {
                     resource: instances.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
-                    binding: Self::INDEX_BINDING,
-                    resource: indices.as_entire_binding(),
+                    binding: Self::TRIANGLES_BINDING,
+                    resource: triangles.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: Self::VERTEX_BINDING,

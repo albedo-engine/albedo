@@ -1,5 +1,4 @@
 use albedo_backend::gpu;
-use albedo_bvh::FlatNode;
 use albedo_rtx::uniforms::{Instance, Vertex};
 use futures;
 // use renderdoc::{RenderDoc, V141};

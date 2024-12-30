@@ -21,14 +21,6 @@ struct Instance
   uint indexRootIndex;
 };
 
-struct BVHNode
-{
-  vec3 min;
-  uint nextNodeIndex;
-  vec3 max;
-  uint primitiveStartIndex;
-};
-
 struct Vertex
 {
   vec4 position;
