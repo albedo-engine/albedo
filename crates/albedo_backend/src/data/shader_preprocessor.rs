@@ -1,19 +1,38 @@
-use std::{collections::HashMap, fmt::Debug, path::Path};
-use wgpu::naga::{self, FastHashMap};
+use std::{collections::HashMap, fmt::Debug, ops::Range, path::Path};
+use wgpu::naga::{self, FastHashMap, Span};
 
 pub enum PreprocessError {
     SyntaxError,
-    Missing(String)
+    Missing(String),
+}
+
+#[derive(Debug)]
+pub struct ParseError {
+    pub import_name: Option<String>,
+    pub line: u32,
+    pub offset: u32,
+    pub kind: naga::front::glsl::ErrorKind,
+}
+
+impl ParseError {
+    pub fn new(kind: naga::front::glsl::ErrorKind) -> Self {
+        Self {
+            import_name: Default::default(),
+            line: Default::default(),
+            offset: Default::default(),
+            kind,
+        }
+    }
 }
 
 #[derive(Debug)]
 pub enum CompileError {
     Preprocessor(PreprocessError),
-    Module(naga::front::glsl::ParseErrors),
+    Module(Vec<ParseError>),
 }
 
-impl From<naga::front::glsl::ParseErrors> for CompileError {
-    fn from(value: naga::front::glsl::ParseErrors) -> Self {
+impl From<Vec<ParseError>> for CompileError {
+    fn from(value: Vec<ParseError>) -> Self {
         CompileError::Module(value)
     }
 }
@@ -31,6 +50,12 @@ impl Debug for PreprocessError {
             Self::Missing(import) => write!(f, "Missing import: '{}'", import),
         }
     }
+}
+
+struct InlinedResult {
+    content: String,
+    ranges: Vec<Range<u32>>,
+    imports: Vec<String>,
 }
 
 pub struct ShaderCache {
@@ -65,20 +90,30 @@ impl ShaderCache {
     pub fn add_directory<P: AsRef<Path>>(&mut self, directory: P) -> Result<(), std::io::Error> {
         let paths = std::fs::read_dir(directory)?;
         for entry in paths {
-            let Ok(entry) = entry else { continue; };
-            let Ok(meta) = entry.metadata() else { continue; };
-            if !meta.is_file() { continue; }
+            let Ok(entry) = entry else {
+                continue;
+            };
+            let Ok(meta) = entry.metadata() else {
+                continue;
+            };
+            if !meta.is_file() {
+                continue;
+            }
 
             let path = entry.path();
             let Some(ext) = path.extension().map(|s| s.to_str()).flatten() else {
                 continue;
             };
             match ext {
-                "comp"|"frag"|"vert" => (),
-                _ => { continue; }
+                "comp" | "frag" | "vert" => (),
+                _ => {
+                    continue;
+                }
             }
 
-            let Some(filename) = path.file_name().map(|s| s.to_str()).flatten() else { continue; };
+            let Some(filename) = path.file_name().map(|s| s.to_str()).flatten() else {
+                continue;
+            };
             let content = std::fs::read_to_string(entry.path())?;
             self.imports.insert(filename.to_string(), content);
         }
@@ -89,9 +124,14 @@ impl ShaderCache {
         self.imports.get(name).map(|s| s.as_str())
     }
 
-    pub fn compile(&self, source: &str) -> Result<String, PreprocessError> {
+    pub fn compile(&self, source: &str) -> Result<InlinedResult, PreprocessError> {
         let lines = source.lines();
         let mut buf = String::new();
+
+        // TODO: Make optional to avoid extra processing when not needed.
+        let mut ranges: Vec<Range<u32>> = Vec::new();
+        let mut imports: Vec<String> = Vec::new();
+
         for line in lines {
             let line: &str = line.trim();
             let Some(start) = line.find("#include") else {
@@ -105,19 +145,32 @@ impl ShaderCache {
             let Some(end) = include[1..].find("\"") else {
                 return Err(PreprocessError::SyntaxError);
             };
-            let name = &include[1..end+1];
+            let name = &include[1..end + 1];
             let Some(content) = self.imports.get(name) else {
                 return Err(PreprocessError::Missing(name.to_string()));
             };
+
+            let start = buf.len();
             buf.extend([content, "\n"]);
+            imports.push(name.into());
+            ranges.push(start as u32..buf.len() as u32);
         }
-        Ok(buf)
+
+        Ok(InlinedResult {
+            content: buf,
+            ranges,
+            imports,
+        })
     }
 
-    pub fn compile_compute(&self, source: &str, defines: Option<&FastHashMap<String, String>>) -> Result<naga::Module, CompileError> {
+    pub fn compile_compute(
+        &self,
+        source: &str,
+        defines: Option<&FastHashMap<String, String>>,
+    ) -> Result<naga::Module, CompileError> {
         let defines = match defines {
             Some(d) => d.clone(),
-            None => FastHashMap::default()
+            None => FastHashMap::default(),
         };
         self.compile_module(source, defines, naga::ShaderStage::Compute)
     }
@@ -128,16 +181,57 @@ impl ShaderCache {
         self.compile_module(source, FastHashMap::default(), naga::ShaderStage::Vertex)
     }
 
-    pub fn compile_module(&self, source: &str, defines: FastHashMap<String, String>, stage: naga::ShaderStage) -> Result<naga::Module, CompileError> {
+    pub fn compile_module(
+        &self,
+        source: &str,
+        defines: FastHashMap<String, String>,
+        stage: naga::ShaderStage,
+    ) -> Result<naga::Module, CompileError> {
         let source = self.compile(source)?;
-        let module = naga::front::glsl::Frontend::default()
+        // TODO: Remap the error based on the include content.
+        Ok(naga::front::glsl::Frontend::default()
             .parse(
-                &naga::front::glsl::Options {
-                    stage,
-                    defines
-                },
-                &source,
-            )?;
-        Ok(module)
+                &naga::front::glsl::Options { stage, defines },
+                &source.content,
+            )
+            .map_err(|e| {
+                let errors = e
+                    .errors
+                    .into_iter()
+                    .map(|error| {
+                        let mut ret_error = ParseError::new(error.kind);
+                        let Some(span) = error.meta.to_range() else {
+                            return ret_error;
+                        };
+
+                        let Some(found) = source
+                            .ranges
+                            .iter()
+                            .position(|r| r.contains(&(span.start as u32)))
+                        else {
+                            let loc = error.meta.location(&source.content);
+                            ret_error.line = loc.line_number;
+                            ret_error.offset = loc.line_position;
+                            return ret_error;
+                        };
+                        let import_name = &source.imports[found];
+                        let Some(import_content) = self.imports.get(import_name) else {
+                            return ret_error;
+                        };
+
+                        let start_offset = source.ranges[found].start;
+                        let span = Span::new(
+                            span.start as u32 - start_offset,
+                            span.start as u32 - start_offset,
+                        );
+                        let loc = span.location(&import_content);
+                        ret_error.import_name = Some(import_name.clone());
+                        ret_error.line = loc.line_number;
+                        ret_error.offset = loc.line_position;
+                        ret_error
+                    })
+                    .collect();
+                CompileError::Module(errors)
+            })?)
     }
 }
