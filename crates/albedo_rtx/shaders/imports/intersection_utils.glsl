@@ -185,7 +185,7 @@ uint sign_extend_s8x4( uint i )
 uint
 extract_byte(uint x, uint i)
 {
-	return (x >> (8 * i)) & 0xff;
+	return (x >> (8u * i)) & 0xFFu;
 }
 
 uvec4 as_uchar4(float val) {
@@ -209,9 +209,9 @@ float as_float(uint val) {
 
 uint get_oct_inv4(vec3 d)
 {
-	return (d.x < 0.0f ? 0u : 0x04040404u) |
-		   (d.y < 0.0f ? 0u : 0x02020202u) |
-		   (d.z < 0.0f ? 0u : 0x01010101u);
+	return (d.x < 0.0 ? 0u : 0x04040404u) |
+		   (d.y < 0.0 ? 0u : 0x02020202u) |
+		   (d.z < 0.0 ? 0u : 0x01010101u);
 }
 
 struct BVH8node
@@ -223,7 +223,6 @@ struct BVH8node
 	vec4 node4;
 };
 
-/*
 uint bvh8_node_intersect(Ray r, vec3 inv_direction, uint oct_inv4, float max_t, BVH8node node)
 {
 	vec3 p = node.node0.xyz;
@@ -233,9 +232,15 @@ uint bvh8_node_intersect(Ray r, vec3 inv_direction, uint oct_inv4, float max_t, 
 	uint e_y = extract_byte(e_imask, 1u);
 	uint e_z = extract_byte(e_imask, 2u);
 
-	vec3 adjust_ray_direction_inv = vec3(uintBitsToFloat(e_x << 23u) * inv_direction.x,
-										 uintBitsToFloat(e_y << 23u) * inv_direction.y,
-										 uintBitsToFloat(e_z << 23u) * inv_direction.z);
+	uvec3 e = uvec3 (bitfieldExtract(e_imask, 0, 8), bitfieldExtract(e_imask, 8, 8), bitfieldExtract(e_imask, 16, 8));
+	e = uvec3 ((e.x + 127) & 0xFF, (e.y + 127) & 0xFF, (e.z + 127) & 0xFF);
+	e_x = e.x;
+	e_y = e.y;
+	e_z = e.z;
+
+	vec3 adjust_ray_direction_inv = vec3(uintBitsToFloat(e_x << 23) * inv_direction.x,
+										 uintBitsToFloat(e_y << 23) * inv_direction.y,
+										 uintBitsToFloat(e_z << 23) * inv_direction.z);
 
 	vec3 adjust_ray_origin = (p - r.origin) * inv_direction;
 
@@ -262,18 +267,22 @@ uint bvh8_node_intersect(Ray r, vec3 inv_direction, uint oct_inv4, float max_t, 
 		uint q_lo_z = floatBitsToUint(i == 0 ? node.node4.x : node.node4.y);
 		uint q_hi_z = floatBitsToUint(i == 0 ? node.node4.z : node.node4.w);
 
-		uint x_min = r.dir.x < 0.0f ? q_hi_x : q_lo_x;
-		uint x_max = r.dir.x < 0.0f ? q_lo_x : q_hi_x;
+		// uint q_lo_x = floatBitsToUint(i == 0 ? node.node3.z : node.node2.x);
+		// uint q_hi_x = floatBitsToUint(i == 0 ? node.node2.x : node.node3.z);
+		// uint q_lo_y = floatBitsToUint(i == 0 ? node.node4.x : node.node2.z);
+		// uint q_hi_y = floatBitsToUint(i == 0 ? node.node2.z : node.node4.x);
+		// uint q_lo_z = floatBitsToUint(i == 0 ? node.node4.z : node.node3.x);
+		// uint q_hi_z = floatBitsToUint(i == 0 ? node.node3.x : node.node4.z);
 
-		uint y_min = r.dir.y < 0.0f ? q_hi_y : q_lo_y;
-		uint y_max = r.dir.y < 0.0f ? q_lo_y : q_hi_y;
+		uint x_min = r.dir.x < 0.0 ? q_hi_x : q_lo_x;
+		uint x_max = r.dir.x < 0.0 ? q_lo_x : q_hi_x;
 
-		uint z_min = r.dir.z < 0.0f ? q_hi_z : q_lo_z;
-		uint z_max = r.dir.z < 0.0f ? q_lo_z : q_hi_z;
+		uint y_min = r.dir.y < 0.0 ? q_hi_y : q_lo_y;
+		uint y_max = r.dir.y < 0.0 ? q_lo_y : q_hi_y;
 
-		//intersect 4 children
-		//1 node have 2 children
-		//each children have another 4 children or childs! (childs sound like child ass! that's why it's called children!)
+		uint z_min = r.dir.z < 0.0 ? q_hi_z : q_lo_z;
+		uint z_max = r.dir.z < 0.0 ? q_lo_z : q_hi_z;
+
 		for(int j = 0; j < 4; ++j)
 		{
 			vec3 tmin3 = vec3(float(extract_byte(x_min, j)), float(extract_byte(y_min, j)),float(extract_byte(z_min, j)));
@@ -285,80 +294,7 @@ uint bvh8_node_intersect(Ray r, vec3 inv_direction, uint oct_inv4, float max_t, 
 			float tmin = max(max(tmin3.x, tmin3.y), tmin3.z);
 			float tmax = max(max(tmax3.x, tmax3.y), tmax3.z);
 
-			if(tmax >= 0.0f && tmax < max_t && tmin <= tmax)
-			{
-				uint child_bits = extract_byte(child_bits4, j);
-				uint bit_index = extract_byte(bit_index4, j);
-				hit_mask |= child_bits << bit_index;
-			}
-		}
-	}
-	return hit_mask;
-}
-*/
-
-uint bvh8_node_intersect2(Ray r, vec3 inv_direction, uint oct_inv4, float max_t, BVH8node node)
-{
-	vec3 p = node.node0.xyz;
-
-	uint e_imask = floatBitsToUint(node.node0.w);
-	uint e_x = extract_byte(e_imask, 0u);
-	uint e_y = extract_byte(e_imask, 1u);
-	uint e_z = extract_byte(e_imask, 2u);
-
-	vec3 adjust_ray_direction_inv = vec3(uintBitsToFloat(e_x << 23u) * inv_direction.x,
-										 uintBitsToFloat(e_y << 23u) * inv_direction.y,
-										 uintBitsToFloat(e_z << 23u) * inv_direction.z);
-
-	vec3 adjust_ray_origin = (p - r.origin) * inv_direction;
-
-	uint hit_mask = 0u;
-
-	for(int i = 0; i < 2; ++i)
-	{
-		uint meta4 = floatBitsToUint(i == 0 ? node.node1.z : node.node1.w);
-
-		uint is_inner4 = (meta4 & (meta4 << 1u)) & 0x10101010u;
-		uint inner_mask4 = sign_extend_s8x4(is_inner4 << 3u);
-
-		uint bit_index4 = (meta4 ^ (oct_inv4 & inner_mask4)) & 0x1F1F1F1Fu;
-
-		uint child_bits4 = (meta4 >> 5u) & 0x07070707u;
-
-		//near far
-		uint q_lo_x = floatBitsToUint(i == 0 ? node.node2.x : node.node2.y);
-		uint q_hi_x = floatBitsToUint(i == 0 ? node.node2.z : node.node2.w);
-
-		uint q_lo_y = floatBitsToUint(i == 0 ? node.node3.x : node.node3.y);
-		uint q_hi_y = floatBitsToUint(i == 0 ? node.node3.z : node.node3.w);
-
-		uint q_lo_z = floatBitsToUint(i == 0 ? node.node4.x : node.node4.y);
-		uint q_hi_z = floatBitsToUint(i == 0 ? node.node4.z : node.node4.w);
-
-		uint x_min = r.dir.x < 0.0f ? q_hi_x : q_lo_x;
-		uint x_max = r.dir.x < 0.0f ? q_lo_x : q_hi_x;
-
-		uint y_min = r.dir.y < 0.0f ? q_hi_y : q_lo_y;
-		uint y_max = r.dir.y < 0.0f ? q_lo_y : q_hi_y;
-
-		uint z_min = r.dir.z < 0.0f ? q_hi_z : q_lo_z;
-		uint z_max = r.dir.z < 0.0f ? q_lo_z : q_hi_z;
-
-		//intersect 4 children
-		//1 node have 2 children
-		//each children have another 4 children or childs! (childs sound like child ass! that's why it's called children!)
-		for(int j = 0; j < 4; ++j)
-		{
-			vec3 tmin3 = vec3(float(extract_byte(x_min, j)), float(extract_byte(y_min, j)),float(extract_byte(z_min, j)));
-			vec3 tmax3 = vec3(float(extract_byte(x_max, j)), float(extract_byte(y_max, j)),float(extract_byte(z_max, j)));
-
-			tmin3 = tmin3 * adjust_ray_direction_inv + adjust_ray_origin;
-			tmax3 = tmax3 * adjust_ray_direction_inv + adjust_ray_origin;
-
-			float tmin = max(max(tmin3.x, tmin3.y), tmin3.z);
-			float tmax = max(max(tmax3.x, tmax3.y), tmax3.z);
-
-			if(tmax >= 0.0f && tmax < max_t && tmin <= tmax)
+			if(tmax >= 0.0 && tmax < max_t && tmin <= tmax)
 			{
 				uint child_bits = extract_byte(child_bits4, j);
 				uint bit_index = extract_byte(bit_index4, j);
@@ -369,8 +305,6 @@ uint bvh8_node_intersect2(Ray r, vec3 inv_direction, uint oct_inv4, float max_t,
 	return hit_mask;
 }
 
-#define TINYBVH
-#ifdef TINYBVH
 vec4
 traverse_cwbvh(vec3 O, vec3 D, vec3 rD, float t, inout uint stepCount)
 {
@@ -412,25 +346,26 @@ traverse_cwbvh(vec3 O, vec3 D, vec3 rD, float t, inout uint stepCount)
 			{
 				stack[stackPtr++] = ngroup;
 			}
-			{
-				const uint slot_index = (child_bit_index - 24) ^ (octinv4 & 255);
-				const uint relative_index = bitCount( imask & ~(0xFFFFFFFF << slot_index) );
-				const uint child_node_index = (child_node_base_index + relative_index) * 5;
 
-				// @TODO: Offset node with BLAS offset.
-				vec4 n0 = nodes[child_node_index + 0];
-				vec4 n1 = nodes[child_node_index + 1];
-				vec4 n2 = nodes[child_node_index + 2];
-				vec4 n3 = nodes[child_node_index + 3];
-				vec4 n4 = nodes[child_node_index + 4];
+			const uint slot_index = (child_bit_index - 24) ^ (octinv4 & 255);
+			const uint relative_index = bitCount( imask & ~(0xFFFFFFFF << slot_index) );
+			const uint child_node_index = (child_node_base_index + relative_index) * 5;
 
-				uvec4 e = as_uchar4(n0.w);
+			// @TODO: Offset node with BLAS offset.
+			vec4 n0 = nodes[child_node_index + 0];
+			vec4 n1 = nodes[child_node_index + 1];
+			vec4 n2 = nodes[child_node_index + 2];
+			vec4 n3 = nodes[child_node_index + 3];
+			vec4 n4 = nodes[child_node_index + 4];
 
-				ngroup.x = as_uint( n1.x );
-				tgroup = uvec2(as_uint( n1.y ), 0u);
-				uint hitmask = 0;
+			ngroup.x = as_uint( n1.x );
+			tgroup = uvec2(as_uint( n1.y ), 0u);
+			uint hitmask = 0;
 
-				/*vec4 idir4 = vec4(
+			#if 1
+				uvec3 e = uvec3 (bitfieldExtract(as_uint(n0.w), 0, 8), bitfieldExtract(as_uint(n0.w), 8, 8), bitfieldExtract(as_uint(n0.w), 16, 8));
+				e = uvec3 ((e.x + 127) & 0xFF, (e.y + 127) & 0xFF, (e.z + 127) & 0xFF);
+				vec4 idir4 = vec4(
 					as_float( e.x << 23u ) * rD4.x,
 					as_float( e.y << 23u ) * rD4.y,
 					as_float( e.z << 23u ) * rD4.z,
@@ -538,69 +473,62 @@ traverse_cwbvh(vec3 O, vec3 D, vec3 rD, float t, inout uint stepCount)
 							// hitmask |= child_bits << bit_index;
 						}
 					}
-				}*/
+				}
+			#else
+			// DEBUG
+			BVH8node node;
+			node.node0 = n0;
+			node.node1 = n1;
+			node.node2 = n2;
+			node.node3 = n3;
+			node.node4 = n4;
+			Ray r;
+			r.origin = O;
+			r.dir = D;
+			hitmask = bvh8_node_intersect(r, rD.xyz, octinv4, tmax, node);
+			// END DEBUG
+			#endif
 
-				// DEBUG
-				BVH8node node;
-				node.node0 = n0;
-				node.node1 = n1;
-				node.node2 = n2;
-				node.node3 = n3;
-				node.node4 = n4;
-				Ray r;
-				r.origin = O;
-				r.dir = D;
-				hitmask = bvh8_node_intersect(r, rD.xyz, octinv4, tmax, node);
-				// END DEBUG
 
-				uint mask = extract_byte(as_uint(n0.w), 3);
-				ngroup.y = (hitmask & 0xFF000000) | mask;
-				tgroup.y = hitmask & 0x00FFFFFF;
-			}
+			uint mask = extract_byte(as_uint(n0.w), 3);
+			ngroup.y = (hitmask & 0xFF000000) | mask;
+			tgroup.y = hitmask & 0x00FFFFFF;
 		}
-		else {
+		else
+		{
 			tgroup = ngroup;
 			ngroup = uvec2(0u);
 		}
 
-		while (tgroup.y != 0)
+		while (tgroup.y != 0u)
 		{
 			// M�ller-Trumbore intersection; triangles are stored as 3x16 bytes,
 			// with the original primitive index in the (otherwise unused) w
 			// component of vertex 0.
 			int triangleIndex = findMSB( tgroup.y );
-			uint triAddr = tgroup.x + triangleIndex * 3u;
-			// TODO: Offset with base
-			vec3 v0 = trianglesCWBVH[triAddr].xyz;
-			vec3 e1 = trianglesCWBVH[triAddr + 1].xyz;
-			vec3 e2 = trianglesCWBVH[triAddr + 2].xyz;
-			vec3 r = cross( D4.xyz, e2 );
-
-			float a = dot( e1, r );
-			if (abs( a ) > 0.0000001)
-			{
-				float f = 1 / a;
-				vec3 s = O4.xyz - v0;
-				float u = f * dot( s, r );
-				if (u >= 0.0 && u <= 1.0)
-				{
-					vec3 q = cross( s, e1 );
-					float v = f * dot( D4.xyz, q );
-					if (v >= 0.0 && u + v <= 1.0)
-					{
-						const float d = f * dot( e2, q );
-						if (d > 0.0 && d < tmax)
-						{
-							uv = vec2(u, v);
-							tmax = d;
-							hitAddr = as_uint( trianglesCWBVH[triAddr].w );
-						}
-					}
-				}
-			}
+			uint triAddr = tgroup.x + triangleIndex * 3;
+			vec3 e1 = trianglesCWBVH[triAddr].xyz;
+			vec3 e2 = trianglesCWBVH[triAddr + 1].xyz;
+			vec4 v0 = trianglesCWBVH[triAddr + 2];
 			tgroup.y -= 1 << triangleIndex;
+			vec3 r = cross( D.xyz, e1 );
+			float a = dot( e2, r );
+			if (abs( a ) < 0.0000001) continue;
+			float f = 1.0 / a;
+			vec3 s = O.xyz - v0.xyz;
+			float u = f * dot( s, r );
+			if (u < 0 || u > 1) continue;
+			vec3 q = cross( s, e2 );
+			float v = f * dot( D.xyz, q );
+			if (v < 0.0 || u + v > 1.0) continue;
+			float d = f * dot( e1, q );
+			if (d <= 0.0 || d >= tmax) continue;
+			uv = vec2(u, v);
+			tmax = d;
+			hitAddr = as_uint( v0.w );
 		}
-		if (ngroup.y <= 0x00FFFFFF)
+
+		if (ngroup.y <= 0x00FFFFFFu)
 		{
 			if (stackPtr > 0)
 			{
@@ -617,149 +545,7 @@ traverse_cwbvh(vec3 O, vec3 D, vec3 rD, float t, inout uint stepCount)
 	return hit;
 }
 
-#else
 
-vec4 hit_triangle(Ray r, int i, float t)
-{
-	// vec3 v0 = texelFetch(vertices_tex, triIndex.x).xyz; // int(triIndex.x)
-	// vec3 v1 = texelFetch(vertices_tex, triIndex.y).xyz;
-	// vec3 v2 = texelFetch(vertices_tex, triIndex.z).xyz;
-	vec3 v0 = trianglesCWBVH[i].xyz;
-	vec3 v1 = trianglesCWBVH[i + 1].xyz;
-	vec3 v2 = trianglesCWBVH[i + 2].xyz;
-
-	// v1 -= v0;
-	// v2 -= v0;
-
-	vec3 pv = cross(r.dir, v2);
-
-
-	vec3 tv = r.origin - v0;
-	vec3 qv = cross(tv, v1);
-
-	vec4 uvt;
-	uvt.x = dot(tv, pv);//u
-	//if(uvt.x < 0.0f)
-	//	return false;
-
-	uvt.y = dot(r.dir, qv);//v
-	//if(uvt.y < 0.0f)
-	//	return false;
-
-	uvt.z = dot(v2, qv);//t
-	//float det = dot(e0, pv);
-	float inv_det = 1.0f / dot(v1, pv);//det;
-
-	uvt.xyz = uvt.xyz * inv_det;
-	uvt.w = 1.0 - uvt.x - uvt.y;//u + v >= det
-
-
-	if (all(greaterThanEqual(uvt, vec4(0.0f))) && uvt.z < t)
-	{
-		// t = uvt.z;
-		// //rec.t = t;
-		// rec.u = uvt.x;
-		// rec.v = uvt.y;
-		// rec.triangle_ind = i;
-		// rec.mtl_ind = (triIndex.w);
-		return vec4(t, uvt.x, uvt.y, trianglesCWBVH[i].w);
-	}
-	return vec4(MAX_FLOAT, vec3(0.0));
-}
-
-vec4 traverse_cwbvh(Ray r, inout uint stepCount)
-{
-	uvec2 local_stack[STACK_SIZE];
-
-	int stack_size = 0;
-
-	uint oct_inv4 = get_oct_inv4(r.dir);
-
-	uvec2 current_group = uvec2(0u, 0x80000000u);
-
-	vec3 inv_direction = vec3(1.0) / r.dir;
-
-	vec4 hit = vec4(MAX_FLOAT, vec3(0.0));
-
-	int test = 0;
-
-	while(stack_size > 0 || current_group.y != 0u)
-	{
-		uvec2 triangle_group = uvec2(0u);
-
-		if(stepCount > 10000) return hit;
-		if(test > 10000) return hit;
-
-		if((current_group.y & 0xff000000u) != 0u)
-		{
-			uint hits_imask = current_group.y;
-			int child_index_offset = findMSB(hits_imask);
-			uint child_index_base = current_group.x;
-
-			current_group.y &= ~(1u << child_index_offset);
-
-			if((current_group.y & 0xff000000u) != 0u)
-			{
-				local_stack[stack_size++] = current_group;
-				++stepCount;
-			}
-
-			uint slot_index = (child_index_offset - 24u) ^ (oct_inv4 & 0xffu);
-			uint relative_index = bitCount(hits_imask & ~(0xffffffffu << slot_index));
-
-			uint child_node_index = child_index_base + relative_index;
-
-			BVH8node node;
-			node.node0 = nodes[child_node_index * 5 + 0];
-			node.node1 = nodes[child_node_index * 5 + 1];
-			node.node2 = nodes[child_node_index * 5 + 2];
-			node.node3 = nodes[child_node_index * 5 + 3];
-			node.node4 = nodes[child_node_index * 5 + 4];
-
-			uint hitmask = bvh8_node_intersect(r, inv_direction, oct_inv4, hit.x, node);
-
-			uint imask = extract_byte(floatBitsToUint(node.node0.w), 3u);
-
-			current_group.x = floatBitsToUint(node.node1.x);
-			triangle_group.x = floatBitsToUint(node.node1.y);
-
-			current_group.y = (hitmask & 0xff000000u) | imask;
-			triangle_group.y = (hitmask & 0x00ffffffu);
-		}
-		else
-		{
-			triangle_group = current_group;
-			current_group = uvec2(0u);
-		}
-
-		while(triangle_group.y != 0u)
-		{
-			int triangle_ind = findMSB(triangle_group.y);
-			triangle_group.y &= ~(1u << uint(triangle_ind));
-
-			// int tri_idx = int(triangle_group.x + triangle_ind);
-			int tri_idx = int(triangle_group.x) + triangle_ind * 3;
-
-			//bool hit_triangle(Ray r, int i, inout HitRecord rec, inout float t)
-
-			vec4 h = hit_triangle(r, tri_idx, hit.x);
-			if(h.x < hit.x) {
-				hit = h;
-			}
-		}
-
-		if((current_group.y & 0xff000000u) == 0u)
-		{
-			if(stack_size == 0)
-				break;
-			current_group = local_stack[stack_size--];
-		}
-
-		test++;
-	}
-	return hit;
-}
-#endif
 
 float
 sceneHit(Ray ray, inout Intersection intersection)
@@ -774,11 +560,7 @@ sceneHit(Ray ray, inout Intersection intersection)
     Ray rayModel = transformRay(ray, instance.worldToModel);
     vec3 rayInverseDir = 1.0 / rayModel.dir;
 
-	#ifdef TINYBVH
 	vec4 hit = traverse_cwbvh(rayModel.origin, rayModel.dir, rayInverseDir, dist, stepCount);
-	#else
-	vec4 hit = traverse_cwbvh(rayModel, stepCount);
-	#endif
 	if (hit.x > 0.0 && hit.x < dist)
     {
 		intersection.uv = hit.yz;
@@ -800,12 +582,8 @@ uint sceneTraversal(Ray ray)
 		Instance instance = instances[i];
 		Ray rayModel = transformRay(ray, instance.worldToModel);
 
-		#ifdef TINYBVH
     	vec3 rayInverseDir = 1.0 / rayModel.dir;
 		traverse_cwbvh(rayModel.origin, rayModel.dir, rayInverseDir, MAX_FLOAT, stepCount);
-		#else
-		traverse_cwbvh(rayModel, stepCount);
-		#endif
 	}
 	return stepCount;
 }

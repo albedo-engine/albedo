@@ -81,7 +81,7 @@ impl BLASArray {
                 vertices[i].normal[3] = uv[1];
             }
         }
-        let bvh = CWBVH::new_strided(&mesh.positions);
+        let bvh = CWBVH::new_hq_strided(&mesh.positions);
         self.add_bvh_internal(bvh);
     }
 
@@ -119,7 +119,7 @@ impl BLASArray {
         let vertices: &[Vertex] = &self.vertices[start..];
         let positions: pas::Slice<[f32; 4]> = pas::Slice::new(vertices, 0);
 
-        let bvh = CWBVH::new_strided(&positions);
+        let bvh = CWBVH::new_hq_strided(&positions);
         self.add_bvh_internal(bvh);
     }
 

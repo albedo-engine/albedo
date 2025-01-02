@@ -1,7 +1,7 @@
 #version 450
 
 // #define EMIT_GBUFFER
-#define DEBUG_CWBVH_TRAVERSAL
+// #define DEBUG_CWBVH_TRAVERSAL
 
 #include "imports/structures.glsl"
 #include "imports/common.glsl"

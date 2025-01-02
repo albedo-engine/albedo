@@ -1,6 +1,6 @@
 #version 450
 
-#define DEBUG_CWBVH_TRAVERSAL
+// #define DEBUG_CWBVH_TRAVERSAL
 
 #include "imports/common.glsl"
 #include "imports/math.glsl"
