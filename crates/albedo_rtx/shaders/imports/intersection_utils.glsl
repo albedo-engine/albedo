@@ -162,18 +162,16 @@ traverse_cwbvh(Ray ray, uint bvhNodeStart, uint primitiveStart, float t, inout u
 			// @TODO: Offset node with BLAS offset.
 			BVHNode node = nodes[child_node_index];
 
-			ngroup.x = floatBitsToUint( node.n1.x );
-			tgroup = uvec2(floatBitsToUint( node.n1.y ), 0u);
+			ngroup.x = floatBitsToUint(node.n1.x);
+			tgroup = uvec2(floatBitsToUint(node.n1.y), 0u);
 			uint hitmask = 0;
 
-			uvec3 e = uvec3(bitfieldExtract(floatBitsToUint(node.n0.w), 0, 8), bitfieldExtract(floatBitsToUint(node.n0.w), 8, 8), bitfieldExtract(floatBitsToUint(node.n0.w), 16, 8));
-			e = uvec3 ((e.x + 127) & 0xFF, (e.y + 127) & 0xFF, (e.z + 127) & 0xFF);
-			vec4 idir4 = vec4(
-				uintBitsToFloat( e.x << 23u ) * rD4.x,
-				uintBitsToFloat( e.y << 23u ) * rD4.y,
-				uintBitsToFloat( e.z << 23u ) * rD4.z,
-				1.0
-			);
+			uint n0_w = floatBitsToUint(node.n0.w);
+			uvec3 e = uvec3(bitfieldExtract(n0_w, 0, 8), bitfieldExtract(n0_w, 8, 8), bitfieldExtract(n0_w, 16, 8));
+			e = uvec3((e.x + 127) & 0xFF, (e.y + 127) & 0xFF, (e.z + 127) & 0xFF);
+
+			vec3 e_f = vec3(uintBitsToFloat(e.x << 23u), uintBitsToFloat(e.y << 23u), uintBitsToFloat(e.z << 23u));
+			vec4 idir4 = vec4(e_f * rD4.xyz, 1.0);
 			const vec4 orig4 = (node.n0 - O4) * rD4;
 
 			{	// first 4
@@ -272,6 +270,7 @@ traverse_cwbvh(Ray ray, uint bvhNodeStart, uint primitiveStart, float t, inout u
 			tgroup.y -= 1 << triangleIndex;
 
 			uint triAddr = tgroup.x + (primitiveStart + triangleIndex) * 3;
+
 			vec3 e1 = trianglesCWBVH[triAddr].xyz;
 			vec3 e2 = trianglesCWBVH[triAddr + 1].xyz;
 			vec4 v0 = trianglesCWBVH[triAddr + 2];
