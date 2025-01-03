@@ -286,7 +286,7 @@ main()
   if (bsdf.pdf > EPSILON)
       throughput *= evalSample_UE4(bsdf, normal, mat) * abs(bsdf.NdotL) / bsdf.pdf;
 
-  ray.origin.xyz += intersection.dist * ray.dir.xyz + normal * EPSILON;
+  ray.origin.xyz += intersection.dist * ray.dir.xyz + normal * 1e-4;
   ray.dir.xyz = bsdf.dir;
 
   setThroughput(ray, throughput);
