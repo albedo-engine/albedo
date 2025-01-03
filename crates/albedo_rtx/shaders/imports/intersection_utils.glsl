@@ -85,110 +85,15 @@ intersectPlane(Ray ray, vec3 normal, vec3 origin, vec3 edge01, vec3 edge02)
   return t;
 }
 
-float
-intersectAABB(vec3 origin, vec3 inverseDir, vec3 aabbMin, vec3 aabbMax)
+uint
+sign_extend_s8x4(uint i)
 {
-  // Ray is assumed to be in local coordinates, ie:
-  // ray = inverse(objectMatrix * invCameraMatrix) * ray
-
-  // Equation of ray: O + D * t
-
-  vec3 tbottom = inverseDir * (aabbMin - origin);
-  vec3 ttop = inverseDir * (aabbMax - origin);
-
-  vec3 tmin = min(ttop, tbottom);
-  vec3 tmax = max(ttop, tbottom);
-
-  float smallestMax = min(min(tmax.x, tmax.y), min(tmax.x, tmax.z));
-  float largestMin = max(max(tmin.x, tmin.y), max(tmin.x, tmin.z));
-
-  if (smallestMax < largestMin || smallestMax < 0.0) { return MAX_FLOAT; }
-  return (largestMin > 0.0) ? largestMin : smallestMax;
-}
-
-bool
-isIntersectingAABB(vec3 origin, vec3 inverseDir, vec3 boxMin, vec3 boxMax)
-{
-  // Ray is assumed to be in local coordinates, ie:
-  // ray = inverse(objectMatrix * invCameraMatrix) * ray
-  // Equation of ray: O + D * t
-  vec3 tMin = (boxMin - origin) * inverseDir;
-  vec3 tMax = (boxMax - origin) * inverseDir;
-  vec3 t1 = min(tMin, tMax);
-  vec3 t2 = max(tMin, tMax);
-  float tNear = max(max(t1.x, t1.y), t1.z);
-  float tFar = min(min(t2.x, t2.y), t2.z);
-  return tFar > tNear;
-}
-
-float
-intersectAABB(Ray ray, vec3 aabbMin, vec3 aabbMax)
-{
-  return intersectAABB(ray.origin, 1.0 / ray.dir, aabbMin, aabbMax);
-}
-
-// TODO: implement watertight version of Ray-Triangle intersection, available
-// behind a flag
-
-// Implementation of:
-// Möller, Tomas; Trumbore, Ben (1997). "Fast, Minimum Storage Ray-Triangle Intersection"
-float
-intersectTriangle(Ray ray, uint startIndex, uint vertexOffset, inout vec2 uv)
-{
-  // TODO: pre-process edge?
-  // Maybe not really useful if decide to add skinning in shader.
-  vec3 v0 = getVertex(vertexOffset, startIndex).position.xyz;
-  vec3 v1 = getVertex(vertexOffset, startIndex + 1).position.xyz;
-  vec3 v2 = getVertex(vertexOffset, startIndex + 2).position.xyz;
-
-  vec3 e1 = v1 - v0;
-  vec3 e2 = v2 - v0;
-
-  vec3 p = cross(ray.dir, e2);
-  float det = dot(e1, p);
-
-  // Ray is parralel to edge.
-  if (det <= NEG_EPSILON) { return MAX_FLOAT; }
-  if (det > NEG_EPSILON && det < EPSILON) { return MAX_FLOAT; }
-
-  float invDet = 1.0 / det;
-
-  // Computes Barycentric coordinates.
-  vec3 centered = ray.origin - v0;
-
-  float u = dot(centered, p) * invDet;
-  if (u < EPSILON || u > EPSILON1) { return MAX_FLOAT; }
-
-  vec3 q = cross(centered, e1);
-  float v = dot(ray.dir, q) * invDet;
-  if (v < EPSILON || u + v > EPSILON1) { return MAX_FLOAT; }
-
-  uv = vec2(u, v);
-  return dot(e2, q) * invDet;
-}
-
-#define SIMD_AABBTEST
-
-uint sign_extend_s8x4( uint i )
-{
-	// docs: "with the given parameters, prmt will extend the sign to all bits in a byte."
-	// const uint b0 = (i & (1u << 31u)) != 0u ? 0xff000000 : 0u;
-	// const uint b1 = (i & (1u << 23u)) != 0u ? 0x00ff0000 : 0u;
-	// const uint b2 = (i & (1u << 15u)) != 0u ? 0x0000ff00 : 0u;
-	// const uint b3 = (i & (1u << 7u)) != 0u ? 0x000000ff : 0u;
-
-	// return b0 + b1 + b2 + b3; // probably can do better than this.
-
 	return ((i >> 7) & 0x01010101) * 0xff;
 }
 
-uint
-extract_byte(uint x, uint i)
+uvec4
+as_uchar4(float val)
 {
-	return (x >> (8u * i)) & 0xFFu;
-}
-
-uvec4 as_uchar4(float val) {
 	uint bits = floatBitsToUint(val);
 	return uvec4(
 		bitfieldExtract(bits, 0, 8),
@@ -198,27 +103,25 @@ uvec4 as_uchar4(float val) {
 	);
 }
 
-uint as_uint(float val) {
-	return floatBitsToUint(val);
-}
-
-float as_float(uint val) {
-	return uintBitsToFloat(val);
-}
-
-uint get_oct_inv4(vec3 d)
-{
-	return (d.x < 0.0 ? 0u : 0x04040404u) |
-		   (d.y < 0.0 ? 0u : 0x02020202u) |
-		   (d.z < 0.0 ? 0u : 0x01010101u);
-}
-
+/**
+ * Traverse CWBVH BLAS
+ *
+ * @note Taken from: https://github.com/jbikker/tinybvh/blob/main/traverse_cwbvh.cl
+ *
+ * Modifications:
+ * - __bind -> findMSB
+ * - popc -> bitCount
+ * - (u)char -> bitfieldExtract
+ */
+#ifndef DEBUG_CWBVH_TRAVERSAL
 vec4
+traverse_cwbvh(Ray ray, uint bvhNodeStart, uint primitiveStart, float t)
+#else
 traverse_cwbvh(Ray ray, uint bvhNodeStart, uint primitiveStart, float t, inout uint stepCount)
+#endif
 {
-	// initialize ray
-	const vec4 O4 = vec4( ray.origin, 1.0 );
-	const vec4 D4 = vec4( ray.dir, 0.0 );
+	const vec4 O4 = vec4(ray.origin, 1.0);
+	const vec4 D4 = vec4(ray.dir, 0.0);
 	const vec4 rD4 = vec4(1.0) / D4;
 
 	vec4 hit;
@@ -254,41 +157,37 @@ traverse_cwbvh(Ray ray, uint bvhNodeStart, uint primitiveStart, float t, inout u
 
 			const uint slot_index = (child_bit_index - 24) ^ (octinv4 & 255);
 			const uint relative_index = bitCount( imask & ~(0xFFFFFFFF << slot_index) );
-			const uint child_node_index = (bvhNodeStart + child_node_base_index + relative_index) * 5;
+			const uint child_node_index = bvhNodeStart + child_node_base_index + relative_index;
 
 			// @TODO: Offset node with BLAS offset.
-			vec4 n0 = nodes[child_node_index + 0];
-			vec4 n1 = nodes[child_node_index + 1];
-			vec4 n2 = nodes[child_node_index + 2];
-			vec4 n3 = nodes[child_node_index + 3];
-			vec4 n4 = nodes[child_node_index + 4];
+			BVHNode node = nodes[child_node_index];
 
-			ngroup.x = as_uint( n1.x );
-			tgroup = uvec2(as_uint( n1.y ), 0u);
+			ngroup.x = floatBitsToUint( node.n1.x );
+			tgroup = uvec2(floatBitsToUint( node.n1.y ), 0u);
 			uint hitmask = 0;
 
-			uvec3 e = uvec3 (bitfieldExtract(as_uint(n0.w), 0, 8), bitfieldExtract(as_uint(n0.w), 8, 8), bitfieldExtract(as_uint(n0.w), 16, 8));
+			uvec3 e = uvec3(bitfieldExtract(floatBitsToUint(node.n0.w), 0, 8), bitfieldExtract(floatBitsToUint(node.n0.w), 8, 8), bitfieldExtract(floatBitsToUint(node.n0.w), 16, 8));
 			e = uvec3 ((e.x + 127) & 0xFF, (e.y + 127) & 0xFF, (e.z + 127) & 0xFF);
 			vec4 idir4 = vec4(
-				as_float( e.x << 23u ) * rD4.x,
-				as_float( e.y << 23u ) * rD4.y,
-				as_float( e.z << 23u ) * rD4.z,
+				uintBitsToFloat( e.x << 23u ) * rD4.x,
+				uintBitsToFloat( e.y << 23u ) * rD4.y,
+				uintBitsToFloat( e.z << 23u ) * rD4.z,
 				1.0
 			);
-			const vec4 orig4 = (n0 - O4) * rD4;
+			const vec4 orig4 = (node.n0 - O4) * rD4;
 
 			{	// first 4
-				uint meta4 = as_uint( n1.z );
+				uint meta4 = floatBitsToUint( node.n1.z );
 				uint is_inner4 = (meta4 & (meta4 << 1)) & 0x10101010;
 				uint inner_mask4 = sign_extend_s8x4( is_inner4 << 3 );
 				uint bit_index4 = (meta4 ^ (octinv4 & inner_mask4)) & 0x1F1F1F1F;
 				uint child_bits4 = (meta4 >> 5) & 0x07070707;
-				vec4 lox4 = vec4( as_uchar4( rD4.x < 0 ? n3.z : n2.x ) );
-				vec4 hix4 = vec4( as_uchar4( rD4.x < 0 ? n2.x : n3.z ) );
-				vec4 loy4 = vec4( as_uchar4( rD4.y < 0 ? n4.x : n2.z ) );
-				vec4 hiy4 = vec4( as_uchar4( rD4.y < 0 ? n2.z : n4.x ) );
-				vec4 loz4 = vec4( as_uchar4( rD4.z < 0 ? n4.z : n3.x ) );
-				vec4 hiz4 = vec4( as_uchar4( rD4.z < 0 ? n3.x : n4.z ) );
+				vec4 lox4 = vec4( as_uchar4( rD4.x < 0 ? node.n3.z : node.n2.x ) );
+				vec4 hix4 = vec4( as_uchar4( rD4.x < 0 ? node.n2.x : node.n3.z ) );
+				vec4 loy4 = vec4( as_uchar4( rD4.y < 0 ? node.n4.x : node.n2.z ) );
+				vec4 hiy4 = vec4( as_uchar4( rD4.y < 0 ? node.n2.z : node.n4.x ) );
+				vec4 loz4 = vec4( as_uchar4( rD4.z < 0 ? node.n4.z : node.n3.x ) );
+				vec4 hiz4 = vec4( as_uchar4( rD4.z < 0 ? node.n3.x : node.n4.z ) );
 				{
 					vec4 tminx4 = lox4 * idir4.xxxx + orig4.xxxx, tmaxx4 = hix4 * idir4.xxxx + orig4.xxxx;
 					vec4 tminy4 = loy4 * idir4.yyyy + orig4.yyyy, tmaxy4 = hiy4 * idir4.yyyy + orig4.yyyy;
@@ -316,17 +215,17 @@ traverse_cwbvh(Ray ray, uint bvhNodeStart, uint primitiveStart, float t, inout u
 				}
 			}
 			{	// second 4
-				uint meta4 = as_uint( n1.w );
+				uint meta4 = floatBitsToUint( node.n1.w );
 				uint is_inner4 = (meta4 & (meta4 << 1)) & 0x10101010;
 				uint inner_mask4 = sign_extend_s8x4( is_inner4 << 3 );
 				uint bit_index4 = (meta4 ^ (octinv4 & inner_mask4)) & 0x1F1F1F1F;
 				uint child_bits4 = (meta4 >> 5) & 0x07070707;
-				vec4 lox4 = vec4( as_uchar4( rD4.x < 0 ? n3.w : n2.y ) );
-				vec4 hix4 = vec4( as_uchar4( rD4.x < 0 ? n2.y : n3.w ) );
-				vec4 loy4 = vec4( as_uchar4( rD4.y < 0 ? n4.y : n2.w ) );
-				vec4 hiy4 = vec4( as_uchar4( rD4.y < 0 ? n2.w : n4.y ) );
-				vec4 loz4 = vec4( as_uchar4( rD4.z < 0 ? n4.w : n3.y ) );
-				vec4 hiz4 = vec4( as_uchar4( rD4.z < 0 ? n3.y : n4.w ) );
+				vec4 lox4 = vec4( as_uchar4( rD4.x < 0 ? node.n3.w : node.n2.y ) );
+				vec4 hix4 = vec4( as_uchar4( rD4.x < 0 ? node.n2.y : node.n3.w ) );
+				vec4 loy4 = vec4( as_uchar4( rD4.y < 0 ? node.n4.y : node.n2.w ) );
+				vec4 hiy4 = vec4( as_uchar4( rD4.y < 0 ? node.n2.w : node.n4.y ) );
+				vec4 loz4 = vec4( as_uchar4( rD4.z < 0 ? node.n4.w : node.n3.y ) );
+				vec4 hiz4 = vec4( as_uchar4( rD4.z < 0 ? node.n3.y : node.n4.w ) );
 				{
 					const vec4 tminx4 = lox4 * idir4.xxxx + orig4.xxxx, tmaxx4 = hix4 * idir4.xxxx + orig4.xxxx;
 					const vec4 tminy4 = loy4 * idir4.yyyy + orig4.yyyy, tmaxy4 = hiy4 * idir4.yyyy + orig4.yyyy;
@@ -354,7 +253,7 @@ traverse_cwbvh(Ray ray, uint bvhNodeStart, uint primitiveStart, float t, inout u
 				}
 			}
 
-			uint mask = extract_byte(as_uint(n0.w), 3);
+			uint mask = bitfieldExtract(floatBitsToUint(node.n0.w), 24, 8);
 			ngroup.y = (hitmask & 0xFF000000) | mask;
 			tgroup.y = hitmask & 0x00FFFFFF;
 		}
@@ -390,7 +289,7 @@ traverse_cwbvh(Ray ray, uint bvhNodeStart, uint primitiveStart, float t, inout u
 			if (d <= EPSILON || d >= tmax) continue;
 			uv = vec2(u, v);
 			tmax = d;
-			hitAddr = as_uint( v0.w );
+			hitAddr = floatBitsToUint( v0.w );
 		}
 
 		if (ngroup.y <= 0x00FFFFFFu)
@@ -401,7 +300,7 @@ traverse_cwbvh(Ray ray, uint bvhNodeStart, uint primitiveStart, float t, inout u
 			}
 			else
 			{
-				hit = vec4(tmax, uv.x, uv.y, as_float( hitAddr ));
+				hit = vec4(tmax, uv.x, uv.y, uintBitsToFloat( hitAddr ));
 				break;
 			}
 		}
@@ -421,11 +320,15 @@ sceneHit(Ray ray, inout Intersection intersection)
 
     // Performs intersection in model space.
     Ray rayModel = transformRay(ray, instance.worldToModel);
+	#ifndef DEBUG_CWBVH_TRAVERSAL
+	vec4 hit = traverse_cwbvh(rayModel, instance.bvhRootIndex, instance.primitiveRootIndex, dist);
+	#else
 	vec4 hit = traverse_cwbvh(rayModel, instance.bvhRootIndex, instance.primitiveRootIndex, dist, stepCount);
+	#endif
 	if (hit.x > 0.0 && hit.x < dist)
     {
 		intersection.uv = hit.yz;
-		intersection.index = as_uint(hit.w) * 3;
+		intersection.index = floatBitsToUint(hit.w) * 3;
 		intersection.instance = i;
 		intersection.emitter = INVALID_UINT;
 		intersection.materialIndex = instance.materialIndex;
@@ -435,6 +338,7 @@ sceneHit(Ray ray, inout Intersection intersection)
   return dist;
 }
 
+#ifdef DEBUG_CWBVH_TRAVERSAL
 uint sceneTraversal(Ray ray)
 {
 	uint stepCount = 0;
@@ -446,5 +350,6 @@ uint sceneTraversal(Ray ray)
 	}
 	return stepCount;
 }
+#endif
 
 #endif // INTERSECTION_UTILS_H
