@@ -2,12 +2,14 @@ use tinybvh_rs::{PrimitiveCWBVH, CWBVH};
 
 use crate::{uniforms::Instance, BVHNode, Vertex};
 
+#[derive(Copy, Clone)]
 pub struct MeshDescriptor<'a> {
     pub positions: pas::Slice<'a, [f32; 4]>,
     pub normals: Option<pas::Slice<'a, [f32; 3]>>,
     pub texcoords0: Option<pas::Slice<'a, [f32; 2]>>,
 }
 
+#[derive(Copy, Clone)]
 pub struct IndexedMeshDescriptor<'a> {
     pub mesh: MeshDescriptor<'a>,
     pub indices: &'a [u32],
@@ -16,7 +18,7 @@ pub struct IndexedMeshDescriptor<'a> {
 /// Node, vertex, and index offset of an entry
 ///
 /// This is used to retrieve a flattened BVH into a buffer
-#[derive(Default)]
+#[derive(Default, Copy, Clone)]
 pub struct BLASEntryDescriptor {
     pub node: u32,
     pub primitive: u32,
@@ -61,7 +63,7 @@ impl BLASArray {
 
         let start = self.vertices.len();
         self.vertices
-            .resize(start + mesh.positions.len() / 3, Vertex::default());
+            .resize(start + mesh.positions.len(), Vertex::default());
         let vertices: &mut [Vertex] = &mut self.vertices[start..];
 
         for i in 0..mesh.positions.len() {
@@ -123,8 +125,8 @@ impl BLASArray {
         self.add_bvh_internal(bvh);
     }
 
-    pub fn add_instance(&mut self, bvh_index: usize, model_to_world: glam::Mat4, material: u32) {
-        let entry = self.entries.get(bvh_index).unwrap();
+    pub fn add_instance(&mut self, bvh_index: u32, model_to_world: glam::Mat4, material: u32) {
+        let entry = self.entries.get(bvh_index as usize).unwrap();
         self.instances.push(Instance {
             model_to_world,
             world_to_model: model_to_world.inverse(),

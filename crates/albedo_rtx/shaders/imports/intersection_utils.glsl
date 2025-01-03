@@ -214,12 +214,12 @@ uint get_oct_inv4(vec3 d)
 }
 
 vec4
-traverse_cwbvh(vec3 O, vec3 D, uint bvhNodeStart, uint primitiveStart, float t, inout uint stepCount)
+traverse_cwbvh(Ray ray, uint bvhNodeStart, uint primitiveStart, float t, inout uint stepCount)
 {
 	// initialize ray
-	const vec4 O4 = vec4( O, 1.0 );
-	const vec4 D4 = vec4( D, 0.0 );
-	const vec4 rD4 = vec4( 1.0 / D, 1.0 );
+	const vec4 O4 = vec4( ray.origin, 1.0 );
+	const vec4 D4 = vec4( ray.dir, 0.0 );
+	const vec4 rD4 = vec4(1.0) / D4;
 
 	vec4 hit;
 	hit.x = t; // not fetching this from ray data to avoid one memory operation.
@@ -229,7 +229,7 @@ traverse_cwbvh(vec3 O, vec3 D, uint bvhNodeStart, uint primitiveStart, float t, 
 	uint stackPtr = 0;
 	vec2 uv;
 	float tmax = t;
-	const uint octinv4 = (7 - ((D.x < 0 ? 4 : 0) | (D.y < 0 ? 2 : 0) | (D.z < 0 ? 1 : 0))) * 0x1010101;
+	const uint octinv4 = (7 - ((D4.x < 0 ? 4 : 0) | (D4.y < 0 ? 2 : 0) | (D4.z < 0 ? 1 : 0))) * 0x1010101;
 
 	uvec2 ngroup = uvec2(0u, 1u << 31u);
 	uvec2 tgroup = uvec2(0);
@@ -376,15 +376,15 @@ traverse_cwbvh(vec3 O, vec3 D, uint bvhNodeStart, uint primitiveStart, float t, 
 			vec3 e1 = trianglesCWBVH[triAddr].xyz;
 			vec3 e2 = trianglesCWBVH[triAddr + 1].xyz;
 			vec4 v0 = trianglesCWBVH[triAddr + 2];
-			vec3 r = cross( D.xyz, e1 );
+			vec3 r = cross( D4.xyz, e1 );
 			float a = dot( e2, r );
 			if (abs( a ) < EPSILON) continue;
 			float f = 1.0 / a;
-			vec3 s = O.xyz - v0.xyz;
+			vec3 s = O4.xyz - v0.xyz;
 			float u = f * dot( s, r );
 			if (u < EPSILON || u > EPSILON1) continue;
 			vec3 q = cross( s, e2 );
-			float v = f * dot( D.xyz, q );
+			float v = f * dot( D4.xyz, q );
 			if (v < EPSILON || u + v > EPSILON1) continue;
 			float d = f * dot( e1, q );
 			if (d <= EPSILON || d >= tmax) continue;
@@ -421,7 +421,7 @@ sceneHit(Ray ray, inout Intersection intersection)
 
     // Performs intersection in model space.
     Ray rayModel = transformRay(ray, instance.worldToModel);
-	vec4 hit = traverse_cwbvh(rayModel.origin, rayModel.dir, instance.bvhRootIndex, instance.primitiveRootIndex, dist, stepCount);
+	vec4 hit = traverse_cwbvh(rayModel, instance.bvhRootIndex, instance.primitiveRootIndex, dist, stepCount);
 	if (hit.x > 0.0 && hit.x < dist)
     {
 		intersection.uv = hit.yz;
@@ -442,7 +442,7 @@ uint sceneTraversal(Ray ray)
   	{
 		Instance instance = instances[i];
 		Ray rayModel = transformRay(ray, instance.worldToModel);
-		traverse_cwbvh(rayModel.origin, rayModel.dir, instance.bvhRootIndex, instance.primitiveRootIndex, MAX_FLOAT, stepCount);
+		traverse_cwbvh(rayModel, instance.bvhRootIndex, instance.primitiveRootIndex, MAX_FLOAT, stepCount);
 	}
 	return stepCount;
 }

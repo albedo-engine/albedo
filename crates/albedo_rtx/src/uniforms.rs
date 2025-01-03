@@ -34,6 +34,11 @@ impl Instance {
             ..Default::default()
         }
     }
+
+    pub fn set_transform(&mut self, model_to_world: glam::Mat4) {
+        self.model_to_world = model_to_world;
+        self.world_to_model = self.model_to_world.inverse();
+    }
 }
 
 #[repr(C)]

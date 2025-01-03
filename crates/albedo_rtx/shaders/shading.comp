@@ -198,6 +198,7 @@ main()
 
   float stepCount = intersection.dist;
   ray.radiance.rgb = vec3(stepCount/1000.0);
+  // ray.radiance.rgb = intersection.instance == 0u ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 0.0, 0.0);
   ray.terminated.x = 1u;
   rays[index] = ray;
   if (true) return; // naga validation bug
@@ -206,7 +207,7 @@ main()
   vec3 throughput = getThroughput(ray);
   if (abs(MAX_FLOAT - intersection.dist) < EPSILON)
   {
-    float exposition = 0.5; // @todo: Expose exposition (no pun intended)
+    float exposition = 0.4; // @todo: Expose exposition (no pun intended)
     vec2 uv = cartesianToEqui(ray.dir.xyz);
     vec3 probe = sampleProbe(samplerLinear, Probe, uv);
     probe = probe * exposition;
