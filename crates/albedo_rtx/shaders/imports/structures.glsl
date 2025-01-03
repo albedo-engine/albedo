@@ -18,7 +18,7 @@ struct Instance
   uint materialIndex;
   uint bvhRootIndex;
   uint vertexRootIndex;
-  uint indexRootIndex;
+  uint primitiveRootIndex;
 };
 
 struct Vertex

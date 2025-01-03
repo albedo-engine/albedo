@@ -214,7 +214,7 @@ uint get_oct_inv4(vec3 d)
 }
 
 vec4
-traverse_cwbvh(vec3 O, vec3 D, float t, inout uint stepCount)
+traverse_cwbvh(vec3 O, vec3 D, uint bvhNodeStart, uint primitiveStart, float t, inout uint stepCount)
 {
 	// initialize ray
 	const vec4 O4 = vec4( O, 1.0 );
@@ -254,7 +254,7 @@ traverse_cwbvh(vec3 O, vec3 D, float t, inout uint stepCount)
 
 			const uint slot_index = (child_bit_index - 24) ^ (octinv4 & 255);
 			const uint relative_index = bitCount( imask & ~(0xFFFFFFFF << slot_index) );
-			const uint child_node_index = (child_node_base_index + relative_index) * 5;
+			const uint child_node_index = (bvhNodeStart + child_node_base_index + relative_index) * 5;
 
 			// @TODO: Offset node with BLAS offset.
 			vec4 n0 = nodes[child_node_index + 0];
@@ -370,11 +370,12 @@ traverse_cwbvh(vec3 O, vec3 D, float t, inout uint stepCount)
 			// with the original primitive index in the (otherwise unused) w
 			// component of vertex 0.
 			int triangleIndex = findMSB( tgroup.y );
-			uint triAddr = tgroup.x + triangleIndex * 3;
+			tgroup.y -= 1 << triangleIndex;
+
+			uint triAddr = tgroup.x + (primitiveStart + triangleIndex) * 3;
 			vec3 e1 = trianglesCWBVH[triAddr].xyz;
 			vec3 e2 = trianglesCWBVH[triAddr + 1].xyz;
 			vec4 v0 = trianglesCWBVH[triAddr + 2];
-			tgroup.y -= 1 << triangleIndex;
 			vec3 r = cross( D.xyz, e1 );
 			float a = dot( e2, r );
 			if (abs( a ) < EPSILON) continue;
@@ -420,7 +421,7 @@ sceneHit(Ray ray, inout Intersection intersection)
 
     // Performs intersection in model space.
     Ray rayModel = transformRay(ray, instance.worldToModel);
-	vec4 hit = traverse_cwbvh(rayModel.origin, rayModel.dir, dist, stepCount);
+	vec4 hit = traverse_cwbvh(rayModel.origin, rayModel.dir, instance.bvhRootIndex, instance.primitiveRootIndex, dist, stepCount);
 	if (hit.x > 0.0 && hit.x < dist)
     {
 		intersection.uv = hit.yz;
@@ -441,7 +442,7 @@ uint sceneTraversal(Ray ray)
   	{
 		Instance instance = instances[i];
 		Ray rayModel = transformRay(ray, instance.worldToModel);
-		traverse_cwbvh(rayModel.origin, rayModel.dir, MAX_FLOAT, stepCount);
+		traverse_cwbvh(rayModel.origin, rayModel.dir, instance.bvhRootIndex, instance.primitiveRootIndex, MAX_FLOAT, stepCount);
 	}
 	return stepCount;
 }
