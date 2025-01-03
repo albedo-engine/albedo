@@ -12,11 +12,10 @@ keywords = ["raytracing", "graphics" ]
 albedo_backend = { path = "../albedo_backend", version = "0.0.1-beta.0" }
 albedo_math = { path = "../albedo_math", version = "0.0.1-beta.0" }
 bytemuck = { workspace = true }
+pas = { workspace = true }
 glam = "0.20.2"
 guillotiere = "0.6.2"
 bitflags = "2.6.0"
-pas = "0.2.0"
 rust-embed = "8"
-# tinybvh-rs = { version = "0.1.0-beta.1", features = ["strided"]}
-tinybvh-rs = { path = "../../../../tinybvh-rs", features = ["strided"]}
+tinybvh-rs = { version = "0.1.0-beta.2" }
 wgpu = { workspace = true }

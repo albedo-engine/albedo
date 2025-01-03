@@ -11,5 +11,5 @@ keywords = ["rendering", "graphics", "wgpu" ]
 [dependencies]
 bytemuck = { workspace = true }
 wgpu = { workspace = true }
-pas = { version = "0.1.0"}
+pas = { workspace = true }
 rust-embed = "8"

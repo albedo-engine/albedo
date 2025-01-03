@@ -121,7 +121,7 @@ impl Example for PickingExample {
                     module: &shader,
                     entry_point: Some("vs_main"),
                     buffers: &[vertex_buffer_layout.build(None)],
-                    compilation_options: Default::default()
+                    compilation_options: Default::default(),
                 },
                 label: None,
                 layout: Some(&pipeline_layout),
@@ -129,7 +129,7 @@ impl Example for PickingExample {
                     module: &shader,
                     entry_point: Some("fs_main"),
                     targets: &[Some(app.surface_config.format.into())],
-                    compilation_options: Default::default()
+                    compilation_options: Default::default(),
                 }),
                 primitive: wgpu::PrimitiveState {
                     cull_mode: Some(wgpu::Face::Back),

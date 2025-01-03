@@ -18,6 +18,7 @@ members = ["crates/*"]
 [workspace.dependencies]
 bytemuck = { version = "1.7.2", features = ["derive"] }
 wgpu = { version = "23.0.0", features = ["spirv", "glsl", "naga-ir"] }
+pas = "0.3.0"
 
 # @todo: Remove when merged: https://github.com/gfx-rs/wgpu/pull/6513
 [patch.crates-io]
@@ -25,7 +26,6 @@ wgpu = { git = "https://github.com/DavidPeicho/wgpu", branch = "trunk", "feature
 
 [dev-dependencies]
 albedo_backend = { path = "crates/albedo_backend" }
-albedo_bvh = { path = "crates/albedo_bvh" }
 albedo_rtx = { path = "crates/albedo_rtx" }
 bytemuck = { version = "1.7.2", features = ["derive"] }
 image = { version = "0.23", default-features = false, features = ["hdr"] }

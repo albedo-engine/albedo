@@ -144,19 +144,25 @@ impl TemporalAccumulationPass {
             push_constant_ranges: &[],
         });
 
-        let module = processor.compile_compute(include_str!(concat!(
-            "..",
-            path_separator!(),
-            "..",
-            path_separator!(),
-            "shaders",
-            path_separator!(),
-            "temporal-accumulation.comp"
-        )), None).unwrap();
-        let shader: wgpu::ShaderModule = device.create_shader_module(wgpu::ShaderModuleDescriptor{
-            label: Some("Temporal Accumulation Shader"),
-            source: wgpu::ShaderSource::Naga(Cow::Owned(module))
-        });
+        let module = processor
+            .compile_compute(
+                include_str!(concat!(
+                    "..",
+                    path_separator!(),
+                    "..",
+                    path_separator!(),
+                    "shaders",
+                    path_separator!(),
+                    "temporal-accumulation.comp"
+                )),
+                None,
+            )
+            .unwrap();
+        let shader: wgpu::ShaderModule =
+            device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("Temporal Accumulation Shader"),
+                source: wgpu::ShaderSource::Naga(Cow::Owned(module)),
+            });
 
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Temporal Accumulation Pipeline"),

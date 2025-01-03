@@ -1,6 +1,6 @@
-use tinybvh_rs::{PrimitiveCWBVH, CWBVH};
+use tinybvh_rs::cwbvh;
 
-use crate::{uniforms::Instance, BVHNode, Vertex};
+use crate::{uniforms::Instance, BVHNode, BVHPrimitive, Vertex};
 
 #[derive(Copy, Clone)]
 pub struct MeshDescriptor<'a> {
@@ -42,7 +42,7 @@ pub struct BLASArray {
     /// List of nodes of all entries
     pub nodes: Vec<BVHNode>,
     /// List of indices of all entries
-    pub primitives: Vec<PrimitiveCWBVH>,
+    pub primitives: Vec<BVHPrimitive>,
     pub vertices: Vec<Vertex>,
     pub instances: Vec<Instance>,
 }
@@ -83,8 +83,9 @@ impl BLASArray {
                 vertices[i].normal[3] = uv[1];
             }
         }
-        let bvh = CWBVH::new_hq_strided(&mesh.positions);
-        self.add_bvh_internal(bvh);
+        let bvh = cwbvh::BVH::new_hq(mesh.positions);
+        self.nodes.extend(bvh.nodes());
+        self.primitives.extend(bvh.primitives());
     }
 
     pub fn add_bvh_indexed(&mut self, desc: IndexedMeshDescriptor) {
@@ -121,8 +122,9 @@ impl BLASArray {
         let vertices: &[Vertex] = &self.vertices[start..];
         let positions: pas::Slice<[f32; 4]> = pas::Slice::new(vertices, 0);
 
-        let bvh = CWBVH::new_hq_strided(&positions);
-        self.add_bvh_internal(bvh);
+        let bvh = cwbvh::BVH::new_hq(positions);
+        self.nodes.extend(bvh.nodes());
+        self.primitives.extend(bvh.primitives());
     }
 
     pub fn add_instance(&mut self, bvh_index: u32, model_to_world: glam::Mat4, material: u32) {
@@ -135,10 +137,5 @@ impl BLASArray {
             vertex_root_index: entry.vertex,
             bvh_primitive_index: entry.primitive,
         });
-    }
-
-    fn add_bvh_internal(&mut self, bvh: CWBVH) {
-        self.nodes.extend(bvh.nodes());
-        self.primitives.extend(bvh.primitives());
     }
 }

@@ -358,10 +358,10 @@ pub struct RadianceParameters {
     pub use_noise_texture: u32,
 }
 
-pub type BVHNode = tinybvh_rs::NodeCWBVH;
+pub type BVHNode = tinybvh_rs::cwbvh::Node;
 impl Uniform for BVHNode {}
 
-pub type BVHPrimitive = tinybvh_rs::PrimitiveCWBVH;
+pub type BVHPrimitive = tinybvh_rs::cwbvh::Primitive;
 impl Uniform for BVHPrimitive {}
 
 pub struct RaytraceResources<'a> {
