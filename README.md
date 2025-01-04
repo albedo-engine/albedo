@@ -20,11 +20,10 @@ Rust framework dedicated to real-time visualization.
 * Easy to use
 * Fast
 * Oriented for real-time visualization
+* As close as [wgpu](https://github.com/gfx-rs/wgpu) as possible for integration
 
-Albedo **isn't** and will **never** be a game engine. It's designed to be a
-rendering framework made for real-time visualization. It's possible to
-use as the rendering module for a game, but that's not the use case why it
-was designed.
+Albedo **isn't** a game engine. It's designed to be a rendering framework made for real-time visualization. It's possible to
+use as the rendering module for a game, but that's not the use case why it was designed.
 
 ## Features
 
@@ -36,9 +35,10 @@ was designed.
 
 The [albedo_rtx](./crates/albedo_rtx) exposes GPU software Raytracing. You can use this crate to perform Ray-Triangle intersections.
 
-The [Albedo Pathtracer application](https://github.com/DavidPeicho/albedo) is one example of what you can achieve with the [albedo_rtx](./crates/albedo_rtx) crate:
-
 ![Pathtracing Example](https://github.com/DavidPeicho/albedo/raw/master/screenshots/initial_result.gif)
+
+* CWBVH from [tinybvh-rs](https://github.com/DavidPeicho/tinybvh-rs/)
+* SVGF (Semi-working for now)
 
 ### Lightmapper
 
