@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::ops::Deref;
 
 use crate::get_dispatch_size;
@@ -25,7 +24,7 @@ bitflags! {
 
 pub struct ShadingBindGroupLayout {
     inner: wgpu::BindGroupLayout,
-    flags: ShadingFlags
+    flags: ShadingFlags,
 }
 
 impl ShadingBindGroupLayout {
@@ -104,11 +103,16 @@ impl ShadingBindGroupLayout {
                 label: Some("Shading View Bind Group Layout"),
                 entries: &entries,
             }),
-            flags
+            flags,
         }
     }
 
-    pub fn as_bind_group(&self, device: &wgpu::Device, resources: &RaytraceResources, denoise: Option<&DenoiseResources>) -> wgpu::BindGroup {
+    pub fn as_bind_group(
+        &self,
+        device: &wgpu::Device,
+        resources: &RaytraceResources,
+        denoise: Option<&DenoiseResources>,
+    ) -> wgpu::BindGroup {
         let mut entries: Vec<wgpu::BindGroupEntry<'_>> = Vec::new();
 
         entries.extend_from_slice(&[
@@ -136,14 +140,14 @@ impl ShadingBindGroupLayout {
             });
             entries.push(wgpu::BindGroupEntry {
                 binding: Self::MOTION_BINDING,
-                resource: wgpu::BindingResource::TextureView( denoise.motion),
+                resource: wgpu::BindingResource::TextureView(denoise.motion),
             });
         }
 
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Radiance Estimator Frame Bind Group"),
             layout: &self.inner,
-            entries: &entries
+            entries: &entries,
         })
     }
 }
@@ -167,7 +171,14 @@ impl ShadingPass {
         let Some(source) = processor.get(Self::SHADER_ID) else {
             return Err(PreprocessError::Missing(Self::SHADER_ID.to_string()).into());
         };
-        Self::new_raw(device, geometry_layout, surface_layout, processor, defines, source)
+        Self::new_raw(
+            device,
+            geometry_layout,
+            surface_layout,
+            processor,
+            defines,
+            source,
+        )
     }
 
     pub fn new_inlined(
@@ -177,15 +188,23 @@ impl ShadingPass {
         geometry_layout: &RTGeometryBindGroupLayout,
         surface_layout: &RTSurfaceBindGroupLayout,
     ) -> Self {
-        Self::new_raw(device, geometry_layout, surface_layout, processor, defines, include_str!(concat!(
-            "..",
-            path_separator!(),
-            "..",
-            path_separator!(),
-            "shaders",
-            path_separator!(),
-            "shading.comp"
-        ))).unwrap()
+        Self::new_raw(
+            device,
+            geometry_layout,
+            surface_layout,
+            processor,
+            defines,
+            include_str!(concat!(
+                "..",
+                path_separator!(),
+                "..",
+                path_separator!(),
+                "shaders",
+                path_separator!(),
+                "shading.comp"
+            )),
+        )
+        .unwrap()
     }
 
     pub fn dispatch(
@@ -214,13 +233,13 @@ impl ShadingPass {
         surface_layout: &RTSurfaceBindGroupLayout,
         processor: &ShaderCache,
         defines: &FastHashMap<String, String>,
-        source: &str
+        source: &str,
     ) -> Result<Self, CompileError> {
         let bgl: ShadingBindGroupLayout = ShadingBindGroupLayout::new(device, defines);
 
         let push_constants = [wgpu::PushConstantRange {
-                stages: wgpu::ShaderStages::COMPUTE,
-                range: 0..64,
+            stages: wgpu::ShaderStages::COMPUTE,
+            range: 0..64,
         }];
         let push_constant_ranges = if bgl.flags.contains(ShadingFlags::EMIT_GBUFFER) {
             &push_constants
@@ -235,10 +254,11 @@ impl ShadingPass {
         });
 
         let module = processor.compile_compute(source, Some(defines))?;
-        let shader: wgpu::ShaderModule = device.create_shader_module(wgpu::ShaderModuleDescriptor{
-            label: Some(Self::SHADER_ID),
-            source: wgpu::ShaderSource::Naga(Cow::Owned(module))
-        });
+        let shader: wgpu::ShaderModule =
+            device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some(Self::SHADER_ID),
+                source: wgpu::ShaderSource::Naga(Cow::Owned(module)),
+            });
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Shading Pipeline"),
             layout: Some(&layout),
@@ -248,10 +268,7 @@ impl ShadingPass {
             cache: None,
         });
 
-        Ok(Self {
-            bgl,
-            pipeline,
-        })
+        Ok(Self { bgl, pipeline })
     }
 }
 
@@ -273,7 +290,7 @@ impl PrimaryRayPass {
     ) -> Result<Self, CompileError> {
         let defines = PrimaryRayPass::defines();
         Ok(Self {
-            0: ShadingPass::new(device, processor, &defines, geometry_layout, surface_layout)?
+            0: ShadingPass::new(device, processor, &defines, geometry_layout, surface_layout)?,
         })
     }
 
@@ -285,7 +302,13 @@ impl PrimaryRayPass {
     ) -> Self {
         let defines = PrimaryRayPass::defines();
         Self {
-            0: ShadingPass::new_inlined(device, processor, &defines, geometry_layout, surface_layout)
+            0: ShadingPass::new_inlined(
+                device,
+                processor,
+                &defines,
+                geometry_layout,
+                surface_layout,
+            ),
         }
     }
 
@@ -296,7 +319,7 @@ impl PrimaryRayPass {
         surface_bindgroup: &wgpu::BindGroup,
         frame_bind_groups: &wgpu::BindGroup,
         size: (u32, u32, u32),
-        world_to_screen: &glam::Mat4 // @todo: Better to not use GLAM probably here
+        world_to_screen: &glam::Mat4, // @todo: Better to not use GLAM probably here
     ) {
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some("Primary Shading Pass"),

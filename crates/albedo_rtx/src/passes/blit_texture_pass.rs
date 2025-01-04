@@ -14,7 +14,11 @@ impl BlitTexturePass {
     const TEXTURE_SAMPLER_BINDING: u32 = 0;
     const TEXTURE_BINDING: u32 = 1;
 
-    pub fn new(device: &wgpu::Device, processor: &ShaderCache, swap_chain_format: wgpu::TextureFormat) -> Self {
+    pub fn new(
+        device: &wgpu::Device,
+        processor: &ShaderCache,
+        swap_chain_format: wgpu::TextureFormat,
+    ) -> Self {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: None,
             entries: &[
@@ -35,37 +39,43 @@ impl BlitTexturePass {
                         view_dimension: wgpu::TextureViewDimension::D2,
                     },
                     count: None,
-                }
+                },
             ],
         });
 
         // @todo: Share with other passes.
-        let vx_module = processor.compile_vertex(include_str!(concat!(
-            "..",
-            path_separator!(),
-            "..",
-            path_separator!(),
-            "shaders",
-            path_separator!(),
-            "blitting.vert"
-        ))).unwrap();
-        let vx_module: wgpu::ShaderModule = device.create_shader_module(wgpu::ShaderModuleDescriptor{
-            label: Some("Blitting Shaderr"),
-            source: wgpu::ShaderSource::Naga(Cow::Owned(vx_module))
-        });
-        let fg_module = processor.compile_fragment(include_str!(concat!(
-            "..",
-            path_separator!(),
-            "..",
-            path_separator!(),
-            "shaders",
-            path_separator!(),
-             "blitting-texture.frag"
-        ))).unwrap();
-        let fg_module: wgpu::ShaderModule = device.create_shader_module(wgpu::ShaderModuleDescriptor{
-            label: Some("Blitting Texture Shader"),
-            source: wgpu::ShaderSource::Naga(Cow::Owned(fg_module))
-        });
+        let vx_module = processor
+            .compile_vertex(include_str!(concat!(
+                "..",
+                path_separator!(),
+                "..",
+                path_separator!(),
+                "shaders",
+                path_separator!(),
+                "blitting.vert"
+            )))
+            .unwrap();
+        let vx_module: wgpu::ShaderModule =
+            device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("Blitting Shaderr"),
+                source: wgpu::ShaderSource::Naga(Cow::Owned(vx_module)),
+            });
+        let fg_module = processor
+            .compile_fragment(include_str!(concat!(
+                "..",
+                path_separator!(),
+                "..",
+                path_separator!(),
+                "shaders",
+                path_separator!(),
+                "blitting-texture.frag"
+            )))
+            .unwrap();
+        let fg_module: wgpu::ShaderModule =
+            device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("Blitting Texture Shader"),
+                source: wgpu::ShaderSource::Naga(Cow::Owned(fg_module)),
+            });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("BlitTexture Pipeline Layout"),
@@ -80,13 +90,13 @@ impl BlitTexturePass {
                 module: &vx_module,
                 entry_point: Some("main"),
                 buffers: &[],
-                compilation_options: Default::default()
+                compilation_options: Default::default(),
             },
             fragment: Some(wgpu::FragmentState {
                 module: &fg_module,
                 entry_point: Some("main"),
                 targets: &[Some(swap_chain_format.into())],
-                compilation_options: Default::default()
+                compilation_options: Default::default(),
             }),
             primitive: wgpu::PrimitiveState {
                 cull_mode: None,
@@ -95,7 +105,7 @@ impl BlitTexturePass {
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
-            cache: None
+            cache: None,
         });
 
         BlitTexturePass {
@@ -121,7 +131,7 @@ impl BlitTexturePass {
                 wgpu::BindGroupEntry {
                     binding: Self::TEXTURE_BINDING,
                     resource: wgpu::BindingResource::TextureView(view),
-                }
+                },
             ],
         })
     }

@@ -1,5 +1,7 @@
 #version 450
 
+// #define DEBUG_CWBVH_TRAVERSAL
+
 #include "imports/common.glsl"
 #include "imports/math.glsl"
 #include "imports/structures.glsl"
@@ -12,8 +14,8 @@ layout (set = 0, binding = 1, std430) readonly buffer BVHNodeBuffer {
   BVHNode nodes[];
 };
 
-layout (set = 0, binding = 2, std430) readonly buffer IndexBuffer {
-  uint indices[];
+layout (set = 0, binding = 2, std430) readonly buffer CWBVHTriangleBuffer {
+  vec4 trianglesCWBVH[];
 };
 
 layout (set = 0, binding = 3, std430) readonly buffer VertexBuffer {
@@ -53,6 +55,11 @@ void main()
   intersection.index = INVALID_UINT;
   intersection.instance = INVALID_UINT;
   intersection.emitter = INVALID_UINT;
+  #ifndef DEBUG_CWBVH_TRAVERSAL
   intersection.dist = sceneHit(ray, intersection);
+  #else
+  intersection.dist = float(sceneTraversal(ray));
+  #endif
+
   intersections[index] = intersection;
 }

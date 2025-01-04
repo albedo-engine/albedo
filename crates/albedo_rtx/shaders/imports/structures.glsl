@@ -10,6 +10,14 @@ struct GlobalUniforms
   uvec2 dimensions;
 };
 
+struct BVHNode {
+  vec4 n0;
+  vec4 n1;
+  vec4 n2;
+  vec4 n3;
+  vec4 n4;
+};
+
 struct Instance
 {
   // @todo: reduce size of this struct.
@@ -18,15 +26,7 @@ struct Instance
   uint materialIndex;
   uint bvhRootIndex;
   uint vertexRootIndex;
-  uint indexRootIndex;
-};
-
-struct BVHNode
-{
-  vec3 min;
-  uint nextNodeIndex;
-  vec3 max;
-  uint primitiveStartIndex;
+  uint primitiveRootIndex;
 };
 
 struct Vertex

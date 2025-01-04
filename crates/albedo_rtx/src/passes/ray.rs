@@ -56,20 +56,26 @@ impl RayPass {
             push_constant_ranges: &[],
         });
 
-        let module = processor.compile_compute(source.unwrap_or(include_str!(concat!(
-            "..",
-            path_separator!(),
-            "..",
-            path_separator!(),
-            "shaders",
-            path_separator!(),
-            "ray_generation.comp"
-        ))), None).unwrap();
+        let module = processor
+            .compile_compute(
+                source.unwrap_or(include_str!(concat!(
+                    "..",
+                    path_separator!(),
+                    "..",
+                    path_separator!(),
+                    "shaders",
+                    path_separator!(),
+                    "ray_generation.comp"
+                ))),
+                None,
+            )
+            .unwrap();
 
-        let shader: wgpu::ShaderModule = device.create_shader_module(wgpu::ShaderModuleDescriptor{
-            label: Some("Ray Generation Shader"),
-            source: wgpu::ShaderSource::Naga(Cow::Owned(module))
-        });
+        let shader: wgpu::ShaderModule =
+            device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("Ray Generation Shader"),
+                source: wgpu::ShaderSource::Naga(Cow::Owned(module)),
+            });
 
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Ray Generator Pipeline"),

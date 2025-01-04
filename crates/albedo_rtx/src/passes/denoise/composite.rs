@@ -2,8 +2,8 @@ use std::borrow::Cow;
 
 use albedo_backend::data::{CompileError, PreprocessError, ShaderCache};
 
+use crate::get_dispatch_size;
 use crate::macros::path_separator;
-use crate::{get_dispatch_size};
 
 use super::super::GBUFFER_READ_TY;
 
@@ -21,17 +21,22 @@ impl CompositingPass {
     const SAMPLER_BINDING: u32 = 3;
 
     pub fn new_inlined(device: &wgpu::Device, processor: &ShaderCache) -> Self {
-        Self::new_raw(device, processor, include_str!(concat!(
-            "..",
-            path_separator!(),
-            "..",
-            path_separator!(),
-            "..",
-            path_separator!(),
-            "shaders",
-            path_separator!(),
-             "compositing.comp"
-        ))).unwrap()
+        Self::new_raw(
+            device,
+            processor,
+            include_str!(concat!(
+                "..",
+                path_separator!(),
+                "..",
+                path_separator!(),
+                "..",
+                path_separator!(),
+                "shaders",
+                path_separator!(),
+                "compositing.comp"
+            )),
+        )
+        .unwrap()
     }
 
     pub fn new(device: &wgpu::Device, processor: &ShaderCache) -> Result<Self, CompileError> {
@@ -41,57 +46,63 @@ impl CompositingPass {
         Self::new_raw(device, processor, source)
     }
 
-    fn new_raw(device: &wgpu::Device, processor: &ShaderCache, src: &str) -> Result<Self, CompileError> {
+    fn new_raw(
+        device: &wgpu::Device,
+        processor: &ShaderCache,
+        src: &str,
+    ) -> Result<Self, CompileError> {
         let frame_bind_group_layout =
-        device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("Compositing Bind Group Layout"),
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: Self::GBUFFER_BINDING,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: GBUFFER_READ_TY,
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: Self::RADIANCE_BINDING,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Texture {
-                        multisampled: false,
-                        sample_type: wgpu::TextureSampleType::Float { filterable: false },
-                        view_dimension: wgpu::TextureViewDimension::D2,
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("Compositing Bind Group Layout"),
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: Self::GBUFFER_BINDING,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: GBUFFER_READ_TY,
+                        count: None,
                     },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: Self::RADIANCE_OUT_BINDING,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::StorageTexture {
-                        format: wgpu::TextureFormat::Rgba32Float,
-                        access: wgpu::StorageTextureAccess::WriteOnly,
-                        view_dimension: wgpu::TextureViewDimension::D2,
+                    wgpu::BindGroupLayoutEntry {
+                        binding: Self::RADIANCE_BINDING,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                        },
+                        count: None,
                     },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: Self::SAMPLER_BINDING,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                    count: None,
-                },
-            ],
-        });
+                    wgpu::BindGroupLayoutEntry {
+                        binding: Self::RADIANCE_OUT_BINDING,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::StorageTexture {
+                            format: wgpu::TextureFormat::Rgba32Float,
+                            access: wgpu::StorageTextureAccess::WriteOnly,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: Self::SAMPLER_BINDING,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+            });
 
-        let pipeline_layout: wgpu::PipelineLayout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Composit Pipeline Layout"),
-            bind_group_layouts: &[&frame_bind_group_layout],
-            push_constant_ranges: &[],
-        });
+        let pipeline_layout: wgpu::PipelineLayout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Composit Pipeline Layout"),
+                bind_group_layouts: &[&frame_bind_group_layout],
+                push_constant_ranges: &[],
+            });
 
         let module = processor.compile_compute(src, None)?;
-        let shader: wgpu::ShaderModule = device.create_shader_module(wgpu::ShaderModuleDescriptor{
-            label: Some("Composit Shader"),
-            source: wgpu::ShaderSource::Naga(Cow::Owned(module))
-        });
+        let shader: wgpu::ShaderModule =
+            device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("Composit Shader"),
+                source: wgpu::ShaderSource::Naga(Cow::Owned(module)),
+            });
 
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Composit Pipeline"),
@@ -102,9 +113,7 @@ impl CompositingPass {
             cache: None,
         });
 
-        Ok(Self {
-            pipeline
-        })
+        Ok(Self { pipeline })
     }
 
     pub fn dispatch(

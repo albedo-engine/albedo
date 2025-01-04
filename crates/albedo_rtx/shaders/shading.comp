@@ -1,6 +1,7 @@
 #version 450
 
 // #define EMIT_GBUFFER
+// #define DEBUG_CWBVH_TRAVERSAL
 
 #include "imports/structures.glsl"
 #include "imports/common.glsl"
@@ -37,8 +38,8 @@ layout(set = 0, binding = 1, std430) readonly buffer BVHNodeBuffer {
   BVHNode nodes[];
 };
 
-layout(set = 0, binding = 2, std430) readonly buffer IndexBuffer {
-  uint indices[];
+layout (set = 0, binding = 2, std430) readonly buffer CWBVHTriangleBuffer {
+  vec4 trianglesCWBVH[];
 };
 
 layout(set = 0, binding = 3, std430) readonly buffer VertexBuffer {
@@ -188,10 +189,25 @@ main()
   }
 
   Intersection intersection = intersections[index];
+
+  #ifdef DEBUG_CWBVH_TRAVERSAL
+  #ifdef EMIT_GBUFFER
+  imageStore(gbuffer, coords, uvec4(0u));
+  imageStore(motion, coords, vec4(0.0));
+  #endif
+
+  float stepCount = intersection.dist;
+  ray.radiance.rgb = vec3(stepCount/1000.0);
+  // ray.radiance.rgb = intersection.instance == 0u ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 0.0, 0.0);
+  ray.terminated.x = 1u;
+  rays[index] = ray;
+  if (true) return; // naga validation bug
+  #endif
+
   vec3 throughput = getThroughput(ray);
   if (abs(MAX_FLOAT - intersection.dist) < EPSILON)
   {
-    float exposition = 0.5; // @todo: Expose exposition (no pun intended)
+    float exposition = 0.4; // @todo: Expose exposition (no pun intended)
     vec2 uv = cartesianToEqui(ray.dir.xyz);
     vec3 probe = sampleProbe(samplerLinear, Probe, uv);
     probe = probe * exposition;
@@ -270,7 +286,7 @@ main()
   if (bsdf.pdf > EPSILON)
       throughput *= evalSample_UE4(bsdf, normal, mat) * abs(bsdf.NdotL) / bsdf.pdf;
 
-  ray.origin.xyz += intersection.dist * ray.dir.xyz + normal * EPSILON;
+  ray.origin.xyz += intersection.dist * ray.dir.xyz + normal * 1e-4;
   ray.dir.xyz = bsdf.dir;
 
   setThroughput(ray, throughput);

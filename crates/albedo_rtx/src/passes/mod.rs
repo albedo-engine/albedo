@@ -5,19 +5,19 @@ mod blit_texture_pass;
 mod denoise;
 mod intersector;
 mod lightmap;
+mod ray;
 mod shading;
 mod temporal_accumulation;
-mod ray;
 
-pub use accumulation::AccumulationPass;
 pub use a_trous::ATrousPass;
+pub use accumulation::AccumulationPass;
 pub use blit_pass::BlitPass;
 pub use blit_texture_pass::BlitTexturePass;
+pub use denoise::*;
 pub use intersector::IntersectorPass;
 pub use lightmap::LightmapPass;
-pub use shading::{PrimaryRayPass,ShadingPass};
 pub use ray::RayPass;
-pub use denoise::*;
+pub use shading::{PrimaryRayPass, ShadingPass};
 pub use temporal_accumulation::TemporalAccumulationPass;
 
 pub(crate) const GBUFFER_READ_TY: wgpu::BindingType = wgpu::BindingType::Texture {

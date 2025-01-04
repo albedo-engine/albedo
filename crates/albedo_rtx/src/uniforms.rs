@@ -1,8 +1,8 @@
 use albedo_backend::{gpu, mesh};
 use bytemuck::{Pod, Zeroable};
 
-use std::convert::TryInto;
 use glam::Vec4Swizzles;
+use std::convert::TryInto;
 
 pub static INVALID_INDEX: u32 = std::u32::MAX;
 
@@ -21,7 +21,7 @@ pub struct Instance {
     // @todo: migrate those parameter to an SSBO of offsets.
     pub bvh_root_index: u32,
     pub vertex_root_index: u32,
-    pub index_root_index: u32,
+    pub bvh_primitive_index: u32,
 }
 impl Uniform for Instance {}
 
@@ -33,6 +33,11 @@ impl Instance {
             world_to_model,
             ..Default::default()
         }
+    }
+
+    pub fn set_transform(&mut self, model_to_world: glam::Mat4) {
+        self.model_to_world = model_to_world;
+        self.world_to_model = self.model_to_world.inverse();
     }
 }
 
@@ -213,7 +218,12 @@ impl Camera {
 
     pub fn transform(&self) -> glam::Mat4 {
         let dir = self.up.cross(self.right).normalize().extend(0.0);
-        let rot = glam::Mat4::from_cols(self.right.normalize().extend(0.0), self.up.normalize().extend(0.0), dir, glam::Vec4::W);
+        let rot = glam::Mat4::from_cols(
+            self.right.normalize().extend(0.0),
+            self.up.normalize().extend(0.0),
+            dir,
+            glam::Vec4::W,
+        );
         glam::Mat4::from_translation(self.origin) * rot
     }
 }
@@ -348,7 +358,11 @@ pub struct RadianceParameters {
     pub use_noise_texture: u32,
 }
 
-impl Uniform for albedo_bvh::BVHNode {}
+pub type BVHNode = tinybvh_rs::cwbvh::Node;
+impl Uniform for BVHNode {}
+
+pub type BVHPrimitive = tinybvh_rs::cwbvh::Primitive;
+impl Uniform for BVHPrimitive {}
 
 pub struct RaytraceResources<'a> {
     pub rays: gpu::StorageBufferSlice<'a, Ray>,
@@ -369,7 +383,7 @@ impl<'a> DenoiseResources<'a> {
         Self {
             gbuffer_current: self.gbuffer_previous,
             gbuffer_previous: self.gbuffer_current,
-            motion: self.motion
+            motion: self.motion,
         }
     }
 }

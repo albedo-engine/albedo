@@ -3,8 +3,8 @@ use std::borrow::Cow;
 use albedo_backend::data::ShaderCache;
 use albedo_backend::gpu::ComputePipeline;
 
+use crate::get_dispatch_size;
 use crate::macros::path_separator;
-use crate::{get_dispatch_size};
 
 use super::GBUFFER_READ_TY;
 
@@ -77,19 +77,25 @@ impl ATrousPass {
             }],
         });
 
-        let module = processor.compile_compute(include_str!(concat!(
-            "..",
-            path_separator!(),
-            "..",
-            path_separator!(),
-            "shaders",
-            path_separator!(),
-             "atrous.comp"
-        )), None).unwrap();
-        let shader: wgpu::ShaderModule = device.create_shader_module(wgpu::ShaderModuleDescriptor{
-            label: Some("A-Trous Shader"),
-            source: wgpu::ShaderSource::Naga(Cow::Owned(module))
-        });
+        let module = processor
+            .compile_compute(
+                include_str!(concat!(
+                    "..",
+                    path_separator!(),
+                    "..",
+                    path_separator!(),
+                    "shaders",
+                    path_separator!(),
+                    "atrous.comp"
+                )),
+                None,
+            )
+            .unwrap();
+        let shader: wgpu::ShaderModule =
+            device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("A-Trous Shader"),
+                source: wgpu::ShaderSource::Naga(Cow::Owned(module)),
+            });
 
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("ATrous Pipeline"),
@@ -104,7 +110,7 @@ impl ATrousPass {
             frame_bind_group_layout,
             layout: pipeline_layout,
             pipeline,
-            count: 4
+            count: 4,
         }
     }
 
@@ -114,7 +120,7 @@ impl ATrousPass {
         out_radiance: &wgpu::TextureView,
         gbuffer: &wgpu::TextureView,
         radiance: &wgpu::TextureView,
-        sampler: &wgpu::Sampler
+        sampler: &wgpu::Sampler,
     ) -> [wgpu::BindGroup; 2] {
         [
             // TODO: Probably cleaner to use 2 bind groups here
@@ -160,8 +166,8 @@ impl ATrousPass {
                         binding: Self::SAMPLER_BINDING,
                         resource: wgpu::BindingResource::Sampler(sampler),
                     },
-                ]
-            })
+                ],
+            }),
         ]
     }
 
@@ -192,17 +198,21 @@ impl ATrousPass {
                 pass.dispatch_workgroups(workgroups.0, workgroups.1, workgroups.2);
             }
             if i == 0 {
-                encoder.copy_texture_to_texture(wgpu::ImageCopyTexture {
-                    texture: &first_output,
-                    mip_level: 0,
-                    origin: wgpu::Origin3d::ZERO,
-                    aspect: wgpu::TextureAspect::All,
-                },wgpu::ImageCopyTexture {
-                    texture: &retain,
-                    mip_level: 0,
-                    origin: wgpu::Origin3d::ZERO,
-                    aspect: wgpu::TextureAspect::All,
-                }, retain.size())
+                encoder.copy_texture_to_texture(
+                    wgpu::ImageCopyTexture {
+                        texture: &first_output,
+                        mip_level: 0,
+                        origin: wgpu::Origin3d::ZERO,
+                        aspect: wgpu::TextureAspect::All,
+                    },
+                    wgpu::ImageCopyTexture {
+                        texture: &retain,
+                        mip_level: 0,
+                        origin: wgpu::Origin3d::ZERO,
+                        aspect: wgpu::TextureAspect::All,
+                    },
+                    retain.size(),
+                )
             }
         }
     }

@@ -1,6 +1,6 @@
-use std::borrow::{Cow};
+use std::borrow::Cow;
 
-use albedo_backend::{gpu, data::ShaderCache};
+use albedo_backend::{data::ShaderCache, gpu};
 use wgpu::ShaderModuleDescriptor;
 
 use crate::macros::path_separator;
@@ -54,19 +54,24 @@ impl IntersectorPass {
             push_constant_ranges: &[],
         });
 
-        let module: wgpu::naga::Module = processor.compile_compute(source.unwrap_or(include_str!(concat!(
-            "..",
-            path_separator!(),
-            "..",
-            path_separator!(),
-            "shaders",
-            path_separator!(),
-            "intersection.comp"
-        ))), None).unwrap();
+        let module: wgpu::naga::Module = processor
+            .compile_compute(
+                source.unwrap_or(include_str!(concat!(
+                    "..",
+                    path_separator!(),
+                    "..",
+                    path_separator!(),
+                    "shaders",
+                    path_separator!(),
+                    "intersection.comp"
+                ))),
+                None,
+            )
+            .unwrap();
 
-        let shader = device.create_shader_module(ShaderModuleDescriptor{
+        let shader = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("Intersector Shader"),
-            source: wgpu::ShaderSource::Naga(Cow::Owned(module))
+            source: wgpu::ShaderSource::Naga(Cow::Owned(module)),
         });
 
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {

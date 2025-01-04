@@ -1,13 +1,15 @@
+pub mod blas;
 pub mod layouts;
 pub mod macros;
 pub mod passes;
+pub mod shaders;
 pub mod texture;
 pub mod uniforms;
-pub mod shaders;
 
+pub use blas::*;
 pub use layouts::*;
-pub use uniforms::*;
 pub use shaders::*;
+pub use uniforms::*;
 
 pub fn get_dispatch_size(
     size: &(u32, u32, u32),
