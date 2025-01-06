@@ -58,10 +58,11 @@ void main() {
     ray.dir = rayDir;
 
     Intersection intersection;
+    intersection.dist = MAX_FLOAT;
     intersection.index = INVALID_UINT;
     intersection.instance = INVALID_UINT;
     intersection.emitter = INVALID_UINT;
-    intersection.dist = sceneHit(ray, intersection);
+    sceneHit(ray, intersection);
     if(intersection.dist >= radius)
       accumulate += 1.0;
   }

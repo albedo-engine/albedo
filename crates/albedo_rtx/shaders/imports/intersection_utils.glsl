@@ -308,11 +308,14 @@ traverse_cwbvh(Ray ray, uint bvhNodeStart, uint primitiveStart, float t, inout u
 	return hit;
 }
 
-float
+void
 sceneHit(Ray ray, inout Intersection intersection)
 {
-  float dist = MAX_FLOAT;
+  #ifdef DEBUG_CWBVH_TRAVERSAL
   uint stepCount = 0;
+  #endif
+
+  float dist = MAX_FLOAT;
   for (uint i = 0; i < instances.length(); ++i)
   {
     Instance instance = instances[i];
@@ -324,17 +327,19 @@ sceneHit(Ray ray, inout Intersection intersection)
 	#else
 	vec4 hit = traverse_cwbvh(rayModel, instance.bvhRootIndex, instance.primitiveRootIndex, dist, stepCount);
 	#endif
-	if (hit.x > 0.0 && hit.x < dist)
+	if (dist - hit.x > EPSILON)
     {
+      	dist = hit.x;
 		intersection.uv = hit.yz;
 		intersection.index = floatBitsToUint(hit.w) * 3;
 		intersection.instance = i;
 		intersection.emitter = INVALID_UINT;
 		intersection.materialIndex = instance.materialIndex;
-      	dist = hit.x;
+		// TODO: Optimize.
+		vec4 direction = instance.modelToWorld * vec4(ray.dir * dist, 0.0);
+		intersection.dist = length(direction.xyz);
     }
   }
-  return dist;
 }
 
 #ifdef DEBUG_CWBVH_TRAVERSAL

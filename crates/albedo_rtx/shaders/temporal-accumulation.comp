@@ -36,12 +36,14 @@ layout(set = 0, binding = 9) uniform texture2D momentsPrevious;
 layout(set = 0, binding = 10, rg32f) writeonly uniform image2D moments;
 
 bool validateDepth(float prev, float curr) {
-  float depthThreshold = 0.5; // @todo: Should be based on precision of the depth range.
-  return abs(curr - prev) < depthThreshold;
+  // float depthThreshold = 0.5; // @todo: Should be based on precision of the depth range.
+  float depthThreshold = 0.1; // @todo: Should be based on precision of the depth range.
+  return (abs(curr - prev) / curr) < depthThreshold;
 }
 
 bool validateNormal(vec3 prev, vec3 curr) {
-  float normalThreshold = 0.99; // @todo: Should be based on precision of the depth range.
+  // float normalThreshold = 0.99; // @todo: Should be based on precision of the depth range.
+  float normalThreshold = 0.7;
   return dot(curr, prev) > normalThreshold;
 }
 
@@ -69,6 +71,7 @@ void main()
 
   // @todo: Instance ID
   if (currSample.depth < EPSILON
+    || currSample.id != prevSample.id
     || !validateCoords(prevCoords, size)
     || !validateDepth(prevSample.depth, currSample.depth)
     || !validateNormal(prevSample.normal, currSample.normal))
