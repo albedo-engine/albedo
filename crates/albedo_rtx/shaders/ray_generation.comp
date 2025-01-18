@@ -1,6 +1,9 @@
 #version 450
 
 #include "imports/structures.glsl"
+#include "imports/math.glsl"
+
+// #define AA
 
 /**
  * Layout 0
@@ -22,6 +25,10 @@ layout (set = 0, binding = 1) uniform CameraUniformsBuffer {
   uvec2 padding_2;
 } camera;
 
+layout(set = 0, binding = 2) uniform GlobalUniformBuffer {
+  GlobalUniforms global;
+};
+
 // @todo: not hardcoding that means generating the shader at runtime
 layout(local_size_x = 8, local_size_y = 8) in;
 void main()
@@ -29,8 +36,18 @@ void main()
   uint index = gl_GlobalInvocationID.y * gl_WorkGroupSize.x * gl_NumWorkGroups.x + gl_GlobalInvocationID.x;
   if (index >= rays.length()) return;
 
+  uint randState = uint(
+    gl_GlobalInvocationID.x * uint(1973)
+    + gl_GlobalInvocationID.y * uint(9277)
+    + uint(global.seed) * uint(26699)
+  ) | uint(1);
+
   vec2 halfSize = vec2(camera.dimensions) * 0.5;
-  vec3 clip = vec3(vec2(gl_GlobalInvocationID.xy) - halfSize, halfSize.y / tan(camera.vFOV * 0.5));
+  vec2 coords = vec2(gl_GlobalInvocationID.xy);
+  #ifdef AA
+  coords += vec2(rand(randState), rand(randState));
+  #endif
+  vec3 clip = vec3(coords - halfSize, halfSize.y / tan(camera.vFOV * 0.5));
   // TODO: pack direction directly?
   vec3 forward = normalize(cross(camera.up, camera.right));
 
