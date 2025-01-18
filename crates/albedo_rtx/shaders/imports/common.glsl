@@ -25,7 +25,7 @@ transformPosition(vec3 position, mat4 transform)
 vec3
 transformDirection(vec3 direction, mat4 transform)
 {
-  return normalize((transform * vec4(direction, 0.0)).xyz);
+  return (transform * vec4(direction, 0.0)).xyz;
 }
 
 vec3

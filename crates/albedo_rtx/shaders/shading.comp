@@ -2,6 +2,7 @@
 
 // #define EMIT_GBUFFER
 // #define DEBUG_CWBVH_TRAVERSAL
+// #define USE_PROBE
 
 #include "imports/structures.glsl"
 #include "imports/common.glsl"
@@ -214,7 +215,12 @@ main()
   vec3 throughput = getThroughput(ray);
   if (abs(MAX_FLOAT - intersection.dist) < EPSILON)
   {
+    #ifdef USE_PROBE
     ray.radiance.rgb += throughput * evaluateProbe(ray.dir.xyz);
+    #else
+    ray.radiance.rgb += throughput * vec3(0.7, 0.7, 1.2);
+    #endif
+
     ray.terminated.x = 1u;
     rays[index] = ray;
 

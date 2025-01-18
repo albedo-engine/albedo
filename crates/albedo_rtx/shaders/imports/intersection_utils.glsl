@@ -308,14 +308,19 @@ traverse_cwbvh(Ray ray, uint bvhNodeStart, uint primitiveStart, float t, inout u
 	return hit;
 }
 
-void
-sceneHit(Ray ray, inout Intersection intersection)
+Intersection
+sceneHit(Ray ray)
 {
   #ifdef DEBUG_CWBVH_TRAVERSAL
   uint stepCount = 0;
   #endif
 
-  float dist = MAX_FLOAT;
+  Intersection intersection;
+  intersection.dist = MAX_FLOAT;
+  intersection.index = INVALID_UINT;
+  intersection.instance = INVALID_UINT;
+  intersection.emitter = INVALID_UINT;
+
   for (uint i = 0; i < instances.length(); ++i)
   {
     Instance instance = instances[i];
@@ -323,23 +328,21 @@ sceneHit(Ray ray, inout Intersection intersection)
     // Performs intersection in model space.
     Ray rayModel = transformRay(ray, instance.worldToModel);
 	#ifndef DEBUG_CWBVH_TRAVERSAL
-	vec4 hit = traverse_cwbvh(rayModel, instance.bvhRootIndex, instance.primitiveRootIndex, dist);
+	vec4 hit = traverse_cwbvh(rayModel, instance.bvhRootIndex, instance.primitiveRootIndex, intersection.dist);
 	#else
-	vec4 hit = traverse_cwbvh(rayModel, instance.bvhRootIndex, instance.primitiveRootIndex, dist, stepCount);
+	vec4 hit = traverse_cwbvh(rayModel, instance.bvhRootIndex, instance.primitiveRootIndex, intersection.dist, stepCount);
 	#endif
-	if (dist - hit.x > EPSILON)
+	if (hit.x < intersection.dist)
     {
-      	dist = hit.x;
+		intersection.dist = hit.x;
 		intersection.uv = hit.yz;
 		intersection.index = floatBitsToUint(hit.w) * 3;
 		intersection.instance = i;
 		intersection.emitter = INVALID_UINT;
 		intersection.materialIndex = instance.materialIndex;
-		// TODO: Optimize.
-		vec4 direction = instance.modelToWorld * vec4(ray.dir * dist, 0.0);
-		intersection.dist = length(direction.xyz);
     }
   }
+  return intersection;
 }
 
 #ifdef DEBUG_CWBVH_TRAVERSAL

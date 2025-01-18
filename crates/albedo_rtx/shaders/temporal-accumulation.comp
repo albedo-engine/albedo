@@ -51,6 +51,11 @@ bool validateCoords(ivec2 coords, ivec2 size) {
   return !(coords.x < 0 || coords.x > size.x || coords.y < 0 || coords.y > size.y);
 }
 
+vec2 computeMoment(vec3 radiance) {
+  float mu_1 = luminance(radiance); /* First raw moment */
+  return vec2(mu_1, mu_1 * mu_1);
+}
+
 layout(local_size_x = 8, local_size_y = 8) in;
 void main()
 {
@@ -77,6 +82,7 @@ void main()
     || !validateNormal(prevSample.normal, currSample.normal))
   {
     imageStore(radiance, coords, vec4(currRadiance, 1.0));
+    imageStore(moments, coords, vec4(computeMoment(currRadiance), 0.0, 0.0));
     historyLen[index] = 0u;
     return;
   }
@@ -93,7 +99,7 @@ void main()
   /* Moments */
   vec2 prevMoment = texelFetch(sampler2D(momentsPrevious, samplerNearest), prevCoords, 0).rg;
   float mu_1 = luminance(currRadiance); /* First raw moment */
-  vec2 moment = vec2(mu_1, mu_1 * mu_1);
+  vec2 moment = computeMoment(currRadiance);
   moment = mix(prevMoment, moment, a);
   imageStore(moments, coords, vec4(moment, 0.0, 0.0));
 
