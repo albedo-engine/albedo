@@ -2,7 +2,7 @@
 
 // #define EMIT_GBUFFER
 // #define DEBUG_CWBVH_TRAVERSAL
-// #define USE_PROBE
+#define USE_PROBE
 #define USE_DENOISER
 
 #include "imports/structures.glsl"
@@ -286,10 +286,12 @@ main()
     // @todo: pre-convert?
     albedo *= sRGBToLinear(fetchTexture(inputMat.albedoTexture, uv).rgb);
   }
-  #ifndef USE_DENOISER
+
+  #if !defined(USE_DENOISER) || !defined(EMIT_GBUFFER)
   mat.albedo = albedo;
   #endif
   mat.metallic = inputMat.metallic;
+  mat.f0 = mix(vec3(0.0), albedo, mat.metallic);
   mat.perceptualRoughness = inputMat.roughnessFactor;
   if (inputMat.mraTexture != MAX_UINT)
   {

@@ -24,11 +24,7 @@ impl ATrousPass {
     const RADIANCE_OUT_BINDING: u32 = 2;
     const SAMPLER_BINDING: u32 = 3;
 
-    pub fn new(
-        device: &wgpu::Device,
-        processor: &ShaderCache,
-        source: Option<wgpu::ShaderModuleDescriptor>,
-    ) -> Self {
+    pub fn new(device: &wgpu::Device, processor: &ShaderCache) -> Self {
         let frame_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("ATrous Bind Group Layout"),

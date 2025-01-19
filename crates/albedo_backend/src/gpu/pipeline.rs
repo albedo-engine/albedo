@@ -1,8 +1,5 @@
-use std::{borrow::Cow, collections::HashMap};
-
-use wgpu::naga::FastHashMap;
-
 use crate::data::{CompileError, PreprocessError, ShaderCache};
+use std::{borrow::Cow, collections::HashMap};
 
 pub trait ComputePipeline {
     const LABEL: &'static str;

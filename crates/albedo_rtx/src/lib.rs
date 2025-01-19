@@ -3,7 +3,6 @@ pub mod layouts;
 pub mod macros;
 pub mod passes;
 pub mod shaders;
-pub mod texture;
 pub mod uniforms;
 
 pub use blas::*;

@@ -1,4 +1,6 @@
+pub mod packing;
 mod shader_preprocessor;
+
 pub use shader_preprocessor::*;
 
 pub fn reinterpret_vec<T: bytemuck::Pod>(mut v: Vec<T>) -> Vec<u8> {

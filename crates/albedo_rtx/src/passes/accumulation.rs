@@ -20,11 +20,7 @@ impl AccumulationPass {
     const READ_TEXTURE_BINDING: u32 = 3;
     const SAMPLER_BINDING: u32 = 4;
 
-    pub fn new(
-        device: &wgpu::Device,
-        processor: &ShaderCache,
-        source: Option<wgpu::ShaderModuleDescriptor>,
-    ) -> Self {
+    pub fn new(device: &wgpu::Device, processor: &ShaderCache) -> Self {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Accumulation Bind Group Layout"),
             entries: &[

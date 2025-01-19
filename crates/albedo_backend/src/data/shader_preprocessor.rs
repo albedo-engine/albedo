@@ -1,9 +1,4 @@
-use std::{
-    collections::HashMap,
-    fmt::{format, Debug},
-    ops::Range,
-    path::Path,
-};
+use std::{collections::HashMap, fmt::Debug, ops::Range, path::Path};
 use wgpu::naga::{self, FastHashMap, Span};
 
 pub enum PreprocessError {
@@ -68,6 +63,8 @@ pub struct ShaderCache {
 }
 
 impl ShaderCache {
+    const INCLUDE_LEN: usize = "#include".len();
+
     pub fn new() -> Self {
         Self {
             imports: HashMap::new(),
@@ -142,7 +139,7 @@ impl ShaderCache {
         self.imports.get(name).map(|s| s.as_str())
     }
 
-    pub fn compile(&self, source: &str) -> Result<InlinedResult, PreprocessError> {
+    fn compile(&self, source: &str) -> Result<InlinedResult, PreprocessError> {
         let lines = source.lines();
         let mut buf = String::new();
 
@@ -156,7 +153,7 @@ impl ShaderCache {
                 buf.extend([line, "\n"]);
                 continue;
             };
-            let include = line[(start + ("#include".len())..)].trim();
+            let include = line[(start + Self::INCLUDE_LEN)..].trim();
             if !include.starts_with("\"") {
                 return Err(PreprocessError::SyntaxError);
             }

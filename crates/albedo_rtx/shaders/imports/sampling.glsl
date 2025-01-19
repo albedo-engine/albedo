@@ -28,6 +28,7 @@ struct MaterialState
 {
   vec3 albedo;
   float metallic;
+  vec3 f0;
   float perceptualRoughness;
   float roughness;
   float roughness2;
@@ -240,7 +241,7 @@ vec3 evalSample_UE4(const BSDFSample bsdf, const vec3 normal, const MaterialStat
 	float Ds = GTR2(bsdf.NdotH, mat.roughness2);
 	float FH = SchlickFresnel(bsdf.LdotH);
 	float Gs = GeometrySmith_GGX(bsdf.NdotL, mat.roughness2) * GeometrySmith_GGX(bsdf.NdotV, mat.roughness2);
-	vec3 Fs = mix(mix(vec3(0.0), mat.albedo, mat.metallic), vec3(1.0), FH);
+	vec3 Fs = mix(mat.f0, vec3(1.0), FH);
   vec3 diffuse = (mat.albedo / PI_F) * (1.0 - mat.metallic);
 	return diffuse + Gs * Fs * Ds;
 }
