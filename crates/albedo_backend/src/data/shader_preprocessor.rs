@@ -1,4 +1,9 @@
-use std::{collections::HashMap, fmt::Debug, ops::Range, path::Path};
+use std::{
+    collections::HashMap,
+    fmt::{format, Debug},
+    ops::Range,
+    path::Path,
+};
 use wgpu::naga::{self, FastHashMap, Span};
 
 pub enum PreprocessError {
@@ -87,7 +92,11 @@ impl ShaderCache {
         self.imports.insert(name.to_string(), content.to_string());
     }
 
-    pub fn add_directory<P: AsRef<Path>>(&mut self, directory: P) -> Result<(), std::io::Error> {
+    pub fn add_directory<P: AsRef<Path>>(
+        &mut self,
+        directory: P,
+        prefix: Option<&str>,
+    ) -> Result<(), std::io::Error> {
         let paths = std::fs::read_dir(directory)?;
         for entry in paths {
             let Ok(entry) = entry else {
@@ -105,7 +114,7 @@ impl ShaderCache {
                 continue;
             };
             match ext {
-                "comp" | "frag" | "vert" => (),
+                "comp" | "frag" | "vert" | "glsl" => (),
                 _ => {
                     continue;
                 }
@@ -114,8 +123,17 @@ impl ShaderCache {
             let Some(filename) = path.file_name().map(|s| s.to_str()).flatten() else {
                 continue;
             };
+
             let content = std::fs::read_to_string(entry.path())?;
-            self.imports.insert(filename.to_string(), content);
+            match prefix.as_ref() {
+                Some(p) => {
+                    let filename = format!("{}/{}", p, filename);
+                    self.imports.insert(filename.to_string(), content);
+                }
+                None => {
+                    self.imports.insert(filename.to_string(), content);
+                }
+            };
         }
         Ok(())
     }

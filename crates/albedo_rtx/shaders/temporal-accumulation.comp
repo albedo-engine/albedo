@@ -36,17 +36,24 @@ layout(set = 0, binding = 9) uniform texture2D momentsPrevious;
 layout(set = 0, binding = 10, rg32f) writeonly uniform image2D moments;
 
 bool validateDepth(float prev, float curr) {
-  float depthThreshold = 0.5; // @todo: Should be based on precision of the depth range.
-  return abs(curr - prev) < depthThreshold;
+  // float depthThreshold = 0.5; // @todo: Should be based on precision of the depth range.
+  float depthThreshold = 0.1; // @todo: Should be based on precision of the depth range.
+  return (abs(curr - prev) / curr) < depthThreshold;
 }
 
 bool validateNormal(vec3 prev, vec3 curr) {
-  float normalThreshold = 0.99; // @todo: Should be based on precision of the depth range.
+  // float normalThreshold = 0.99; // @todo: Should be based on precision of the depth range.
+  float normalThreshold = 0.7;
   return dot(curr, prev) > normalThreshold;
 }
 
 bool validateCoords(ivec2 coords, ivec2 size) {
   return !(coords.x < 0 || coords.x > size.x || coords.y < 0 || coords.y > size.y);
+}
+
+vec2 computeMoment(vec3 radiance) {
+  float mu_1 = luminance(radiance); /* First raw moment */
+  return vec2(mu_1, mu_1 * mu_1);
 }
 
 layout(local_size_x = 8, local_size_y = 8) in;
@@ -69,11 +76,13 @@ void main()
 
   // @todo: Instance ID
   if (currSample.depth < EPSILON
+    || currSample.id != prevSample.id
     || !validateCoords(prevCoords, size)
     || !validateDepth(prevSample.depth, currSample.depth)
     || !validateNormal(prevSample.normal, currSample.normal))
   {
     imageStore(radiance, coords, vec4(currRadiance, 1.0));
+    imageStore(moments, coords, vec4(computeMoment(currRadiance), 0.0, 0.0));
     historyLen[index] = 0u;
     return;
   }
@@ -90,7 +99,7 @@ void main()
   /* Moments */
   vec2 prevMoment = texelFetch(sampler2D(momentsPrevious, samplerNearest), prevCoords, 0).rg;
   float mu_1 = luminance(currRadiance); /* First raw moment */
-  vec2 moment = vec2(mu_1, mu_1 * mu_1);
+  vec2 moment = computeMoment(currRadiance);
   moment = mix(prevMoment, moment, a);
   imageStore(moments, coords, vec4(moment, 0.0, 0.0));
 

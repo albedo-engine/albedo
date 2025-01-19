@@ -19,6 +19,6 @@ void main()
 
     /** @todo: Modulation should be based on the entire BRDF, i.e.,
      * Throughput, specular and diffuse must be kept separated. */
-    // if(p.depth >= EPSILON) color.rgb *= p.albedo;
+    if(p.depth >= EPSILON) color.rgb *= p.albedo;
     imageStore(radiance, coords, color);
 }

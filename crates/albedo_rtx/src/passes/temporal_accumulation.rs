@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use albedo_backend::data::ShaderCache;
+use albedo_backend::data::{CompileError, PreprocessError, ShaderCache};
 use albedo_backend::gpu;
 
 use crate::macros::path_separator;
@@ -15,6 +15,7 @@ pub struct TemporalAccumulationPass {
 
 impl TemporalAccumulationPass {
     const WORKGROUP_SIZE: (u32, u32, u32) = (8, 8, 1);
+    const SHADER_ID: &'static str = "temporal-accumulation.comp";
 
     const RAYS_BINDING: u32 = 0;
     const GBUFFER_PREVIOUS_BINDING: u32 = 1;
@@ -28,11 +29,35 @@ impl TemporalAccumulationPass {
     const MOMENTS_PREVIOUS_BINDING: u32 = 9;
     const MOMENTS_BINDING: u32 = 10;
 
-    pub fn new(
+    pub fn new_inlined(device: &wgpu::Device, processor: &ShaderCache) -> Self {
+        Self::new_raw(
+            device,
+            processor,
+            include_str!(concat!(
+                "..",
+                path_separator!(),
+                "..",
+                path_separator!(),
+                "shaders",
+                path_separator!(),
+                "temporal-accumulation.comp"
+            )),
+        )
+        .unwrap()
+    }
+
+    pub fn new(device: &wgpu::Device, processor: &ShaderCache) -> Result<Self, CompileError> {
+        let Some(source) = processor.get(Self::SHADER_ID) else {
+            return Err(PreprocessError::Missing(Self::SHADER_ID.to_string()).into());
+        };
+        Self::new_raw(device, processor, source)
+    }
+
+    pub fn new_raw(
         device: &wgpu::Device,
         processor: &ShaderCache,
-        source: Option<wgpu::ShaderModuleDescriptor>,
-    ) -> Self {
+        source: &str,
+    ) -> Result<Self, CompileError> {
         let frame_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("Temporal Accumulation Bind Group Layout"),
@@ -144,20 +169,7 @@ impl TemporalAccumulationPass {
             push_constant_ranges: &[],
         });
 
-        let module = processor
-            .compile_compute(
-                include_str!(concat!(
-                    "..",
-                    path_separator!(),
-                    "..",
-                    path_separator!(),
-                    "shaders",
-                    path_separator!(),
-                    "temporal-accumulation.comp"
-                )),
-                None,
-            )
-            .unwrap();
+        let module = processor.compile_compute(source, None)?;
         let shader: wgpu::ShaderModule =
             device.create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("Temporal Accumulation Shader"),
@@ -173,10 +185,10 @@ impl TemporalAccumulationPass {
             cache: None,
         });
 
-        Self {
+        Ok(Self {
             frame_bind_group_layout,
             pipeline,
-        }
+        })
     }
 
     pub fn create_frame_bind_groups(

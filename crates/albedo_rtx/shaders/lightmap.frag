@@ -57,11 +57,7 @@ void main() {
     ray.origin = vPositionWorld;
     ray.dir = rayDir;
 
-    Intersection intersection;
-    intersection.index = INVALID_UINT;
-    intersection.instance = INVALID_UINT;
-    intersection.emitter = INVALID_UINT;
-    intersection.dist = sceneHit(ray, intersection);
+    Intersection intersection = sceneHit(ray);
     if(intersection.dist >= radius)
       accumulate += 1.0;
   }

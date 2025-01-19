@@ -1,8 +1,7 @@
-use std::borrow::{Borrow, Cow};
+use std::borrow::Cow;
 
 use albedo_backend::data::ShaderCache;
 use albedo_backend::gpu;
-use wgpu::naga::{self, FastHashMap};
 
 use crate::get_dispatch_size;
 use crate::macros::path_separator;
@@ -21,6 +20,7 @@ pub struct RayPass {
 impl RayPass {
     const RAY_BINDING: u32 = 0;
     const CAMERA_BINDING: u32 = 1;
+    const PER_DRAW_STRUCT_BINDING: u32 = 2;
 
     const WORKGROUP_SIZE: (u32, u32, u32) = (8, 8, 1);
 
@@ -40,6 +40,16 @@ impl RayPass {
                 },
                 wgpu::BindGroupLayoutEntry {
                     binding: Self::CAMERA_BINDING,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: Self::PER_DRAW_STRUCT_BINDING,
                     visibility: wgpu::ShaderStages::COMPUTE,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
@@ -109,6 +119,7 @@ impl RayPass {
         device: &wgpu::Device,
         out_rays: gpu::StorageBufferSlice<uniforms::Ray>,
         camera: gpu::UniformBufferSlice<uniforms::Camera>,
+        global_uniforms: gpu::UniformBufferSlice<uniforms::PerDrawUniforms>,
     ) -> wgpu::BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Ray Generation Frame Bind Group"),
@@ -121,6 +132,10 @@ impl RayPass {
                 wgpu::BindGroupEntry {
                     binding: Self::CAMERA_BINDING,
                     resource: camera.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: Self::PER_DRAW_STRUCT_BINDING,
+                    resource: global_uniforms.as_entire_binding(),
                 },
             ],
         })

@@ -20,6 +20,7 @@ fetchTexture(uint textureIndex, vec2 uv)
   fetchBounds(textureIndex, bounds, layer);
   bounds.xy /= atlasSize;
   bounds.zw /= atlasSize;
+  // linear sampling
   return textureLod(
     sampler2DArray(textureAtlas, samplerNearest),
     vec3(bounds.xy + (uv * bounds.zw), layer),

@@ -2,6 +2,7 @@ struct GBufferSample {
   vec3 albedo;
   vec3 normal;
   float depth;
+  uint id;
 };
 
 vec3
@@ -78,8 +79,8 @@ unpackRGBE(uint x)
 }
 
 uvec4
-packGbuffer(vec3 normal, float dist, vec3 albedo) {
-  return uvec4(packRGBE(albedo), packOctahedral(normal), floatBitsToUint(dist), 0u);
+packGbuffer(vec3 normal, float dist, vec3 albedo, uint id) {
+  return uvec4(packRGBE(albedo), packOctahedral(normal), floatBitsToUint(dist), id);
 }
 
 GBufferSample
@@ -89,5 +90,6 @@ unpackGbuffer(uvec4 data)
   s.albedo = unpackRGBE(data.r);
   s.normal = unpackOctahedral(data.g);
   s.depth = uintBitsToFloat(data.b);
+  s.id = data.a;
   return s;
 }
