@@ -45,7 +45,7 @@ void main()
   vec2 halfSize = vec2(camera.dimensions) * 0.5;
   vec2 coords = vec2(gl_GlobalInvocationID.xy);
   #ifdef AA
-  coords += vec2(rand(randState), rand(randState));
+  coords += vec2(rand(randState), rand(randState)) - vec2(0.5);
   #endif
   vec3 clip = vec3(coords - halfSize, halfSize.y / tan(camera.vFOV * 0.5));
   // TODO: pack direction directly?
